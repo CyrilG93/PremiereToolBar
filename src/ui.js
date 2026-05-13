@@ -17,8 +17,19 @@
   };
   const mountedPanels = new Map();
 
-  // Inject critical layout styles so UXP cannot display an updated JS UI with a cached old CSS file.
-  function ensureCriticalStyles(rootNode) {
+  // Inject only into the document head; UXP can render style tags inside panel roots as visible text.
+  function ensureHeadStyles() {
+    const rootStyle = document.documentElement && document.documentElement.style;
+    if (rootStyle) {
+      // Define theme variables imperatively so inline styles work even if UXP ignores dynamic style tags.
+      rootStyle.setProperty("--ptb-bg", "var(--uxp-host-background-color, #1f1f1f)");
+      rootStyle.setProperty("--ptb-panel", "var(--uxp-host-widget-background-color, #262626)");
+      rootStyle.setProperty("--ptb-panel-soft", "var(--uxp-host-widget-hover-background-color, #303030)");
+      rootStyle.setProperty("--ptb-line", "var(--uxp-host-border-color, #444444)");
+      rootStyle.setProperty("--ptb-text", "var(--uxp-host-text-color, #f0f0f0)");
+      rootStyle.setProperty("--ptb-muted", "var(--uxp-host-dimmed-text-color, #a7a7a7)");
+      rootStyle.setProperty("--ptb-accent", "#79c8ff");
+    }
     let style = document.getElementById("ptb-critical-styles-head");
     if (!style) {
       style = document.createElement("style");
@@ -42,15 +53,205 @@
         document.head.appendChild(style);
       }
     }
-    if (rootNode && typeof rootNode.appendChild === "function") {
-      const hasScopedStyle = rootNode.querySelector && rootNode.querySelector("#ptb-critical-styles-panel");
-      if (!hasScopedStyle) {
-        // Keep a copy inside the panel root because some UXP panel refreshes do not keep head styles scoped.
-        const scopedStyle = document.createElement("style");
-        scopedStyle.id = "ptb-critical-styles-panel";
-        scopedStyle.textContent = style.textContent;
-        rootNode.insertBefore(scopedStyle, rootNode.firstChild || null);
-      }
+  }
+
+  // Apply inline critical styles so controls stay usable even if UXP ignores cached CSS.
+  function setStyles(node, styles) {
+    Object.keys(styles).forEach((key) => {
+      node.style[key] = styles[key];
+    });
+  }
+
+  // Apply stable inline styling for the controls that were falling back to raw UXP defaults.
+  function skinElement(node) {
+    const tokens = node.className ? String(node.className).split(/\s+/) : [];
+    const tag = String(node.tagName || "").toLowerCase();
+    const sharedButton = {
+      border: "1px solid var(--ptb-line)",
+      borderRadius: "7px",
+      color: "var(--ptb-text)",
+      background: "var(--ptb-panel-soft)",
+      cursor: "pointer"
+    };
+    if (tag === "button") {
+      setStyles(node, { appearance: "none", font: "inherit" });
+    }
+    if (tag === "input" || tag === "select" || tag === "textarea") {
+      setStyles(node, { font: "inherit" });
+    }
+    if (tag === "h1") {
+      setStyles(node, { margin: "0", fontSize: "16px", fontWeight: "800", whiteSpace: "nowrap" });
+    }
+    if (tag === "h2" || tag === "h3") {
+      setStyles(node, { margin: "0", color: "var(--ptb-text)", fontSize: "12px", fontWeight: "800" });
+    }
+    if (tag === "small") {
+      setStyles(node, { overflow: "hidden", color: "var(--ptb-muted)", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+    }
+    if (tag === "strong") {
+      setStyles(node, { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: "800" });
+    }
+    if (tokens.includes("ptb-toolbar-shell")) {
+      setStyles(node, { width: "100%", height: "100%", minHeight: "44px", padding: "5px", overflow: "auto", background: "var(--ptb-bg)" });
+    }
+    if (tokens.includes("ptb-toolbar-strip")) {
+      setStyles(node, { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "5px", width: "100%", minHeight: "34px" });
+    }
+    if (tokens.includes("ptb-vertical") || tokens.includes("ptb-toolbar-strip-vertical")) {
+      setStyles(node, { flexDirection: "column", alignItems: "flex-start" });
+    }
+    if (tokens.includes("ptb-tool-button")) {
+      setStyles(node, Object.assign({}, sharedButton, {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "34px",
+        minWidth: "34px",
+        height: "34px",
+        minHeight: "34px",
+        padding: "0"
+      }));
+    }
+    if (tokens.includes("ptb-fallback-icon") || tokens.includes("ptb-tool-text")) {
+      setStyles(node, { display: "block", maxWidth: "31px", overflow: "hidden", fontSize: "10px", fontWeight: "800", letterSpacing: "0", lineHeight: "1", textAlign: "center", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+    }
+    if (tokens.includes("ptb-empty")) {
+      setStyles(node, { minWidth: "0", color: "var(--ptb-muted)", fontSize: "11px", lineHeight: "1.2" });
+    }
+    if (tokens.includes("ptb-settings-shell")) {
+      setStyles(node, { width: "100%", minHeight: "100%", overflow: "auto", background: "var(--ptb-bg)", color: "var(--ptb-text)" });
+    }
+    if (tokens.includes("ptb-settings-header")) {
+      setStyles(node, { position: "sticky", top: "0", zIndex: "4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)", background: "var(--ptb-bg)" });
+    }
+    if (tokens.includes("ptb-title-line")) {
+      setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-version") || tokens.includes("ptb-status-badge")) {
+      setStyles(node, { display: "inline-flex", alignItems: "center", minHeight: "20px", border: "1px solid var(--ptb-line)", borderRadius: "999px", padding: "2px 7px", color: "var(--ptb-muted)", background: "#1a1a1a", fontSize: "10px", fontWeight: "700", whiteSpace: "nowrap" });
+    }
+    if (tokens.includes("ptb-status-badge")) {
+      setStyles(node, { color: "var(--ptb-accent)" });
+    }
+    if (tokens.includes("ptb-header-actions") || tokens.includes("ptb-action-row") || tokens.includes("ptb-card-actions") || tokens.includes("ptb-bar-toggles")) {
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "7px" });
+    }
+    if (tokens.includes("ptb-card-actions") || tokens.includes("ptb-bar-toggles")) {
+      setStyles(node, { gap: "4px", justifyContent: "flex-end" });
+    }
+    if (tokens.includes("ptb-settings-content")) {
+      setStyles(node, { display: "grid", gap: "12px", width: "100%", minWidth: "0", padding: "12px" });
+    }
+    if (tokens.includes("ptb-section")) {
+      setStyles(node, { minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "8px", background: "var(--ptb-panel)" });
+    }
+    if (tokens.includes("ptb-section-heading")) {
+      setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minHeight: "42px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)" });
+    }
+    if (tokens.includes("collapsed")) {
+      setStyles(node, { borderBottom: "0" });
+    }
+    if (tokens.includes("ptb-section-toggle")) {
+      setStyles(node, Object.assign({}, sharedButton, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "22px", height: "22px", flex: "0 0 22px", fontWeight: "800" }));
+    }
+    if (tokens.includes("ptb-button")) {
+      setStyles(node, Object.assign({}, sharedButton, { minHeight: "30px", padding: "6px 10px", fontWeight: "700" }));
+    }
+    if (tokens.includes("primary")) {
+      setStyles(node, { borderColor: "rgba(121, 200, 255, 0.7)", background: "#224259" });
+    }
+    if (tokens.includes("compact")) {
+      setStyles(node, { minHeight: "26px", padding: "5px 8px", whiteSpace: "nowrap" });
+    }
+    if (tokens.includes("danger")) {
+      setStyles(node, { color: "#ffd8d5", borderColor: "rgba(255, 116, 107, 0.45)" });
+    }
+    if (tokens.includes("ptb-gallery-grid")) {
+      setStyles(node, { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px", padding: "12px" });
+    }
+    if (tokens.includes("ptb-gallery-card") || tokens.includes("ptb-collection-member-main")) {
+      setStyles(node, Object.assign({}, sharedButton, { display: "flex", alignItems: "center", gap: "9px", minWidth: "0", textAlign: "left" }));
+    }
+    if (tokens.includes("ptb-gallery-card")) {
+      setStyles(node, { width: "100%", padding: "9px" });
+    }
+    if (tokens.includes("active")) {
+      setStyles(node, { borderColor: "var(--ptb-accent)", background: "#223446" });
+    }
+    if (tokens.includes("ptb-card-icon")) {
+      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", flex: "0 0 34px", borderRadius: "7px" });
+    }
+    if (tokens.includes("ptb-button-card-text")) {
+      setStyles(node, { display: "grid", gap: "2px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-editor-shell") || tokens.includes("ptb-icon-editor") || tokens.includes("ptb-import-export")) {
+      setStyles(node, { display: "grid", gap: "12px", minWidth: "0", padding: "12px" });
+    }
+    if (tokens.includes("ptb-form-grid")) {
+      setStyles(node, { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "10px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-catalog-picker")) {
+      setStyles(node, { display: "grid", gridTemplateColumns: "minmax(180px, 1fr) auto", gap: "8px", alignItems: "end", marginTop: "12px" });
+    }
+    if (tokens.includes("ptb-fieldset")) {
+      setStyles(node, { display: "grid", gap: "10px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-field")) {
+      setStyles(node, { display: "grid", gridTemplateColumns: "1fr", gap: "4px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-field-label")) {
+      setStyles(node, { color: "var(--ptb-muted)", fontSize: "10px", fontWeight: "700", textTransform: "uppercase" });
+    }
+    if (tokens.includes("ptb-input")) {
+      setStyles(node, { width: "100%", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "7px 8px", color: "var(--ptb-text)", background: "#101010", outline: "none" });
+    }
+    if (tokens.includes("ptb-color-field")) {
+      setStyles(node, { gridTemplateColumns: "1fr 44px", alignItems: "center" });
+    }
+    if (tokens.includes("ptb-color-input")) {
+      setStyles(node, { gridColumn: "2 / 3", gridRow: "1 / 3", width: "38px", height: "30px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", background: "transparent" });
+    }
+    if (tokens.includes("ptb-icon-grid")) {
+      setStyles(node, { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(38px, 1fr))", gap: "7px" });
+    }
+    if (tokens.includes("ptb-icon-choice")) {
+      setStyles(node, Object.assign({}, sharedButton, { display: "inline-flex", alignItems: "center", justifyContent: "center", aspectRatio: "1", minWidth: "36px", minHeight: "36px", padding: "0" }));
+    }
+    if (tokens.includes("ptb-collections-board")) {
+      setStyles(node, { display: "grid", gap: "10px", padding: "12px" });
+    }
+    if (tokens.includes("ptb-collection-drop-card")) {
+      setStyles(node, { display: "grid", gap: "10px", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "10px", background: "#242424" });
+    }
+    if (tokens.includes("ptb-collection-header-row")) {
+      setStyles(node, { display: "grid", gridTemplateColumns: "minmax(150px, 1fr) auto auto", gap: "8px", alignItems: "center", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-collection-name-input")) {
+      setStyles(node, { width: "100%", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "7px 8px", color: "var(--ptb-text)", background: "#101010", fontWeight: "800", outline: "none" });
+    }
+    if (tokens.includes("ptb-bar-toggle")) {
+      setStyles(node, Object.assign({}, sharedButton, { minWidth: "30px", minHeight: "26px", fontSize: "10px", fontWeight: "800" }));
+    }
+    if (tokens.includes("ptb-collection-member-list")) {
+      setStyles(node, { display: "grid", gap: "6px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-collection-member")) {
+      setStyles(node, { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "8px", alignItems: "center", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "7px", background: "var(--ptb-panel-soft)" });
+    }
+    if (tokens.includes("ptb-collection-member-main")) {
+      setStyles(node, { border: "0", padding: "0", background: "transparent" });
+    }
+    if (tokens.includes("ptb-icon-action")) {
+      setStyles(node, Object.assign({}, sharedButton, { minWidth: "26px", minHeight: "24px", padding: "3px 6px", fontSize: "10px" }));
+    }
+    if (tokens.includes("ptb-drop-hint")) {
+      setStyles(node, { minHeight: "42px", border: "1px dashed var(--ptb-line)", borderRadius: "7px", padding: "12px", color: "var(--ptb-muted)", background: "rgba(255,255,255,0.02)", textAlign: "center" });
+    }
+    if (tokens.includes("ptb-add-existing-row")) {
+      setStyles(node, { maxWidth: "280px" });
+    }
+    if (tokens.includes("ptb-muted")) {
+      setStyles(node, { margin: "7px 0 0", color: "var(--ptb-muted)", lineHeight: "1.35" });
     }
   }
 
@@ -69,6 +270,7 @@
     if (typeof text === "string") {
       node.textContent = text;
     }
+    skinElement(node);
     return node;
   }
 
@@ -287,7 +489,7 @@
   // Render either a compact toolbar or the settings UI.
   function renderPanel(rootNode, panelId) {
     rootNode.innerHTML = "";
-    ensureCriticalStyles(rootNode);
+    ensureHeadStyles();
     try {
       if (panelId === "ptb-settings") {
         renderSettingsPanel(rootNode);

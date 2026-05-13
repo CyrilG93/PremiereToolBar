@@ -81,6 +81,11 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.8 - 2026-05-13
+
+- Removed the panel-root style injection that UXP rendered as visible CSS text.
+- Added inline critical styling to the toolbar and settings UI so redraws keep the intended layout.
+
 ### 0.1.7 - 2026-05-13
 
 - Fixed settings redraws so the panel keeps its styled sections after pressing buttons.
