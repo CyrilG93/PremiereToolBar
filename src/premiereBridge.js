@@ -171,7 +171,7 @@
     } catch (error) {
       lastError = error;
     }
-    throw new Error("Video effect not found: " + (effect.displayName || effect.matchName) + ". Refresh Premiere Lists and choose the effect again.");
+    throw new Error("Video effect not found: " + (effect.displayName || effect.matchName) + ". Check the effect match name in the button settings.");
   }
 
   // Create transition options using whichever constructor shape Premiere exposes.

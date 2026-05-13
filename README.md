@@ -81,6 +81,12 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.9 - 2026-05-13
+
+- Made all settings modules visible immediately instead of relying on collapsible sections.
+- Removed the visible `Refresh Premiere Lists` buttons while the effect list workflow is still being refined.
+- Unified toolbar spacing to the tighter compact style across all dockable bars.
+
 ### 0.1.8 - 2026-05-13
 
 - Removed the panel-root style injection that UXP rendered as visible CSS text.
