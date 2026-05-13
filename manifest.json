@@ -1,0 +1,95 @@
+{
+  "manifestVersion": 5,
+  "id": "com.cyrilplugin.toolbar",
+  "name": "Tool Bar",
+  "version": "0.1.0",
+  "main": "index.html",
+  "host": {
+    "app": "premierepro",
+    "minVersion": "25.6.0"
+  },
+  "requiredPermissions": {
+    "localFileSystem": "request",
+    "clipboard": "readAndWrite",
+    "ipc": {
+      "enablePluginCommunication": true
+    }
+  },
+  "entrypoints": [
+    {
+      "id": "ptb-bar-1",
+      "type": "panel",
+      "label": {
+        "default": "Tool Bar 1"
+      },
+      "minimumSize": {
+        "width": 96,
+        "height": 44
+      },
+      "preferredDockedSize": {
+        "width": 260,
+        "height": 54
+      }
+    },
+    {
+      "id": "ptb-bar-2",
+      "type": "panel",
+      "label": {
+        "default": "Tool Bar 2"
+      },
+      "minimumSize": {
+        "width": 96,
+        "height": 44
+      },
+      "preferredDockedSize": {
+        "width": 260,
+        "height": 54
+      }
+    },
+    {
+      "id": "ptb-bar-3",
+      "type": "panel",
+      "label": {
+        "default": "Tool Bar 3"
+      },
+      "minimumSize": {
+        "width": 96,
+        "height": 44
+      },
+      "preferredDockedSize": {
+        "width": 260,
+        "height": 54
+      }
+    },
+    {
+      "id": "ptb-bar-4",
+      "type": "panel",
+      "label": {
+        "default": "Tool Bar 4"
+      },
+      "minimumSize": {
+        "width": 96,
+        "height": 44
+      },
+      "preferredDockedSize": {
+        "width": 260,
+        "height": 54
+      }
+    },
+    {
+      "id": "ptb-settings",
+      "type": "panel",
+      "label": {
+        "default": "Tool Bar Settings"
+      },
+      "minimumSize": {
+        "width": 360,
+        "height": 520
+      },
+      "preferredDockedSize": {
+        "width": 520,
+        "height": 720
+      }
+    }
+  ]
+}

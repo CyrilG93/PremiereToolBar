@@ -1,0 +1,11 @@
+{
+  "name": "premiere-tool-bar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tool Bar - Adobe Premiere Pro UXP plugin for compact effect and transition shortcuts.",
+  "scripts": {
+    "ptb:lint": "node scripts/ptb-lint.mjs",
+    "ptb:test": "node scripts/ptb-test.mjs",
+    "ptb:verify": "npm run ptb:lint && npm run ptb:test"
+  }
+}
