@@ -81,6 +81,12 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.7 - 2026-05-13
+
+- Fixed settings redraws so the panel keeps its styled sections after pressing buttons.
+- Ensured the button gallery and collections render immediately when the settings panel opens.
+- Made toolbar strips choose vertical layout only when the docked panel is genuinely tall and narrow.
+
 ### 0.1.6 - 2026-05-13
 
 - Added cache-busting for UXP assets so Premiere does not keep an old stylesheet while loading newer JavaScript.

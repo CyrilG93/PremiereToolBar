@@ -30,8 +30,11 @@ function assertJavaScriptSyntax(relativePath) {
 const packageJson = readJson("package.json");
 const manifestJson = readJson("manifest.json");
 const versionSource = fs.readFileSync(path.join(repoRoot, "src/version.js"), "utf8");
+const indexHtml = fs.readFileSync(path.join(repoRoot, "index.html"), "utf8");
 assert(packageJson.version === manifestJson.version, "package.json and manifest.json versions must match.");
 assert(versionSource.includes(`"${packageJson.version}"`), "src/version.js must match package.json version.");
+assert(indexHtml.includes(`styles.css?v=${packageJson.version}`), "index.html must cache-bust styles.css with the current version.");
+assert(indexHtml.includes(`src/ui.js?v=${packageJson.version}`), "index.html must cache-bust src/ui.js with the current version.");
 assert(manifestJson.id === "com.cyrilplugin.toolbar", "manifest id must use the Cyril plugin namespace.");
 assert(manifestJson.host && manifestJson.host.app === "premierepro", "manifest must target Premiere Pro.");
 assert(Array.isArray(manifestJson.entrypoints) && manifestJson.entrypoints.length === 5, "manifest must declare four bars plus settings.");

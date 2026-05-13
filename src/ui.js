@@ -18,13 +18,12 @@
   const mountedPanels = new Map();
 
   // Inject critical layout styles so UXP cannot display an updated JS UI with a cached old CSS file.
-  function ensureCriticalStyles() {
-    if (document.getElementById("ptb-critical-styles")) {
-      return;
-    }
-    const style = document.createElement("style");
-    style.id = "ptb-critical-styles";
-    style.textContent = `
+  function ensureCriticalStyles(rootNode) {
+    let style = document.getElementById("ptb-critical-styles-head");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "ptb-critical-styles-head";
+      style.textContent = `
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
       .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:5px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:center;gap:5px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;align-items:flex-start}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;width:34px;min-width:34px;height:34px;min-height:34px;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-fallback-icon,.ptb-tool-text{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
@@ -39,7 +38,20 @@
       .ptb-collection-member-list{display:grid;gap:6px;min-width:0}.ptb-collection-member{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;padding:7px;background:var(--ptb-panel-soft)}.ptb-collection-member-main{border:0;padding:0;background:transparent}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-collection-header-row,.ptb-catalog-picker{grid-template-columns:1fr}.ptb-gallery-grid{grid-template-columns:1fr}}
     `;
-    document.head.appendChild(style);
+      if (document.head) {
+        document.head.appendChild(style);
+      }
+    }
+    if (rootNode && typeof rootNode.appendChild === "function") {
+      const hasScopedStyle = rootNode.querySelector && rootNode.querySelector("#ptb-critical-styles-panel");
+      if (!hasScopedStyle) {
+        // Keep a copy inside the panel root because some UXP panel refreshes do not keep head styles scoped.
+        const scopedStyle = document.createElement("style");
+        scopedStyle.id = "ptb-critical-styles-panel";
+        scopedStyle.textContent = style.textContent;
+        rootNode.insertBefore(scopedStyle, rootNode.firstChild || null);
+      }
+    }
   }
 
   // Convert a manifest entrypoint id to a toolbar bar id.
@@ -119,8 +131,23 @@
   // Refresh every currently mounted UXP panel.
   function renderAll() {
     mountedPanels.forEach((panelId, rootNode) => {
-      renderPanel(rootNode, panelId);
+      if (rootNode && rootNode.ownerDocument) {
+        renderPanel(rootNode, panelId);
+      }
     });
+  }
+
+  // Choose a compact vertical strip only when the panel is actually taller than it is wide.
+  function shouldRenderVertical(rootNode, bar) {
+    const width = rootNode.clientWidth || document.documentElement.clientWidth || window.innerWidth || 0;
+    const height = rootNode.clientHeight || document.documentElement.clientHeight || window.innerHeight || 0;
+    if (bar && bar.orientation === "horizontal") {
+      return false;
+    }
+    if (bar && bar.orientation === "vertical") {
+      return height > width * 1.1;
+    }
+    return width > 0 && height > width * 1.35;
   }
 
   // Save the active editor selection without changing the visible status.
@@ -259,8 +286,8 @@
 
   // Render either a compact toolbar or the settings UI.
   function renderPanel(rootNode, panelId) {
-    ensureCriticalStyles();
     rootNode.innerHTML = "";
+    ensureCriticalStyles(rootNode);
     try {
       if (panelId === "ptb-settings") {
         renderSettingsPanel(rootNode);
@@ -277,7 +304,7 @@
     const bar = getBar(panelIdToBarId(panelId));
     const collection = bar ? getCollection(bar.collectionId) : null;
     const buttons = collection && bar.enabled ? getCollectionButtons(collection.id) : [];
-    const shell = el("section", "ptb-toolbar-shell " + (bar && bar.orientation === "vertical" ? "ptb-vertical" : ""));
+    const shell = el("section", "ptb-toolbar-shell " + (bar && shouldRenderVertical(rootNode, bar) ? "ptb-vertical" : ""));
     const strip = el("div", "ptb-toolbar-strip");
     if (!bar || !bar.enabled) {
       strip.appendChild(el("div", "ptb-empty", root.PTB_I18N.t("disabledBar")));
@@ -954,11 +981,14 @@
 
   // Public mount entry used by index.js lifecycle hooks.
   function mountPanel(rootNode, panelId, context) {
-    ensureCriticalStyles();
     rootNode.ptbContext = context;
     document.body.ptbContext = context;
     mountedPanels.set(rootNode, panelId);
     renderPanel(rootNode, panelId);
+    if (typeof setTimeout === "function") {
+      // Premiere can report a panel root before layout is stable; redraw once after it settles.
+      setTimeout(() => renderPanel(rootNode, panelId), 0);
+    }
   }
 
   // Expose UI mounting for the UXP entrypoint file.
