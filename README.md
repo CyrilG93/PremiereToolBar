@@ -51,9 +51,10 @@ Open one or more bars from `Window > UXP Plugins > Tool Bar`:
 
 Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from the UXP Plugins menu, or add the built-in Settings button to any collection. In settings you can:
 
-- Assign one collection to each of the four dockable bars.
-- Create global buttons independently from bars.
-- Create collections, add buttons to them, then assign those collections to bars.
+- Create buttons from the top action bar, then edit the selected button below the gallery.
+- Drag buttons from the gallery into any collection, or use the add-button menu inside a collection.
+- Rename collections and assign them to bars 1-4 with the compact `B1` to `B4` toggles.
+- Collapse the gallery, editor, collections, or import/export sections to keep the panel compact.
 - Assign an icon, icon color, button color, or short text label.
 - Choose native video/audio effects from Premiere after refreshing the catalog.
 - Assign video transition match names from Premiere.

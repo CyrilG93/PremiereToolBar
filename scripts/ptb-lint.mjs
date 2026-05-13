@@ -29,7 +29,9 @@ function assertJavaScriptSyntax(relativePath) {
 // Validate package and manifest metadata.
 const packageJson = readJson("package.json");
 const manifestJson = readJson("manifest.json");
+const versionSource = fs.readFileSync(path.join(repoRoot, "src/version.js"), "utf8");
 assert(packageJson.version === manifestJson.version, "package.json and manifest.json versions must match.");
+assert(versionSource.includes(`"${packageJson.version}"`), "src/version.js must match package.json version.");
 assert(manifestJson.id === "com.cyrilplugin.toolbar", "manifest id must use the Cyril plugin namespace.");
 assert(manifestJson.host && manifestJson.host.app === "premierepro", "manifest must target Premiere Pro.");
 assert(Array.isArray(manifestJson.entrypoints) && manifestJson.entrypoints.length === 5, "manifest must declare four bars plus settings.");
@@ -42,6 +44,7 @@ Object.keys(packageJson.scripts || {}).forEach((scriptName) => {
 // Validate all runtime JavaScript files parse correctly.
 [
   "index.js",
+  "src/version.js",
   "src/i18n.js",
   "src/iconLibrary.js",
   "src/schema.js",
