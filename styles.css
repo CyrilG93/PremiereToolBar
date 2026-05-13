@@ -1,12 +1,12 @@
 :root {
   color-scheme: dark;
-  --ptb-bg: #0f1216;
-  --ptb-panel: #181d24;
-  --ptb-panel-soft: #202733;
-  --ptb-panel-lift: #252d39;
-  --ptb-line: #343f4f;
-  --ptb-text: #eef3f8;
-  --ptb-muted: #9aa7b5;
+  --ptb-bg: var(--uxp-host-background-color, #1f1f1f);
+  --ptb-panel: var(--uxp-host-widget-background-color, #262626);
+  --ptb-panel-soft: var(--uxp-host-widget-hover-background-color, #303030);
+  --ptb-panel-lift: var(--uxp-host-widget-hover-background-color, #383838);
+  --ptb-line: var(--uxp-host-border-color, #444444);
+  --ptb-text: var(--uxp-host-text-color, #f0f0f0);
+  --ptb-muted: var(--uxp-host-dimmed-text-color, #a7a7a7);
   --ptb-accent: #79c8ff;
   --ptb-accent-strong: #3fa8f5;
   --ptb-danger: #ff746b;
@@ -148,7 +148,7 @@ button {
   gap: 12px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--ptb-line);
-  background: rgba(15, 18, 22, 0.96);
+  background: var(--ptb-bg);
 }
 
 .ptb-settings-title {

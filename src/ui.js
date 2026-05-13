@@ -17,6 +17,31 @@
   };
   const mountedPanels = new Map();
 
+  // Inject critical layout styles so UXP cannot display an updated JS UI with a cached old CSS file.
+  function ensureCriticalStyles() {
+    if (document.getElementById("ptb-critical-styles")) {
+      return;
+    }
+    const style = document.createElement("style");
+    style.id = "ptb-critical-styles";
+    style.textContent = `
+      :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
+      *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
+      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:5px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:center;gap:5px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;align-items:flex-start}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;width:34px;min-width:34px;height:34px;min-height:34px;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-fallback-icon,.ptb-tool-text{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
+      .ptb-settings-shell{width:100%;min-height:100%;overflow:auto;background:var(--ptb-bg)}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}
+      .ptb-settings-content{display:grid;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
+      .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
+      .ptb-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member-main{display:flex;align-items:center;gap:9px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:100%;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
+      .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:grid;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text small{color:var(--ptb-muted)}
+      .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:grid;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;min-width:0}.ptb-catalog-picker{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:8px;align-items:end;margin-top:12px}.ptb-fieldset{display:grid;gap:10px;min-width:0}.ptb-field{display:grid;grid-template-columns:1fr;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
+      .ptb-color-field{grid-template-columns:1fr 44px;align-items:center}.ptb-color-input{grid-column:2/3;grid-row:1/3;width:38px;height:30px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;background:transparent}.ptb-icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:7px}.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:36px;min-height:36px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-icon-choice.active{border-color:var(--ptb-accent);background:#223446}
+      .ptb-collections-board{display:grid;gap:10px;padding:12px}.ptb-collection-drop-card{display:grid;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:grid;grid-template-columns:minmax(150px,1fr) auto auto;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:var(--ptb-text);border-color:rgba(121,200,255,.7);background:#224259}
+      .ptb-collection-member-list{display:grid;gap:6px;min-width:0}.ptb-collection-member{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;padding:7px;background:var(--ptb-panel-soft)}.ptb-collection-member-main{border:0;padding:0;background:transparent}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}
+      @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-collection-header-row,.ptb-catalog-picker{grid-template-columns:1fr}.ptb-gallery-grid{grid-template-columns:1fr}}
+    `;
+    document.head.appendChild(style);
+  }
+
   // Convert a manifest entrypoint id to a toolbar bar id.
   function panelIdToBarId(panelId) {
     const match = String(panelId).match(/ptb-bar-(\d)/);
@@ -234,6 +259,7 @@
 
   // Render either a compact toolbar or the settings UI.
   function renderPanel(rootNode, panelId) {
+    ensureCriticalStyles();
     rootNode.innerHTML = "";
     try {
       if (panelId === "ptb-settings") {
@@ -928,6 +954,7 @@
 
   // Public mount entry used by index.js lifecycle hooks.
   function mountPanel(rootNode, panelId, context) {
+    ensureCriticalStyles();
     rootNode.ptbContext = context;
     document.body.ptbContext = context;
     mountedPanels.set(rootNode, panelId);

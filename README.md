@@ -81,6 +81,18 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.6 - 2026-05-13
+
+- Added cache-busting for UXP assets so Premiere does not keep an old stylesheet while loading newer JavaScript.
+- Added built-in critical styles to keep the settings panel readable even if UXP caches external CSS.
+- Updated the panel background to follow Premiere/UXP theme colors when available.
+
+### 0.1.5 - 2026-05-13
+
+- Simplified settings into collapsible sections for button gallery, button editor, collections, and import/export.
+- Added drag and drop from the button gallery into collections.
+- Added compact `B1` to `B4` toggles on collections for assigning dockable bars.
+
 ### 0.1.4 - 2026-05-13
 
 - Replaced bar names with a collection system: global buttons can be assigned to collections, and collections can be assigned to bars 1-4.
