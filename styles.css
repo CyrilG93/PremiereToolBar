@@ -351,13 +351,18 @@ button {
 }
 
 .ptb-bar-card-list,
-.ptb-button-card-list {
+.ptb-button-card-list,
+.ptb-collection-list,
+.ptb-library-list {
   display: grid;
   gap: 7px;
 }
 
 .ptb-bar-card,
-.ptb-button-card {
+.ptb-button-card,
+.ptb-collection-card,
+.ptb-library-card,
+.ptb-assignment-card {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -367,8 +372,38 @@ button {
   text-align: left;
 }
 
+.ptb-assignment-card {
+  display: grid;
+  align-items: stretch;
+  margin-bottom: 9px;
+}
+
+.ptb-card-heading {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  color: var(--ptb-text);
+  background: transparent;
+  font-weight: 800;
+  text-align: left;
+}
+
+.ptb-collection-card,
+.ptb-library-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.ptb-collection-card small {
+  color: var(--ptb-muted);
+}
+
 .ptb-bar-card.active,
 .ptb-button-card.active,
+.ptb-collection-card.active,
+.ptb-library-card.active,
+.ptb-assignment-card.active,
 .ptb-icon-choice.active {
   border-color: var(--ptb-accent);
   background: #223446;
@@ -438,12 +473,62 @@ button {
   border-top: 1px solid var(--ptb-line);
 }
 
+.ptb-collection-editor {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ptb-line);
+}
+
+.ptb-button-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ptb-button-card-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  color: var(--ptb-text);
+  background: transparent;
+  text-align: left;
+}
+
+.ptb-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ptb-icon-action {
+  min-width: 26px;
+  min-height: 24px;
+  border: 1px solid var(--ptb-line);
+  border-radius: 6px;
+  padding: 3px 6px;
+  color: var(--ptb-text);
+  background: #2b323d;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.ptb-icon-action.danger {
+  color: #ffd8d5;
+  border-color: rgba(255, 116, 107, 0.45);
+}
+
 .ptb-editor,
 .ptb-fieldset {
   min-width: 0;
 }
 
 .ptb-editor {
+  display: grid;
+  gap: 10px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--ptb-line);

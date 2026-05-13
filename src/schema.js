@@ -11,10 +11,10 @@
   "use strict";
 
   // Store schema version separately from plugin version for future migrations.
-  const CONFIG_VERSION = 1;
+  const CONFIG_VERSION = 2;
   const MAX_BARS = 4;
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
-  const ACTION_TYPES = ["effect", "transition", "stack"];
+  const ACTION_TYPES = ["settings", "effect", "transition", "stack"];
   const MEDIA_TYPES = ["video", "audio"];
 
   // Create stable ids without relying on external dependencies.
@@ -50,12 +50,12 @@
     const mediaType = MEDIA_TYPES.includes(input.mediaType) ? input.mediaType : "video";
     const button = {
       id: safeString(input.id, createId("button")),
-      label: safeString(input.label, "New Button"),
+      label: safeString(input.label, actionType === "settings" ? "Settings" : "New Button"),
       actionType,
       mediaType,
-      icon: safeString(input.icon, "bolt"),
-      iconColor: safeString(input.iconColor, "#8fd6ff"),
-      accentColor: safeString(input.accentColor, "#1f2937"),
+      icon: safeString(input.icon, actionType === "settings" ? "gear" : "bolt"),
+      iconColor: safeString(input.iconColor, actionType === "settings" ? "#d7dee8" : "#8fd6ff"),
+      accentColor: safeString(input.accentColor, actionType === "settings" ? "#313840" : "#1f2937"),
       textOverride: typeof input.textOverride === "string" ? input.textOverride.slice(0, 4) : "",
       effect: {
         matchName: safeString(input.effect && input.effect.matchName, input.effectMatchName || "AE.ADBE Mosaic"),
@@ -163,119 +163,327 @@
     };
   }
 
-  // Build a normalized toolbar bar.
-  function normalizeBar(input, index) {
-    const source = input && typeof input === "object" ? input : {};
-    const fallbackId = BAR_IDS[index] || "bar-" + (index + 1);
-    const id = BAR_IDS.includes(source.id) ? source.id : fallbackId;
-    const orientation = ["auto", "horizontal", "vertical"].includes(source.orientation) ? source.orientation : "auto";
-    const buttons = Array.isArray(source.buttons) ? source.buttons : [];
+  // Build a normalized collection.
+  function createCollection(overrides) {
+    const input = overrides || {};
+    const buttonIds = Array.isArray(input.buttonIds) ? input.buttonIds : [];
     return {
-      id,
-      name: safeString(source.name, "Tool Bar " + (index + 1)),
-      enabled: source.enabled !== false,
-      orientation,
-      buttons: buttons.map(createButton)
+      id: safeString(input.id, createId("collection")),
+      name: safeString(input.name, "New Collection"),
+      buttonIds: buttonIds.filter((id, index, list) => typeof id === "string" && list.indexOf(id) === index)
     };
   }
 
-  // Create the first-run configuration with useful starter buttons.
+  // Build a normalized bar assignment.
+  function createBar(overrides, index, fallbackCollectionId) {
+    const input = overrides || {};
+    const fallbackId = BAR_IDS[index] || "bar-" + (index + 1);
+    return {
+      id: BAR_IDS.includes(input.id) ? input.id : fallbackId,
+      collectionId: safeString(input.collectionId, fallbackCollectionId || ""),
+      enabled: input.enabled !== false,
+      orientation: ["auto", "horizontal", "vertical"].includes(input.orientation) ? input.orientation : "auto"
+    };
+  }
+
+  // Define starter buttons using stable ids so collections can reference them.
+  function createPresetButtons() {
+    return [
+      createButton({
+        id: "btn-settings",
+        label: "Settings",
+        actionType: "settings",
+        icon: "gear",
+        iconColor: "#d7dee8",
+        accentColor: "#3a4149",
+        textOverride: "SET"
+      }),
+      createButton({
+        id: "btn-transform",
+        label: "Transform",
+        actionType: "effect",
+        icon: "frame",
+        iconColor: "#9bd3ff",
+        accentColor: "#263747",
+        effect: { matchName: "AE.ADBE Transform", displayName: "Transform" }
+      }),
+      createButton({
+        id: "btn-crop",
+        label: "Crop",
+        actionType: "effect",
+        icon: "crop",
+        iconColor: "#9fe3c1",
+        accentColor: "#263d35",
+        effect: { matchName: "AE.ADBE Crop", displayName: "Crop" }
+      }),
+      createButton({
+        id: "btn-gaussian-blur",
+        label: "Gaussian Blur",
+        actionType: "effect",
+        icon: "blur",
+        iconColor: "#ffd166",
+        accentColor: "#403724",
+        effect: { matchName: "AE.ADBE Gaussian Blur 2", displayName: "Gaussian Blur" }
+      }),
+      createButton({
+        id: "btn-drop-shadow",
+        label: "Drop Shadow",
+        actionType: "effect",
+        icon: "moon",
+        iconColor: "#d7b6ff",
+        accentColor: "#342a45",
+        effect: { matchName: "AE.ADBE Drop Shadow", displayName: "Drop Shadow" }
+      }),
+      createButton({
+        id: "btn-flip-horizontal",
+        label: "Flip Horizontal",
+        actionType: "effect",
+        icon: "wave",
+        iconColor: "#ffb986",
+        accentColor: "#423025",
+        effect: { matchName: "AE.ADBE Horizontal Flip", displayName: "Horizontal Flip" }
+      }),
+      createButton({
+        id: "btn-flip-vertical",
+        label: "Flip Vertical",
+        actionType: "effect",
+        icon: "wave",
+        iconColor: "#ff9aa2",
+        accentColor: "#422a2f",
+        effect: { matchName: "AE.ADBE Vertical Flip", displayName: "Vertical Flip" }
+      }),
+      createButton({
+        id: "btn-ultra-key",
+        label: "Ultra Key",
+        actionType: "effect",
+        icon: "key",
+        iconColor: "#9dffcf",
+        accentColor: "#263b31",
+        effect: { matchName: "AE.ADBE Ultra Key", displayName: "Ultra Key" }
+      })
+    ];
+  }
+
+  // Create the first-run configuration with a base collection.
   function createDefaultConfig() {
+    const buttons = createPresetButtons();
+    const collections = [
+      createCollection({
+        id: "collection-base-effects",
+        name: "Base Effects",
+        buttonIds: buttons.map((button) => button.id)
+      }),
+      createCollection({ id: "collection-empty-2", name: "Collection 2", buttonIds: [] }),
+      createCollection({ id: "collection-empty-3", name: "Collection 3", buttonIds: [] }),
+      createCollection({ id: "collection-empty-4", name: "Collection 4", buttonIds: [] })
+    ];
     return {
       schemaVersion: CONFIG_VERSION,
-      activeBarId: "bar-1",
-      bars: [
-        normalizeBar({
-          id: "bar-1",
-          name: "Effects",
-          buttons: [
-            createButton({
-              label: "Mosaic",
-              icon: "mosaic",
-              iconColor: "#8fd6ff",
-              accentColor: "#193241",
-              effect: { matchName: "AE.ADBE Mosaic", displayName: "Mosaic" }
-            }),
-            createButton({
-              label: "Gaussian Blur",
-              icon: "blur",
-              iconColor: "#ffd166",
-              accentColor: "#3c2d13",
-              effect: { matchName: "AE.ADBE Gaussian Blur 2", displayName: "Gaussian Blur" }
-            })
-          ]
-        }, 0),
-        normalizeBar({ id: "bar-2", name: "Transitions", buttons: [] }, 1),
-        normalizeBar({ id: "bar-3", name: "Looks", buttons: [] }, 2),
-        normalizeBar({ id: "bar-4", name: "Audio", buttons: [] }, 3)
-      ]
+      activeCollectionId: "collection-base-effects",
+      activeButtonId: buttons[0].id,
+      buttons,
+      collections,
+      bars: BAR_IDS.map((barId, index) => createBar(
+        { id: barId, collectionId: collections[index] ? collections[index].id : collections[0].id },
+        index,
+        collections[0].id
+      ))
     };
+  }
+
+  // Normalize a list of buttons and keep ids unique.
+  function normalizeButtons(inputButtons) {
+    const source = Array.isArray(inputButtons) ? inputButtons : [];
+    const usedIds = [];
+    return source.map((button) => {
+      const normalized = createButton(button);
+      if (usedIds.includes(normalized.id)) {
+        normalized.id = createId("button");
+      }
+      usedIds.push(normalized.id);
+      return normalized;
+    });
+  }
+
+  // Normalize collections and remove references to missing buttons.
+  function normalizeCollections(inputCollections, validButtonIds) {
+    const source = Array.isArray(inputCollections) ? inputCollections : [];
+    const usedIds = [];
+    const collections = source.map((collection) => {
+      const normalized = createCollection(collection);
+      if (usedIds.includes(normalized.id)) {
+        normalized.id = createId("collection");
+      }
+      usedIds.push(normalized.id);
+      normalized.buttonIds = normalized.buttonIds.filter((buttonId) => validButtonIds.includes(buttonId));
+      return normalized;
+    });
+    if (!collections.length) {
+      collections.push(createCollection({ id: "collection-default", name: "Default", buttonIds: validButtonIds.slice(0, 1) }));
+    }
+    return collections;
+  }
+
+  // Convert legacy bar-based configs into collection-based configs.
+  function migrateLegacyConfig(source) {
+    if (!source || !Array.isArray(source.bars)) {
+      return createDefaultConfig();
+    }
+    const defaultConfig = createDefaultConfig();
+    const buttons = clone(defaultConfig.buttons);
+    const collections = clone(defaultConfig.collections);
+    source.bars.forEach((bar, index) => {
+      if (!bar || !Array.isArray(bar.buttons) || !bar.buttons.length) {
+        return;
+      }
+      const buttonIds = [];
+      bar.buttons.forEach((button) => {
+        const normalized = createButton(Object.assign({}, button, { id: createId("button") }));
+        buttons.push(normalized);
+        buttonIds.push(normalized.id);
+      });
+      collections.push(createCollection({
+        id: "legacy-collection-" + (index + 1),
+        name: safeString(bar.name, "Imported Bar " + (index + 1)),
+        buttonIds
+      }));
+    });
+    return normalizeConfig({
+      schemaVersion: CONFIG_VERSION,
+      activeCollectionId: defaultConfig.activeCollectionId,
+      activeButtonId: defaultConfig.activeButtonId,
+      buttons,
+      collections,
+      bars: defaultConfig.bars
+    });
   }
 
   // Normalize a complete configuration object and guarantee four dockable bars.
   function normalizeConfig(input) {
-    const fallback = createDefaultConfig();
-    const source = input && typeof input === "object" ? input : fallback;
-    const importedBars = Array.isArray(source.bars) ? source.bars : fallback.bars;
+    if (!input || input.schemaVersion !== CONFIG_VERSION || !Array.isArray(input.collections) || !Array.isArray(input.buttons)) {
+      return migrateLegacyConfig(input);
+    }
+    const buttons = normalizeButtons(input.buttons);
+    const validButtonIds = buttons.map((button) => button.id);
+    const collections = normalizeCollections(input.collections, validButtonIds);
+    const validCollectionIds = collections.map((collection) => collection.id);
+    const fallbackCollectionId = collections[0].id;
     const bars = BAR_IDS.map((barId, index) => {
-      const matchingBar = importedBars.find((bar) => bar && bar.id === barId) || importedBars[index];
-      return normalizeBar(matchingBar, index);
+      const sourceBar = Array.isArray(input.bars) ? input.bars.find((bar) => bar && bar.id === barId) || input.bars[index] : null;
+      const bar = createBar(sourceBar, index, fallbackCollectionId);
+      if (!validCollectionIds.includes(bar.collectionId)) {
+        bar.collectionId = fallbackCollectionId;
+      }
+      return bar;
     });
-    const activeBarId = BAR_IDS.includes(source.activeBarId) ? source.activeBarId : bars[0].id;
+    const activeCollectionId = validCollectionIds.includes(input.activeCollectionId) ? input.activeCollectionId : fallbackCollectionId;
+    const activeButtonId = validButtonIds.includes(input.activeButtonId) ? input.activeButtonId : (buttons[0] ? buttons[0].id : "");
     return {
       schemaVersion: CONFIG_VERSION,
-      activeBarId,
+      activeCollectionId,
+      activeButtonId,
+      buttons,
+      collections,
       bars
     };
   }
 
-  // Find a bar by id from a normalized configuration.
-  function getBar(config, barId) {
+  // Find a collection by id from a normalized configuration.
+  function getCollection(config, collectionId) {
     const normalized = normalizeConfig(config);
-    return normalized.bars.find((bar) => bar.id === barId) || normalized.bars[0];
+    return normalized.collections.find((collection) => collection.id === collectionId) || normalized.collections[0];
   }
 
-  // Export all bars or a single bar as a portable JSON payload.
-  function createExportPayload(config, barId) {
+  // Find all buttons referenced by a collection.
+  function getCollectionButtons(config, collectionId) {
     const normalized = normalizeConfig(config);
-    const bars = barId ? [getBar(normalized, barId)] : normalized.bars;
+    const collection = getCollection(normalized, collectionId);
+    return collection.buttonIds
+      .map((buttonId) => normalized.buttons.find((button) => button.id === buttonId))
+      .filter(Boolean);
+  }
+
+  // Export all collections or a single collection as a portable JSON payload.
+  function createExportPayload(config, collectionId) {
+    const normalized = normalizeConfig(config);
+    const collections = collectionId ? [getCollection(normalized, collectionId)] : normalized.collections;
+    const buttonIds = collections.reduce((ids, collection) => ids.concat(collection.buttonIds), []);
+    const uniqueButtonIds = buttonIds.filter((id, index, list) => list.indexOf(id) === index);
+    const buttons = normalized.buttons.filter((button) => !collectionId || uniqueButtonIds.includes(button.id));
     return {
       app: "Tool Bar",
       schemaVersion: CONFIG_VERSION,
       exportedAt: new Date().toISOString(),
-      bars: clone(bars)
+      buttons: clone(buttons),
+      collections: clone(collections)
     };
   }
 
-  // Convert a configuration or selected bar to formatted JSON.
-  function exportToJson(config, barId) {
-    return JSON.stringify(createExportPayload(config, barId), null, 2);
+  // Convert a configuration or selected collection to formatted JSON.
+  function exportToJson(config, collectionId) {
+    return JSON.stringify(createExportPayload(config, collectionId), null, 2);
   }
 
-  // Parse an import payload and return normalized bars.
+  // Parse an import payload and return normalized buttons plus collections.
   function parseImportJson(json) {
     const parsed = typeof json === "string" ? JSON.parse(json) : json;
-    const bars = Array.isArray(parsed && parsed.bars) ? parsed.bars : [];
-    if (!bars.length) {
-      throw new Error("No bars found in import file.");
+    if (Array.isArray(parsed && parsed.collections) && Array.isArray(parsed && parsed.buttons)) {
+      const normalized = normalizeConfig({
+        schemaVersion: CONFIG_VERSION,
+        activeCollectionId: parsed.collections[0] && parsed.collections[0].id,
+        activeButtonId: parsed.buttons[0] && parsed.buttons[0].id,
+        buttons: parsed.buttons,
+        collections: parsed.collections,
+        bars: []
+      });
+      return {
+        buttons: normalized.buttons,
+        collections: normalized.collections
+      };
     }
-    return bars.map((bar, index) => normalizeBar(bar, index)).slice(0, MAX_BARS);
+    const legacy = migrateLegacyConfig(parsed);
+    return {
+      buttons: legacy.buttons,
+      collections: legacy.collections
+    };
   }
 
-  // Import all bars or replace a selected target bar with the first imported bar.
+  // Import all collections or replace a selected target collection with the first imported collection.
   function importJson(config, json, options) {
     const normalized = normalizeConfig(config);
-    const importedBars = parseImportJson(json);
-    const mode = options && options.mode === "bar" ? "bar" : "all";
-    if (mode === "bar") {
-      const targetBarId = BAR_IDS.includes(options && options.targetBarId) ? options.targetBarId : normalized.activeBarId;
-      const replacement = normalizeBar(Object.assign({}, importedBars[0], { id: targetBarId }), BAR_IDS.indexOf(targetBarId));
-      normalized.bars = normalized.bars.map((bar) => (bar.id === targetBarId ? replacement : bar));
-      normalized.activeBarId = targetBarId;
+    const imported = parseImportJson(json);
+    const mode = options && options.mode === "collection" ? "collection" : "all";
+    const mergedButtons = normalized.buttons.slice();
+    imported.buttons.forEach((button) => {
+      const existingIndex = mergedButtons.findIndex((item) => item.id === button.id);
+      if (existingIndex >= 0) {
+        mergedButtons[existingIndex] = button;
+      } else {
+        mergedButtons.push(button);
+      }
+    });
+    if (mode === "collection") {
+      const targetCollectionId = options && options.targetCollectionId;
+      const sourceCollection = imported.collections[0];
+      if (!sourceCollection) {
+        throw new Error("No collection found in import file.");
+      }
+      const replacement = createCollection(Object.assign({}, sourceCollection, {
+        id: targetCollectionId || sourceCollection.id
+      }));
+      normalized.buttons = mergedButtons;
+      normalized.collections = normalized.collections.map((collection) => (
+        collection.id === replacement.id ? replacement : collection
+      ));
+      if (!normalized.collections.some((collection) => collection.id === replacement.id)) {
+        normalized.collections.push(replacement);
+      }
+      normalized.activeCollectionId = replacement.id;
       return normalizeConfig(normalized);
     }
-    normalized.bars = BAR_IDS.map((barId, index) => normalizeBar(Object.assign({}, importedBars[index] || {}, { id: barId }), index));
-    normalized.activeBarId = normalized.bars[0].id;
+    normalized.buttons = mergedButtons;
+    normalized.collections = imported.collections;
+    normalized.activeCollectionId = imported.collections[0] ? imported.collections[0].id : normalized.activeCollectionId;
     return normalizeConfig(normalized);
   }
 
@@ -289,11 +497,14 @@
     createId,
     clone,
     createButton,
+    createCollection,
+    createBar,
+    createPresetButtons,
     createDefaultConfig,
     normalizeConfig,
-    normalizeBar,
     normalizeStack,
-    getBar,
+    getCollection,
+    getCollectionButtons,
     exportToJson,
     importJson,
     parseImportJson

@@ -90,6 +90,9 @@
   // Apply a toolbar button to the current Premiere timeline selection.
   async function applyButton(button) {
     const normalizedButton = root.PTB_SCHEMA.createButton(button);
+    if (normalizedButton.actionType === "settings") {
+      return false;
+    }
     if (normalizedButton.actionType === "transition") {
       return applyTransitionButton(normalizedButton);
     }
@@ -124,8 +127,26 @@
     if (effect.displayName === "Mosaic") {
       candidates.push("AE.ADBE Mosaic");
     }
+    if (effect.displayName === "Transform") {
+      candidates.push("AE.ADBE Transform");
+    }
+    if (effect.displayName === "Crop") {
+      candidates.push("AE.ADBE Crop");
+    }
     if (effect.displayName === "Gaussian Blur" || effect.matchName === "PR.ADBE Solarize") {
       candidates.push("AE.ADBE Gaussian Blur 2");
+    }
+    if (effect.displayName === "Drop Shadow") {
+      candidates.push("AE.ADBE Drop Shadow");
+    }
+    if (effect.displayName === "Horizontal Flip") {
+      candidates.push("AE.ADBE Horizontal Flip");
+    }
+    if (effect.displayName === "Vertical Flip") {
+      candidates.push("AE.ADBE Vertical Flip");
+    }
+    if (effect.displayName === "Ultra Key") {
+      candidates.push("AE.ADBE Ultra Key", "PR.ADBE Ultra Key");
     }
     return candidates.filter(Boolean).filter((value, index, list) => list.indexOf(value) === index);
   }

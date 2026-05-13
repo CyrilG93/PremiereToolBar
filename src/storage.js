@@ -2,12 +2,13 @@
   "use strict";
 
   // Store settings under a namespaced key to avoid conflicts with other plugins.
-  const STORAGE_KEY = "com.cyrilplugin.toolbar.config.v1";
+  const STORAGE_KEY = "com.cyrilplugin.toolbar.config.v2";
+  const LEGACY_STORAGE_KEY = "com.cyrilplugin.toolbar.config.v1";
 
   // Load the toolbar configuration from persistent UXP localStorage.
   function loadConfig() {
     try {
-      const raw = root.localStorage && root.localStorage.getItem(STORAGE_KEY);
+      const raw = root.localStorage && (root.localStorage.getItem(STORAGE_KEY) || root.localStorage.getItem(LEGACY_STORAGE_KEY));
       return root.PTB_SCHEMA.normalizeConfig(raw ? JSON.parse(raw) : null);
     } catch (error) {
       console.warn("Tool Bar config load failed:", error);

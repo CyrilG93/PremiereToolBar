@@ -1,29 +1,37 @@
 import assert from "node:assert/strict";
 import schema from "../src/schema.js";
 
-// Verify the first-run configuration always contains four declared dockable bars.
+// Verify the first-run configuration always contains four dockable bars and one base collection.
 const defaultConfig = schema.createDefaultConfig();
+assert.equal(defaultConfig.schemaVersion, 2);
 assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");
-assert.equal(defaultConfig.bars[0].buttons.length, 2);
-assert.equal(defaultConfig.bars[0].buttons[1].effect.matchName, "AE.ADBE Gaussian Blur 2");
+assert.equal(defaultConfig.bars[0].collectionId, "collection-base-effects");
+assert.equal(defaultConfig.collections[0].buttonIds.length, 8);
+assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-settings"));
+assert.ok(defaultConfig.buttons.some((button) => button.effect && button.effect.displayName === "Ultra Key"));
 
-// Verify malformed imports are normalized instead of leaking invalid values.
-const normalized = schema.normalizeConfig({
+// Verify malformed legacy configs are migrated to the collection model.
+const migratedLegacy = schema.normalizeConfig({
   activeBarId: "unknown",
-  bars: [{ id: "bad", name: "", enabled: false, buttons: [{ actionType: "bad", label: "" }] }]
+  bars: [{ id: "bad", name: "Old Bar", enabled: false, buttons: [{ actionType: "bad", label: "Old Button" }] }]
 });
-assert.equal(normalized.activeBarId, "bar-1");
-assert.equal(normalized.bars[0].id, "bar-1");
-assert.equal(normalized.bars[0].enabled, false);
-assert.equal(normalized.bars[0].buttons[0].actionType, "effect");
+assert.equal(migratedLegacy.schemaVersion, 2);
+assert.equal(migratedLegacy.bars.length, 4);
+assert.ok(migratedLegacy.collections.some((collection) => collection.name === "Old Bar"));
+assert.ok(migratedLegacy.buttons.some((button) => button.label === "Old Button"));
 
-// Verify selected-bar export/import replaces only the requested target bar.
-const exportedBar = schema.exportToJson(defaultConfig, "bar-1");
-const importedConfig = schema.importJson(defaultConfig, exportedBar, { mode: "bar", targetBarId: "bar-3" });
-assert.equal(importedConfig.bars[2].id, "bar-3");
-assert.equal(importedConfig.bars[2].buttons.length, 2);
-assert.equal(importedConfig.bars[1].buttons.length, 0);
+// Verify selected-collection export/import replaces only the requested target collection.
+const exportedCollection = schema.exportToJson(defaultConfig, "collection-base-effects");
+const customConfig = schema.normalizeConfig(defaultConfig);
+const importedConfig = schema.importJson(customConfig, exportedCollection, {
+  mode: "collection",
+  targetCollectionId: "collection-empty-3"
+});
+const replacedCollection = schema.getCollection(importedConfig, "collection-empty-3");
+assert.equal(replacedCollection.id, "collection-empty-3");
+assert.equal(replacedCollection.buttonIds.length, 8);
+assert.equal(schema.getCollection(importedConfig, "collection-empty-2").buttonIds.length, 0);
 
 // Verify captured stack snapshots survive normalization.
 const button = schema.createButton({

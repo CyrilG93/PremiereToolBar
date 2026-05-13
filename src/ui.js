@@ -5,13 +5,17 @@
   let config = root.PTB_STORAGE.loadConfig();
   let catalogs = { videoEffects: [], audioEffects: [], videoTransitions: [] };
   let statusMessage = root.PTB_I18N.t("statusReady");
-  let settingsState = { selectedBarId: config.activeBarId, selectedButtonId: "" };
+  let settingsState = {
+    selectedBarId: "bar-1",
+    selectedCollectionId: config.activeCollectionId,
+    selectedButtonId: config.activeButtonId
+  };
   const mountedPanels = new Map();
 
   // Convert a manifest entrypoint id to a toolbar bar id.
   function panelIdToBarId(panelId) {
     const match = String(panelId).match(/ptb-bar-(\d)/);
-    return match ? "bar-" + match[1] : config.activeBarId;
+    return match ? "bar-" + match[1] : "bar-1";
   }
 
   // Create a DOM element with optional class and text.
@@ -34,30 +38,43 @@
     return button;
   }
 
-  // Return the real mutable bar inside the current config.
-  function getConfigBar(barId) {
-    const id = barId || settingsState.selectedBarId || config.activeBarId;
-    return config.bars.find((bar) => bar.id === id) || config.bars[0];
+  // Return the real mutable button inside the current config.
+  function getButton(buttonId) {
+    return config.buttons.find((button) => button.id === buttonId) || null;
   }
 
-  // Keep settings focused on a real bar and button so editing is visible immediately.
+  // Return the real mutable collection inside the current config.
+  function getCollection(collectionId) {
+    return config.collections.find((collection) => collection.id === collectionId) || config.collections[0] || null;
+  }
+
+  // Return the real mutable bar assignment inside the current config.
+  function getBar(barId) {
+    return config.bars.find((bar) => bar.id === barId) || config.bars[0] || null;
+  }
+
+  // Return buttons in collection order.
+  function getCollectionButtons(collectionId) {
+    const collection = getCollection(collectionId);
+    if (!collection) {
+      return [];
+    }
+    return collection.buttonIds.map(getButton).filter(Boolean);
+  }
+
+  // Keep settings focused on valid entities.
   function ensureSettingsSelection() {
-    const selectedBar = getConfigBar(settingsState.selectedBarId);
-    settingsState.selectedBarId = selectedBar.id;
-    config.activeBarId = selectedBar.id;
-    if (!settingsState.selectedButtonId && selectedBar.buttons.length) {
-      settingsState.selectedButtonId = selectedBar.buttons[0].id;
-      return;
+    const collection = getCollection(settingsState.selectedCollectionId);
+    settingsState.selectedCollectionId = collection ? collection.id : "";
+    config.activeCollectionId = settingsState.selectedCollectionId;
+    if (!getButton(settingsState.selectedButtonId)) {
+      const firstCollectionButton = getCollectionButtons(settingsState.selectedCollectionId)[0];
+      settingsState.selectedButtonId = firstCollectionButton ? firstCollectionButton.id : (config.buttons[0] ? config.buttons[0].id : "");
     }
-    if (settingsState.selectedButtonId && !selectedBar.buttons.some((button) => button.id === settingsState.selectedButtonId)) {
-      settingsState.selectedButtonId = selectedBar.buttons[0] ? selectedBar.buttons[0].id : "";
+    config.activeButtonId = settingsState.selectedButtonId;
+    if (!getBar(settingsState.selectedBarId)) {
+      settingsState.selectedBarId = "bar-1";
     }
-  }
-
-  // Find the selected button in the selected bar.
-  function getSelectedButton() {
-    ensureSettingsSelection();
-    return getConfigBar().buttons.find((button) => button.id === settingsState.selectedButtonId) || null;
   }
 
   // Persist config without rerendering so typing in inputs does not reset focus.
@@ -79,7 +96,7 @@
     });
   }
 
-  // Create a labeled text input that saves while typing and rerenders on commit.
+  // Create a labeled text input that updates the model while typing and saves on commit.
   function textField(label, value, onInput) {
     const wrap = el("label", "ptb-field");
     wrap.appendChild(el("span", "ptb-field-label", label));
@@ -173,36 +190,37 @@
 
   // Render one compact dockable toolbar panel.
   function renderBarPanel(rootNode, panelId) {
-    const bar = getConfigBar(panelIdToBarId(panelId));
-    const shell = el("section", "ptb-toolbar-shell " + (bar.orientation === "vertical" ? "ptb-vertical" : ""));
+    const bar = getBar(panelIdToBarId(panelId));
+    const collection = bar ? getCollection(bar.collectionId) : null;
+    const buttons = collection && bar.enabled ? getCollectionButtons(collection.id) : [];
+    const shell = el("section", "ptb-toolbar-shell " + (bar && bar.orientation === "vertical" ? "ptb-vertical" : ""));
     const strip = el("div", "ptb-toolbar-strip");
-    const gear = actionButton("", "ptb-tool-button ptb-gear-button", () => openPanel(rootNode.ptbContext, "ptb-settings"));
-    gear.title = root.PTB_I18N.t("settings");
-    gear.innerHTML = root.PTB_ICON_LIBRARY.renderIcon("gear", "#d7dee8", root.PTB_I18N.t("settings"));
-    const label = actionButton(bar.name, "ptb-bar-label", () => openPanel(rootNode.ptbContext, "ptb-settings"));
-    label.title = bar.name;
-    strip.appendChild(gear);
-    strip.appendChild(label);
-    if (!bar.enabled) {
+    if (!bar || !bar.enabled) {
       strip.appendChild(el("div", "ptb-empty", root.PTB_I18N.t("disabledBar")));
-    } else if (!bar.buttons.length) {
+    } else if (!collection) {
+      strip.appendChild(el("div", "ptb-empty", root.PTB_I18N.t("noAssignedCollection")));
+    } else if (!buttons.length) {
       strip.appendChild(el("div", "ptb-empty", root.PTB_I18N.t("emptyBar")));
     } else {
-      bar.buttons.forEach((button) => strip.appendChild(renderToolButton(button)));
+      buttons.forEach((button) => strip.appendChild(renderToolButton(button, rootNode.ptbContext)));
     }
     shell.appendChild(strip);
     rootNode.appendChild(shell);
   }
 
-  // Render one clickable toolbar effect button.
-  function renderToolButton(button) {
+  // Render one clickable toolbar button.
+  function renderToolButton(button, context) {
     const toolButton = actionButton("", "ptb-tool-button", async () => {
+      if (button.actionType === "settings") {
+        openPanel(context, "ptb-settings");
+        return;
+      }
       await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
         await root.PTB_PREMIERE.applyButton(button);
       });
     });
     toolButton.title = button.label;
-    toolButton.style.background = button.accentColor || "#1f2937";
+    toolButton.style.background = button.accentColor || "#2b3037";
     if (button.textOverride) {
       toolButton.appendChild(el("span", "ptb-tool-text", button.textOverride));
     } else {
@@ -237,10 +255,10 @@
     shell.appendChild(header);
     const layout = el("div", "ptb-settings-layout");
     try {
-      // Use three visible regions on wide panels and collapse cleanly on narrow panels.
-      layout.appendChild(renderBarSidebar());
-      layout.appendChild(renderMainWorkspace());
-      layout.appendChild(renderRightInspector());
+      // Render three stable regions so the current bar, collection, and button are always obvious.
+      layout.appendChild(renderBarAssignments());
+      layout.appendChild(renderCollectionsWorkspace());
+      layout.appendChild(renderButtonWorkspace());
     } catch (error) {
       layout.appendChild(renderErrorPanel(error));
     }
@@ -251,7 +269,8 @@
   // Render always-visible settings actions in the header.
   function renderHeaderActions() {
     const actions = el("div", "ptb-header-actions");
-    actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button primary compact", () => createButtonInSelectedBar()));
+    actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button primary compact", () => createLibraryButton()));
+    actions.appendChild(actionButton(root.PTB_I18N.t("addCollection"), "ptb-button compact", () => createNewCollection()));
     actions.appendChild(actionButton(root.PTB_I18N.t("refreshCatalog"), "ptb-button compact", refreshCatalogs));
     return actions;
   }
@@ -264,116 +283,165 @@
     return section;
   }
 
-  // Render the left bar selector.
-  function renderBarSidebar() {
+  // Render bar-to-collection assignments.
+  function renderBarAssignments() {
     const section = el("aside", "ptb-panel ptb-sidebar");
     section.appendChild(el("h2", "", root.PTB_I18N.t("bars")));
-    const list = el("div", "ptb-bar-card-list");
+    const collectionOptions = config.collections.map((collection) => ({ value: collection.id, label: collection.name }));
     config.bars.forEach((bar, index) => {
-      const card = actionButton("", bar.id === settingsState.selectedBarId ? "ptb-bar-card active" : "ptb-bar-card", () => {
+      const card = el("div", bar.id === settingsState.selectedBarId ? "ptb-assignment-card active" : "ptb-assignment-card");
+      const header = actionButton("Bar " + (index + 1), "ptb-card-heading", () => {
         settingsState.selectedBarId = bar.id;
-        settingsState.selectedButtonId = bar.buttons[0] ? bar.buttons[0].id : "";
-        config.activeBarId = bar.id;
+        renderAll();
+      });
+      card.appendChild(header);
+      card.appendChild(selectField(root.PTB_I18N.t("assignedCollection"), bar.collectionId, collectionOptions, (value) => {
+        bar.collectionId = value;
+        settingsState.selectedBarId = bar.id;
+        settingsState.selectedCollectionId = value;
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+      card.appendChild(selectField(root.PTB_I18N.t("orientation"), bar.orientation, [
+        { value: "auto", label: root.PTB_I18N.t("auto") },
+        { value: "horizontal", label: root.PTB_I18N.t("horizontal") },
+        { value: "vertical", label: root.PTB_I18N.t("vertical") }
+      ], (value) => {
+        bar.orientation = value;
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+      const enabledRow = el("label", "ptb-check-row");
+      const checkbox = el("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = bar.enabled;
+      checkbox.addEventListener("change", () => {
+        bar.enabled = checkbox.checked;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
-      card.appendChild(el("span", "ptb-bar-number", String(index + 1)));
-      const text = el("span", "ptb-bar-card-text");
-      text.appendChild(el("strong", "", bar.name));
-      text.appendChild(el("small", "", bar.buttons.length + " buttons"));
-      card.appendChild(text);
-      if (!bar.enabled) {
-        card.appendChild(el("span", "ptb-pill muted", "Off"));
-      }
-      list.appendChild(card);
+      enabledRow.appendChild(checkbox);
+      enabledRow.appendChild(el("span", "", root.PTB_I18N.t("enabled")));
+      card.appendChild(enabledRow);
+      section.appendChild(card);
     });
-    section.appendChild(list);
     return section;
   }
 
-  // Render the center workspace for the selected bar and button.
-  function renderMainWorkspace() {
-    const bar = getConfigBar();
+  // Render collection management and collection membership.
+  function renderCollectionsWorkspace() {
     const section = el("section", "ptb-panel ptb-main-workspace");
     const header = el("div", "ptb-section-header");
     const title = el("div");
-    title.appendChild(el("h2", "", bar.name));
-    title.appendChild(el("p", "ptb-muted compact", "Bar " + bar.id.replace("bar-", "")));
+    title.appendChild(el("h2", "", root.PTB_I18N.t("collections")));
+    title.appendChild(el("p", "ptb-muted compact", "Assign buttons to collections, then assign collections to bars."));
     header.appendChild(title);
-    header.appendChild(actionButton(root.PTB_I18N.t("openBar"), "ptb-button compact", () => openPanel(document.body.ptbContext || {}, "ptb-bar-" + bar.id.split("-")[1])));
+    const actions = el("div", "ptb-action-row tight");
+    actions.appendChild(actionButton(root.PTB_I18N.t("addCollection"), "ptb-button compact primary", () => createNewCollection()));
+    actions.appendChild(actionButton(root.PTB_I18N.t("duplicateCollection"), "ptb-button compact", () => duplicateSelectedCollection()));
+    actions.appendChild(actionButton(root.PTB_I18N.t("deleteCollection"), "ptb-button compact danger", () => deleteSelectedCollection()));
+    header.appendChild(actions);
     section.appendChild(header);
-    section.appendChild(renderBarControls(bar));
-    section.appendChild(renderButtonList(bar));
-    const button = getSelectedButton();
-    if (button) {
-      section.appendChild(renderButtonEditor(button));
+    const selectedCollection = getCollection(settingsState.selectedCollectionId);
+    const list = el("div", "ptb-collection-list");
+    config.collections.forEach((collection) => list.appendChild(renderCollectionCard(collection)));
+    section.appendChild(list);
+    if (selectedCollection) {
+      section.appendChild(renderCollectionEditor(selectedCollection));
     } else {
-      const empty = el("div", "ptb-empty-state");
-      empty.appendChild(el("h3", "", root.PTB_I18N.t("noButtonSelected")));
-      empty.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button primary", () => createButtonInSelectedBar()));
-      section.appendChild(empty);
+      section.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("noCollectionSelected")));
     }
     return section;
   }
 
-  // Render bar-level controls.
-  function renderBarControls(bar) {
-    const wrap = el("div", "ptb-control-grid");
-    wrap.appendChild(textField(root.PTB_I18N.t("barName"), bar.name, (value) => {
-      bar.name = value || "Tool Bar";
-    }));
-    wrap.appendChild(selectField(root.PTB_I18N.t("orientation"), bar.orientation, [
-      { value: "auto", label: root.PTB_I18N.t("auto") },
-      { value: "horizontal", label: root.PTB_I18N.t("horizontal") },
-      { value: "vertical", label: root.PTB_I18N.t("vertical") }
-    ], (value) => {
-      bar.orientation = value;
-      saveAndRender(root.PTB_I18N.t("statusSaved"));
-    }));
-    const enabledRow = el("label", "ptb-check-row inline");
-    const checkbox = el("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = bar.enabled;
-    checkbox.addEventListener("change", () => {
-      bar.enabled = checkbox.checked;
+  // Render one collection selector card.
+  function renderCollectionCard(collection) {
+    const card = actionButton("", collection.id === settingsState.selectedCollectionId ? "ptb-collection-card active" : "ptb-collection-card", () => {
+      settingsState.selectedCollectionId = collection.id;
+      config.activeCollectionId = collection.id;
+      const firstButton = getCollectionButtons(collection.id)[0];
+      if (firstButton) {
+        settingsState.selectedButtonId = firstButton.id;
+      }
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     });
-    enabledRow.appendChild(checkbox);
-    enabledRow.appendChild(el("span", "", root.PTB_I18N.t("enabled")));
-    wrap.appendChild(enabledRow);
-    return wrap;
+    card.appendChild(el("strong", "", collection.name));
+    card.appendChild(el("small", "", collection.buttonIds.length + " buttons"));
+    return card;
   }
 
-  // Render selectable buttons for the selected bar.
-  function renderButtonList(bar) {
-    const wrap = el("div", "ptb-button-workspace");
-    const header = el("div", "ptb-section-header mini");
-    header.appendChild(el("h3", "", root.PTB_I18N.t("buttons")));
-    const actions = el("div", "ptb-action-row tight");
-    actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button compact primary", () => createButtonInSelectedBar()));
-    actions.appendChild(actionButton(root.PTB_I18N.t("duplicateButton"), "ptb-button compact", () => duplicateSelectedButton()));
-    actions.appendChild(actionButton(root.PTB_I18N.t("deleteButton"), "ptb-button compact danger", () => deleteSelectedButton()));
-    header.appendChild(actions);
-    wrap.appendChild(header);
+  // Render selected collection details.
+  function renderCollectionEditor(collection) {
+    const editor = el("div", "ptb-collection-editor");
+    editor.appendChild(textField(root.PTB_I18N.t("collectionName"), collection.name, (value) => {
+      collection.name = value || "Collection";
+    }));
+    const addRow = el("div", "ptb-catalog-picker");
+    const availableOptions = config.buttons.map((button) => ({ value: button.id, label: button.label }));
+    addRow.appendChild(selectField(root.PTB_I18N.t("buttonLibrary"), "", [{ value: "", label: "Choose button" }].concat(availableOptions), (value) => {
+      if (value) {
+        addButtonToCollection(collection.id, value);
+      }
+    }));
+    addRow.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button compact primary", () => createLibraryButton(collection.id)));
+    editor.appendChild(addRow);
+    const buttons = getCollectionButtons(collection.id);
     const list = el("div", "ptb-button-card-list");
-    bar.buttons.forEach((button) => list.appendChild(renderButtonCard(button)));
-    wrap.appendChild(list);
-    return wrap;
+    if (!buttons.length) {
+      list.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("noButtonsInCollection")));
+    }
+    buttons.forEach((button) => list.appendChild(renderCollectionButtonCard(collection, button)));
+    editor.appendChild(list);
+    return editor;
   }
 
-  // Render one selectable button card.
-  function renderButtonCard(button) {
-    const card = actionButton("", button.id === settingsState.selectedButtonId ? "ptb-button-card active" : "ptb-button-card", () => {
+  // Render one button as it appears inside a collection.
+  function renderCollectionButtonCard(collection, button) {
+    const card = el("div", button.id === settingsState.selectedButtonId ? "ptb-button-card active" : "ptb-button-card");
+    const select = actionButton("", "ptb-button-card-main", () => {
       settingsState.selectedButtonId = button.id;
+      config.activeButtonId = button.id;
       renderAll();
     });
-    const icon = el("span", "ptb-card-icon");
-    icon.style.background = button.accentColor || "#1f2937";
-    if (button.textOverride) {
-      icon.appendChild(el("span", "ptb-tool-text", button.textOverride));
+    select.appendChild(renderButtonSwatch(button));
+    const text = el("span", "ptb-button-card-text");
+    text.appendChild(el("strong", "", button.label));
+    text.appendChild(el("small", "", describeButtonAction(button)));
+    select.appendChild(text);
+    card.appendChild(select);
+    const actions = el("div", "ptb-card-actions");
+    actions.appendChild(actionButton(root.PTB_I18N.t("moveUp"), "ptb-icon-action", () => moveButtonInCollection(collection.id, button.id, -1)));
+    actions.appendChild(actionButton(root.PTB_I18N.t("moveDown"), "ptb-icon-action", () => moveButtonInCollection(collection.id, button.id, 1)));
+    actions.appendChild(actionButton(root.PTB_I18N.t("removeFromCollection"), "ptb-icon-action danger", () => removeButtonFromCollection(collection.id, button.id)));
+    card.appendChild(actions);
+    return card;
+  }
+
+  // Render the global button library and selected button editor.
+  function renderButtonWorkspace() {
+    const section = el("aside", "ptb-panel ptb-inspector");
+    const header = el("div", "ptb-section-header mini");
+    header.appendChild(el("h2", "", root.PTB_I18N.t("buttonLibrary")));
+    header.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button compact primary", () => createLibraryButton()));
+    section.appendChild(header);
+    const library = el("div", "ptb-library-list");
+    config.buttons.forEach((button) => library.appendChild(renderLibraryButtonCard(button)));
+    section.appendChild(library);
+    const selectedButton = getButton(settingsState.selectedButtonId);
+    if (selectedButton) {
+      section.appendChild(renderButtonEditor(selectedButton));
     } else {
-      icon.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, button.label);
+      section.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("noButtonSelected")));
     }
-    card.appendChild(icon);
+    section.appendChild(renderImportExportSettings());
+    return section;
+  }
+
+  // Render one library button.
+  function renderLibraryButtonCard(button) {
+    const card = actionButton("", button.id === settingsState.selectedButtonId ? "ptb-library-card active" : "ptb-library-card", () => {
+      settingsState.selectedButtonId = button.id;
+      config.activeButtonId = button.id;
+      renderAll();
+    });
+    card.appendChild(renderButtonSwatch(button));
     const text = el("span", "ptb-button-card-text");
     text.appendChild(el("strong", "", button.label));
     text.appendChild(el("small", "", describeButtonAction(button)));
@@ -381,8 +449,23 @@
     return card;
   }
 
+  // Render a compact visual swatch for a button.
+  function renderButtonSwatch(button) {
+    const icon = el("span", "ptb-card-icon");
+    icon.style.background = button.accentColor || "#2b3037";
+    if (button.textOverride) {
+      icon.appendChild(el("span", "ptb-tool-text", button.textOverride));
+    } else {
+      icon.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, button.label);
+    }
+    return icon;
+  }
+
   // Describe a button action for cards and headers.
   function describeButtonAction(button) {
+    if (button.actionType === "settings") {
+      return "Open settings";
+    }
     if (button.actionType === "transition") {
       return "Transition: " + (button.transition.matchName || "Not set");
     }
@@ -395,21 +478,12 @@
   // Render all editable properties for a selected button.
   function renderButtonEditor(button) {
     const editor = el("div", "ptb-editor");
-    const header = el("div", "ptb-section-header mini");
-    const title = el("div");
-    title.appendChild(el("h3", "", button.label));
-    title.appendChild(el("p", "ptb-muted compact", describeButtonAction(button)));
-    header.appendChild(title);
-    const order = el("div", "ptb-action-row tight");
-    order.appendChild(actionButton(root.PTB_I18N.t("moveUp"), "ptb-button compact", () => moveSelectedButton(-1)));
-    order.appendChild(actionButton(root.PTB_I18N.t("moveDown"), "ptb-button compact", () => moveSelectedButton(1)));
-    header.appendChild(order);
-    editor.appendChild(header);
-    const basics = el("div", "ptb-control-grid");
-    basics.appendChild(textField(root.PTB_I18N.t("label"), button.label, (value) => {
+    editor.appendChild(el("h2", "", root.PTB_I18N.t("buttonEditor")));
+    editor.appendChild(textField(root.PTB_I18N.t("label"), button.label, (value) => {
       button.label = value || "Button";
     }));
-    basics.appendChild(selectField(root.PTB_I18N.t("action"), button.actionType, [
+    editor.appendChild(selectField(root.PTB_I18N.t("action"), button.actionType, [
+      { value: "settings", label: root.PTB_I18N.t("settings") },
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
       { value: "stack", label: root.PTB_I18N.t("capturedStack") }
@@ -417,30 +491,36 @@
       button.actionType = value;
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
-    editor.appendChild(basics);
     editor.appendChild(renderActionFields(button));
+    editor.appendChild(renderIconEditor(button));
+    const actions = el("div", "ptb-action-row tight");
+    actions.appendChild(actionButton(root.PTB_I18N.t("duplicateButton"), "ptb-button compact", () => duplicateLibraryButton(button.id)));
+    actions.appendChild(actionButton(root.PTB_I18N.t("deleteButton"), "ptb-button compact danger", () => deleteLibraryButton(button.id)));
+    editor.appendChild(actions);
     return editor;
   }
 
   // Render action-specific button fields.
   function renderActionFields(button) {
     const wrap = el("div", "ptb-fieldset");
+    if (button.actionType === "settings") {
+      wrap.appendChild(el("p", "ptb-muted", "This button opens the Tool Bar Settings panel."));
+      return wrap;
+    }
     if (button.actionType === "transition") {
-      const grid = el("div", "ptb-control-grid");
-      grid.appendChild(textField(root.PTB_I18N.t("transitionMatchName"), button.transition.matchName, (value) => {
+      wrap.appendChild(textField(root.PTB_I18N.t("transitionMatchName"), button.transition.matchName, (value) => {
         button.transition.matchName = value;
       }));
-      grid.appendChild(selectField(root.PTB_I18N.t("transitionPosition"), button.transition.applyTo, [
+      wrap.appendChild(selectField(root.PTB_I18N.t("transitionPosition"), button.transition.applyTo, [
         { value: "start", label: root.PTB_I18N.t("transitionStart") },
         { value: "end", label: root.PTB_I18N.t("transitionEnd") }
       ], (value) => {
         button.transition.applyTo = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       }));
-      grid.appendChild(numberField(root.PTB_I18N.t("transitionDuration"), button.transition.durationSeconds, (value) => {
+      wrap.appendChild(numberField(root.PTB_I18N.t("transitionDuration"), button.transition.durationSeconds, (value) => {
         button.transition.durationSeconds = value;
       }));
-      wrap.appendChild(grid);
       wrap.appendChild(renderCatalogPicker("transition", button));
       return wrap;
     }
@@ -458,21 +538,19 @@
       }));
       return wrap;
     }
-    const grid = el("div", "ptb-control-grid");
-    grid.appendChild(selectField(root.PTB_I18N.t("mediaType"), button.mediaType, [
+    wrap.appendChild(selectField(root.PTB_I18N.t("mediaType"), button.mediaType, [
       { value: "video", label: root.PTB_I18N.t("video") },
       { value: "audio", label: root.PTB_I18N.t("audio") }
     ], (value) => {
       button.mediaType = value;
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
-    grid.appendChild(textField(root.PTB_I18N.t("effectDisplayName"), button.effect.displayName, (value) => {
+    wrap.appendChild(textField(root.PTB_I18N.t("effectDisplayName"), button.effect.displayName, (value) => {
       button.effect.displayName = value;
     }));
-    grid.appendChild(textField(root.PTB_I18N.t("effectMatchName"), button.effect.matchName, (value) => {
+    wrap.appendChild(textField(root.PTB_I18N.t("effectMatchName"), button.effect.matchName, (value) => {
       button.effect.matchName = value;
     }));
-    wrap.appendChild(grid);
     wrap.appendChild(renderCatalogPicker("effect", button));
     return wrap;
   }
@@ -504,35 +582,19 @@
     return wrap;
   }
 
-  // Render icon, custom text, and data controls in the right inspector.
-  function renderRightInspector() {
-    const section = el("aside", "ptb-panel ptb-inspector");
-    const button = getSelectedButton();
-    if (button) {
-      section.appendChild(renderIconEditor(button));
-    } else {
-      section.appendChild(el("h2", "", root.PTB_I18N.t("iconGallery")));
-      section.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("noButtonSelected")));
-    }
-    section.appendChild(renderImportExportSettings());
-    return section;
-  }
-
   // Render icon and color controls for the selected button.
   function renderIconEditor(button) {
     const section = el("div", "ptb-inspector-block");
-    section.appendChild(el("h2", "", root.PTB_I18N.t("iconGallery")));
+    section.appendChild(el("h3", "", root.PTB_I18N.t("iconGallery")));
     section.appendChild(textField(root.PTB_I18N.t("textOverride"), button.textOverride, (value) => {
       button.textOverride = value.slice(0, 4);
     }));
-    const colors = el("div", "ptb-control-grid compact");
-    colors.appendChild(colorField(root.PTB_I18N.t("iconColor"), button.iconColor, (value) => {
+    section.appendChild(colorField(root.PTB_I18N.t("iconColor"), button.iconColor, (value) => {
       button.iconColor = value;
     }));
-    colors.appendChild(colorField(root.PTB_I18N.t("accentColor"), button.accentColor, (value) => {
+    section.appendChild(colorField(root.PTB_I18N.t("accentColor"), button.accentColor, (value) => {
       button.accentColor = value;
     }));
-    section.appendChild(colors);
     const gallery = el("div", "ptb-icon-grid");
     root.PTB_ICON_LIBRARY.icons.forEach((icon) => {
       const item = actionButton("", icon.id === button.icon ? "ptb-icon-choice active" : "ptb-icon-choice", () => {
@@ -562,24 +624,25 @@
     return section;
   }
 
-  // Create a new editable button in the currently selected bar.
-  function createButtonInSelectedBar() {
-    const bar = getConfigBar();
+  // Create a standalone library button and optionally add it to a collection.
+  function createLibraryButton(collectionId) {
     const button = root.PTB_SCHEMA.createButton({
       label: "New Button",
       icon: "bolt",
       iconColor: "#8fd6ff",
-      accentColor: "#24394a"
+      accentColor: "#313840"
     });
-    bar.buttons.push(button);
+    config.buttons.push(button);
+    if (collectionId) {
+      addButtonToCollection(collectionId, button.id, true);
+    }
     settingsState.selectedButtonId = button.id;
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
-  // Duplicate the selected button.
-  function duplicateSelectedButton() {
-    const bar = getConfigBar();
-    const button = getSelectedButton();
+  // Duplicate a library button.
+  function duplicateLibraryButton(buttonId) {
+    const button = getButton(buttonId);
     if (!button) {
       return;
     }
@@ -587,33 +650,100 @@
       id: root.PTB_SCHEMA.createId("button"),
       label: button.label + " Copy"
     }));
-    bar.buttons.push(copy);
+    config.buttons.push(copy);
     settingsState.selectedButtonId = copy.id;
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
-  // Delete the selected button.
-  function deleteSelectedButton() {
-    const bar = getConfigBar();
-    const button = getSelectedButton();
-    if (!button) {
-      return;
-    }
-    bar.buttons = bar.buttons.filter((item) => item.id !== button.id);
-    settingsState.selectedButtonId = bar.buttons[0] ? bar.buttons[0].id : "";
+  // Delete a library button and remove it from every collection.
+  function deleteLibraryButton(buttonId) {
+    config.buttons = config.buttons.filter((button) => button.id !== buttonId);
+    config.collections.forEach((collection) => {
+      collection.buttonIds = collection.buttonIds.filter((id) => id !== buttonId);
+    });
+    settingsState.selectedButtonId = config.buttons[0] ? config.buttons[0].id : "";
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
-  // Move the selected button inside its bar.
-  function moveSelectedButton(direction) {
-    const bar = getConfigBar();
-    const index = bar.buttons.findIndex((button) => button.id === settingsState.selectedButtonId);
-    const nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= bar.buttons.length) {
+  // Create a new collection.
+  function createNewCollection() {
+    const collection = root.PTB_SCHEMA.createCollection({ name: "New Collection", buttonIds: [] });
+    config.collections.push(collection);
+    settingsState.selectedCollectionId = collection.id;
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
+  }
+
+  // Duplicate the selected collection.
+  function duplicateSelectedCollection() {
+    const collection = getCollection(settingsState.selectedCollectionId);
+    if (!collection) {
       return;
     }
-    const button = bar.buttons.splice(index, 1)[0];
-    bar.buttons.splice(nextIndex, 0, button);
+    const copy = root.PTB_SCHEMA.createCollection(Object.assign(root.PTB_SCHEMA.clone(collection), {
+      id: root.PTB_SCHEMA.createId("collection"),
+      name: collection.name + " Copy"
+    }));
+    config.collections.push(copy);
+    settingsState.selectedCollectionId = copy.id;
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
+  }
+
+  // Delete the selected collection and reassign bars to the first remaining collection.
+  function deleteSelectedCollection() {
+    if (config.collections.length <= 1) {
+      return;
+    }
+    const deletedId = settingsState.selectedCollectionId;
+    config.collections = config.collections.filter((collection) => collection.id !== deletedId);
+    const fallbackId = config.collections[0].id;
+    config.bars.forEach((bar) => {
+      if (bar.collectionId === deletedId) {
+        bar.collectionId = fallbackId;
+      }
+    });
+    settingsState.selectedCollectionId = fallbackId;
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
+  }
+
+  // Add a button to a collection if it is not already present.
+  function addButtonToCollection(collectionId, buttonId, skipRender) {
+    const collection = getCollection(collectionId);
+    if (!collection || !getButton(buttonId)) {
+      return;
+    }
+    if (!collection.buttonIds.includes(buttonId)) {
+      collection.buttonIds.push(buttonId);
+    }
+    settingsState.selectedCollectionId = collection.id;
+    settingsState.selectedButtonId = buttonId;
+    if (!skipRender) {
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    }
+  }
+
+  // Remove a button from a collection.
+  function removeButtonFromCollection(collectionId, buttonId) {
+    const collection = getCollection(collectionId);
+    if (!collection) {
+      return;
+    }
+    collection.buttonIds = collection.buttonIds.filter((id) => id !== buttonId);
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
+  }
+
+  // Move a button inside one collection.
+  function moveButtonInCollection(collectionId, buttonId, direction) {
+    const collection = getCollection(collectionId);
+    if (!collection) {
+      return;
+    }
+    const index = collection.buttonIds.indexOf(buttonId);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= collection.buttonIds.length) {
+      return;
+    }
+    const item = collection.buttonIds.splice(index, 1)[0];
+    collection.buttonIds.splice(nextIndex, 0, item);
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
@@ -625,16 +755,16 @@
     });
   }
 
-  // Export all bars or the selected bar to JSON.
+  // Export all collections or the selected collection to JSON.
   async function exportPayload(selectedOnly) {
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
-      const json = root.PTB_SCHEMA.exportToJson(config, selectedOnly ? settingsState.selectedBarId : null);
-      await root.PTB_STORAGE.exportJsonFile(json, selectedOnly ? "ToolBar-" + settingsState.selectedBarId + ".json" : "ToolBar-all-bars.json");
+      const json = root.PTB_SCHEMA.exportToJson(config, selectedOnly ? settingsState.selectedCollectionId : null);
+      await root.PTB_STORAGE.exportJsonFile(json, selectedOnly ? "ToolBar-" + settingsState.selectedCollectionId + ".json" : "ToolBar-all-collections.json");
       statusMessage = root.PTB_I18N.t("statusExported");
     });
   }
 
-  // Import all bars or replace the selected bar from JSON.
+  // Import all collections or replace the selected collection from JSON.
   async function importPayload(selectedOnly) {
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
       const json = await root.PTB_STORAGE.importJsonFile();
@@ -642,18 +772,19 @@
         return;
       }
       config = root.PTB_SCHEMA.importJson(config, json, {
-        mode: selectedOnly ? "bar" : "all",
-        targetBarId: settingsState.selectedBarId
+        mode: selectedOnly ? "collection" : "all",
+        targetCollectionId: settingsState.selectedCollectionId
       });
       root.PTB_STORAGE.saveConfig(config);
+      settingsState.selectedCollectionId = config.activeCollectionId;
       statusMessage = root.PTB_I18N.t("statusImported");
     });
   }
 
-  // Copy the selected bar JSON for quick backup or sharing.
+  // Copy the selected collection JSON for quick backup or sharing.
   async function copyCurrentJson() {
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
-      const json = root.PTB_SCHEMA.exportToJson(config, settingsState.selectedBarId);
+      const json = root.PTB_SCHEMA.exportToJson(config, settingsState.selectedCollectionId);
       await root.PTB_STORAGE.copyText(json);
       statusMessage = root.PTB_I18N.t("statusCopied");
     });

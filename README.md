@@ -49,15 +49,16 @@ Open one or more bars from `Window > UXP Plugins > Tool Bar`:
 - `Tool Bar 4`
 - `Tool Bar Settings`
 
-Each bar is a separate dockable Premiere panel. Use the gear button on any bar to open settings. In settings you can:
+Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from the UXP Plugins menu, or add the built-in Settings button to any collection. In settings you can:
 
-- Rename and enable or disable each bar.
-- Create, duplicate, delete, and reorder buttons.
+- Assign one collection to each of the four dockable bars.
+- Create global buttons independently from bars.
+- Create collections, add buttons to them, then assign those collections to bars.
 - Assign an icon, icon color, button color, or short text label.
 - Choose native video/audio effects from Premiere after refreshing the catalog.
 - Assign video transition match names from Premiere.
 - Capture an exposed effect stack from the currently selected clip and reuse it as a Tool Bar preset.
-- Export all bars or one bar, then import them later.
+- Export all collections or one collection, then import them later.
 
 ## Important API Notes
 
@@ -78,6 +79,12 @@ npm run ptb:verify
 ```
 
 ## Changelog
+
+### 0.1.4 - 2026-05-13
+
+- Replaced bar names with a collection system: global buttons can be assigned to collections, and collections can be assigned to bars 1-4.
+- Added a default Base Effects collection with Settings, Transform, Crop, Gaussian Blur, Drop Shadow, Horizontal Flip, Vertical Flip, and Ultra Key buttons.
+- Updated import/export to target collections instead of bars and unified the compact bar appearance.
 
 ### 0.1.3 - 2026-05-13
 
