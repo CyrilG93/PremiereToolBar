@@ -6,6 +6,7 @@ const defaultConfig = schema.createDefaultConfig();
 assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");
 assert.equal(defaultConfig.bars[0].buttons.length, 2);
+assert.equal(defaultConfig.bars[0].buttons[1].effect.matchName, "AE.ADBE Gaussian Blur 2");
 
 // Verify malformed imports are normalized instead of leaking invalid values.
 const normalized = schema.normalizeConfig({
@@ -43,6 +44,15 @@ const button = schema.createButton({
   }
 });
 assert.equal(button.stack.components[0].params[0].keyframes[0].seconds, 1);
+
+// Verify the old beta Solarize starter button is migrated to a safer default.
+const migratedButton = schema.createButton({
+  label: "Solarize",
+  icon: "sun",
+  effect: { matchName: "PR.ADBE Solarize", displayName: "Solarize" }
+});
+assert.equal(migratedButton.label, "Gaussian Blur");
+assert.equal(migratedButton.effect.matchName, "AE.ADBE Gaussian Blur 2");
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");

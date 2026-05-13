@@ -105,7 +105,7 @@
     const actions = [];
     for (const item of items) {
       if (button.mediaType === "video" && isVideoItem(item)) {
-        const component = await app.VideoFilterFactory.createComponent(button.effect.matchName);
+        const component = await createVideoFilterComponent(app, button.effect);
         const chain = await item.getComponentChain();
         actions.push(chain.createAppendComponentAction(component));
       }
@@ -116,6 +116,41 @@
       }
     }
     return executeActions(project, actions, "Tool Bar: " + button.label);
+  }
+
+  // Return known fallback match names for beta defaults and common display names.
+  function getVideoEffectCandidates(effect) {
+    const candidates = [effect.matchName];
+    if (effect.displayName === "Mosaic") {
+      candidates.push("AE.ADBE Mosaic");
+    }
+    if (effect.displayName === "Gaussian Blur" || effect.matchName === "PR.ADBE Solarize") {
+      candidates.push("AE.ADBE Gaussian Blur 2");
+    }
+    return candidates.filter(Boolean).filter((value, index, list) => list.indexOf(value) === index);
+  }
+
+  // Create a video component with fallbacks and a catalog lookup when the stored match name is stale.
+  async function createVideoFilterComponent(app, effect) {
+    let lastError = null;
+    for (const matchName of getVideoEffectCandidates(effect)) {
+      try {
+        return await app.VideoFilterFactory.createComponent(matchName);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    try {
+      const matchNames = await app.VideoFilterFactory.getMatchNames();
+      const displayNames = await app.VideoFilterFactory.getDisplayNames();
+      const index = displayNames.findIndex((displayName) => displayName === effect.displayName);
+      if (index >= 0 && matchNames[index]) {
+        return await app.VideoFilterFactory.createComponent(matchNames[index]);
+      }
+    } catch (error) {
+      lastError = error;
+    }
+    throw new Error("Video effect not found: " + (effect.displayName || effect.matchName) + ". Refresh Premiere Lists and choose the effect again.");
   }
 
   // Create transition options using whichever constructor shape Premiere exposes.

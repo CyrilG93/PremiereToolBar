@@ -79,6 +79,12 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.3 - 2026-05-13
+
+- Rebuilt the settings panel as a wider workspace with clear bar and button selection.
+- Fixed bar renaming, button creation, duplication, deletion, and reordering.
+- Replaced the invalid Solarize starter button with Gaussian Blur and added safer effect lookup.
+
 ### 0.1.2 - 2026-05-13
 
 - Improved the settings panel so Add Button and edit controls are visible immediately in Premiere UXP.

@@ -48,7 +48,7 @@
     const input = overrides || {};
     const actionType = ACTION_TYPES.includes(input.actionType) ? input.actionType : "effect";
     const mediaType = MEDIA_TYPES.includes(input.mediaType) ? input.mediaType : "video";
-    return {
+    const button = {
       id: safeString(input.id, createId("button")),
       label: safeString(input.label, "New Button"),
       actionType,
@@ -70,6 +70,18 @@
       },
       stack: normalizeStack(input.stack)
     };
+    if (button.effect.matchName === "PR.ADBE Solarize") {
+      // Migrate the old beta starter effect to a Premiere effect match name that is widely exposed.
+      button.effect.matchName = "AE.ADBE Gaussian Blur 2";
+      button.effect.displayName = "Gaussian Blur";
+      if (button.label === "Solarize") {
+        button.label = "Gaussian Blur";
+      }
+      if (button.icon === "sun") {
+        button.icon = "blur";
+      }
+    }
+    return button;
   }
 
   // Normalize a captured effect stack payload.
@@ -185,11 +197,11 @@
               effect: { matchName: "AE.ADBE Mosaic", displayName: "Mosaic" }
             }),
             createButton({
-              label: "Solarize",
-              icon: "sun",
+              label: "Gaussian Blur",
+              icon: "blur",
               iconColor: "#ffd166",
               accentColor: "#3c2d13",
-              effect: { matchName: "PR.ADBE Solarize", displayName: "Solarize" }
+              effect: { matchName: "AE.ADBE Gaussian Blur 2", displayName: "Gaussian Blur" }
             })
           ]
         }, 0),
