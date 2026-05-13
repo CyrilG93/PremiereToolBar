@@ -50,9 +50,23 @@ Object.keys(packageJson.scripts || {}).forEach((scriptName) => {
   "src/ui.js"
 ].forEach(assertJavaScriptSyntax);
 
-// Validate required user-facing files exist.
-["README.md", "index.html", "styles.css"].forEach((relativePath) => {
+// Validate required user-facing and installer files exist.
+[
+  "README.md",
+  "index.html",
+  "styles.css",
+  "installers/ptb_install_macos.sh",
+  "installers/ptb_install_windows.bat"
+].forEach((relativePath) => {
   assert(fs.existsSync(path.join(repoRoot, relativePath)), `${relativePath} is required.`);
+});
+
+// Validate installers use project-prefixed names and keep explicit install comments.
+["installers/ptb_install_macos.sh", "installers/ptb_install_windows.bat"].forEach((relativePath) => {
+  const contents = fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
+  assert(path.basename(relativePath).startsWith("ptb_"), `${relativePath} must use the ptb_ prefix.`);
+  assert(contents.includes("//"), `${relativePath} should include // comments.`);
+  assert(contents.includes("UnifiedPluginInstallerAgent"), `${relativePath} must use Adobe UPIA for installation.`);
 });
 
 // Report success for CI and local verification.

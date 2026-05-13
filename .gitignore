@@ -2,4 +2,5 @@
 node_modules/
 *.log
 *.ccx
+.ptb-installer-build/
 Releases/

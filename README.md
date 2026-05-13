@@ -5,18 +5,39 @@ Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortc
 ## Requirements
 
 - Adobe Premiere Pro 25.6 or later.
+- Adobe Creative Cloud Desktop for `.ccx` installation.
 - UXP Developer Tool 2.2 or later for development loading and packaging.
 - Premiere Developer Mode enabled in `Preferences > Plugins`.
 
-## Install for Testing
+## Install
+
+The easiest user install method is a `.ccx` file. The included installers build that `.ccx` package, then try to install it with Adobe's Unified Plugin Installer Agent.
+
+### macOS
+
+1. Quit Premiere Pro.
+2. Open Terminal in the Tool Bar folder.
+3. Run:
+
+```bash
+bash installers/ptb_install_macos.sh
+```
+
+### Windows
+
+1. Quit Premiere Pro.
+2. Open the Tool Bar folder.
+3. Double-click `installers\ptb_install_windows.bat`.
+
+If Adobe UPIA is not found, the scripts still create a `.ccx` file in `.ptb-installer-build`. Double-click that `.ccx` file to install it through Creative Cloud Desktop.
+
+### Development Loading
 
 1. Open Premiere Pro.
 2. Open the UXP Developer Tool.
 3. Add this folder as an existing plugin.
 4. Click `Load` or `Load & Watch`.
 5. In Premiere, open `Window > UXP Plugins > Tool Bar`.
-
-For distribution, package the plugin as a `.ccx` from the UXP Developer Tool. Adobe installs `.ccx` plugins through Creative Cloud Desktop.
 
 ## Use
 
@@ -49,12 +70,18 @@ Directly applying Premiere `.prfpset` effect preset files is not exposed in the 
 Use the project-prefixed commands:
 
 ```bash
+npm run ptb:install:mac
+npm run ptb:install:windows
 npm run ptb:lint
 npm run ptb:test
 npm run ptb:verify
 ```
 
 ## Changelog
+
+### 0.1.1 - 2026-05-13
+
+- Added macOS and Windows installer scripts that build a `.ccx` package and install it through Adobe UPIA when available.
 
 ### 0.1.0 - 2026-05-13
 
