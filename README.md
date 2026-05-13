@@ -79,6 +79,11 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.2 - 2026-05-13
+
+- Improved the settings panel so Add Button and edit controls are visible immediately in Premiere UXP.
+- Replaced SVG toolbar icons with compact text icons for better UXP compatibility.
+
 ### 0.1.1 - 2026-05-13
 
 - Added macOS and Windows installer scripts that build a `.ccx` package and install it through Adobe UPIA when available.

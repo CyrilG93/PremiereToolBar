@@ -18,10 +18,11 @@ html,
 body,
 #ptb-root {
   width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 100%;
   margin: 0;
-  overflow: hidden;
+  overflow: auto;
   background: var(--ptb-bg);
   color: var(--ptb-text);
   font-family: Arial, Helvetica, sans-serif;
@@ -85,11 +86,18 @@ textarea {
   background: #202833;
 }
 
-.ptb-svg-icon {
+.ptb-fallback-icon {
   display: block;
-  width: 20px;
-  height: 20px;
+  max-width: 31px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
   pointer-events: none;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ptb-tool-text {
@@ -114,23 +122,27 @@ textarea {
 
 .ptb-settings-shell {
   width: 100%;
-  height: 100vh;
+  min-height: 100%;
   overflow: auto;
   background: var(--ptb-bg);
 }
 
 .ptb-settings-header {
-  position: sticky;
-  top: 0;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 46px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--ptb-line);
   background: var(--ptb-bg);
+}
+
+.ptb-settings-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
 }
 
 .ptb-settings-header h1 {
@@ -140,7 +152,7 @@ textarea {
 }
 
 .ptb-status {
-  min-width: 120px;
+  min-width: 80px;
   margin: 0;
   overflow: hidden;
   color: var(--ptb-muted);
@@ -150,17 +162,25 @@ textarea {
   white-space: nowrap;
 }
 
+.ptb-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .ptb-settings-layout {
-  display: grid;
-  grid-template-columns: minmax(190px, 0.8fr) minmax(260px, 1.4fr);
-  gap: 0;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  width: 100%;
+  padding-bottom: 12px;
 }
 
 .ptb-settings-section {
   min-width: 0;
   padding: 12px;
-  border-right: 1px solid var(--ptb-line);
   border-bottom: 1px solid var(--ptb-line);
 }
 
@@ -262,6 +282,17 @@ textarea {
   padding: 6px 10px;
 }
 
+.ptb-button.primary {
+  border-color: rgba(143, 214, 255, 0.75);
+  background: #24394a;
+}
+
+.ptb-button.compact {
+  min-height: 26px;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
 .ptb-button.inline {
   width: 100%;
   margin-top: 6px;
@@ -336,21 +367,18 @@ textarea {
 }
 
 @media (max-width: 520px) {
-  .ptb-settings-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .ptb-settings-section {
-    border-right: 0;
-  }
-
   .ptb-settings-header {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
   }
 
+  .ptb-settings-title,
   .ptb-status {
     width: 100%;
     text-align: left;
+  }
+
+  .ptb-header-actions {
+    justify-content: flex-start;
   }
 }

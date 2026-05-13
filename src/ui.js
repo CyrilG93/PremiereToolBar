@@ -109,8 +109,22 @@
     return root.PTB_SCHEMA.getBar(config, settingsState.selectedBarId);
   }
 
+  // Keep settings focused on a real bar and button so editing is visible immediately.
+  function ensureSettingsSelection() {
+    const selectedBar = getSelectedBar();
+    settingsState.selectedBarId = selectedBar.id;
+    if (!settingsState.selectedButtonId && selectedBar.buttons.length) {
+      settingsState.selectedButtonId = selectedBar.buttons[0].id;
+      return;
+    }
+    if (settingsState.selectedButtonId && !selectedBar.buttons.some((button) => button.id === settingsState.selectedButtonId)) {
+      settingsState.selectedButtonId = selectedBar.buttons[0] ? selectedBar.buttons[0].id : "";
+    }
+  }
+
   // Find the selected button in the selected bar.
   function getSelectedButton() {
+    ensureSettingsSelection();
     const bar = getSelectedBar();
     return bar.buttons.find((button) => button.id === settingsState.selectedButtonId) || null;
   }
@@ -192,17 +206,49 @@
 
   // Render the full settings panel.
   function renderSettingsPanel(rootNode) {
+    ensureSettingsSelection();
     const shell = el("main", "ptb-settings-shell");
     const header = el("header", "ptb-settings-header");
-    header.appendChild(el("h1", "", root.PTB_I18N.t("appName")));
-    header.appendChild(el("p", "ptb-status", statusMessage));
+    const headerTitle = el("div", "ptb-settings-title");
+    headerTitle.appendChild(el("h1", "", root.PTB_I18N.t("appName")));
+    headerTitle.appendChild(el("p", "ptb-status", statusMessage));
+    header.appendChild(headerTitle);
+    header.appendChild(renderHeaderActions());
     shell.appendChild(header);
-    const layout = el("div", "ptb-settings-layout");
-    layout.appendChild(renderBarSettings());
-    layout.appendChild(renderButtonSettings());
-    layout.appendChild(renderImportExportSettings());
-    shell.appendChild(layout);
     rootNode.appendChild(shell);
+    const layout = el("div", "ptb-settings-layout");
+    try {
+      // Build settings after mounting the shell so any UXP render error leaves visible actions.
+      layout.appendChild(renderBarSettings());
+      layout.appendChild(renderButtonSettings());
+      layout.appendChild(renderImportExportSettings());
+    } catch (error) {
+      layout.appendChild(renderErrorPanel(error));
+    }
+    shell.appendChild(layout);
+  }
+
+  // Render always-visible settings actions in the header.
+  function renderHeaderActions() {
+    const actions = el("div", "ptb-header-actions");
+    actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button primary compact", () => {
+      createButtonInSelectedBar();
+    }));
+    actions.appendChild(actionButton(root.PTB_I18N.t("refreshCatalog"), "ptb-button compact", async () => {
+      await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
+        catalogs = await root.PTB_PREMIERE.loadCatalogs();
+        statusMessage = root.PTB_I18N.t("statusCatalog");
+      });
+    }));
+    return actions;
+  }
+
+  // Render a visible error block instead of leaving the panel blank.
+  function renderErrorPanel(error) {
+    const section = el("section", "ptb-settings-section");
+    section.appendChild(el("h2", "", "Render Error"));
+    section.appendChild(el("p", "ptb-muted", error && error.message ? error.message : String(error)));
+    return section;
   }
 
   // Render bar selection and bar-level options.
@@ -262,10 +308,7 @@
     section.appendChild(list);
     const actions = el("div", "ptb-action-row");
     actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button", () => {
-      const button = root.PTB_SCHEMA.createButton({ label: "New Button" });
-      bar.buttons.push(button);
-      settingsState.selectedButtonId = button.id;
-      saveAndRender(root.PTB_I18N.t("statusSaved"));
+      createButtonInSelectedBar();
     }));
     actions.appendChild(actionButton(root.PTB_I18N.t("duplicateButton"), "ptb-button", () => duplicateSelectedButton(bar)));
     actions.appendChild(actionButton(root.PTB_I18N.t("deleteButton"), "ptb-button danger", () => deleteSelectedButton(bar)));
@@ -279,6 +322,15 @@
     }
     section.appendChild(renderButtonEditor(button));
     return section;
+  }
+
+  // Create a new editable button in the currently selected bar.
+  function createButtonInSelectedBar() {
+    const bar = getSelectedBar();
+    const button = root.PTB_SCHEMA.createButton({ label: "New Button" });
+    bar.buttons.push(button);
+    settingsState.selectedButtonId = button.id;
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
   // Duplicate the selected button.
