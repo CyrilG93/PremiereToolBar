@@ -81,6 +81,12 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.10 - 2026-05-21
+
+- Made the Settings modules render as a stable visible column in Premiere UXP.
+- Added per-module render fallbacks so Button Gallery, Button Editor, Collections, and Import / Export do not disappear silently.
+- Removed the remaining visible dependency on the Premiere list refresh workflow.
+
 ### 0.1.9 - 2026-05-13
 
 - Made all settings modules visible immediately instead of relying on collapsible sections.
