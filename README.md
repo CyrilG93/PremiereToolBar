@@ -81,6 +81,12 @@ npm run ptb:verify
 
 ## Changelog
 
+### 0.1.11 - 2026-05-21
+
+- Changed the Settings modules so their contents are filled only after each section is mounted in Premiere.
+- Kept module bodies open with a stable minimum height to prevent UXP from showing title-only sections.
+- Replaced nested grid layouts in Settings with flex layouts for better Premiere UXP rendering.
+
 ### 0.1.10 - 2026-05-21
 
 - Made the Settings modules render as a stable visible column in Premiere UXP.

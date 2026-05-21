@@ -39,15 +39,15 @@
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
       .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:center;gap:1px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;align-items:flex-start}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;width:34px;min-width:34px;height:34px;min-height:34px;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-fallback-icon,.ptb-tool-text{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
       .ptb-settings-shell{width:100%;min-height:100%;overflow:auto;background:var(--ptb-bg)}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}
-      .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
+      .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
-      .ptb-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member-main{display:flex;align-items:center;gap:9px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:100%;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
-      .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:grid;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text small{color:var(--ptb-muted)}
-      .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:grid;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;min-width:0}.ptb-catalog-picker{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:8px;align-items:end;margin-top:12px}.ptb-fieldset{display:grid;gap:10px;min-width:0}.ptb-field{display:grid;grid-template-columns:1fr;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
-      .ptb-color-field{grid-template-columns:1fr 44px;align-items:center}.ptb-color-input{grid-column:2/3;grid-row:1/3;width:38px;height:30px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;background:transparent}.ptb-icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:7px}.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:36px;min-height:36px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-icon-choice.active{border-color:var(--ptb-accent);background:#223446}
-      .ptb-collections-board{display:grid;gap:10px;padding:12px}.ptb-collection-drop-card{display:grid;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:grid;grid-template-columns:minmax(150px,1fr) auto auto;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:var(--ptb-text);border-color:rgba(121,200,255,.7);background:#224259}
-      .ptb-collection-member-list{display:grid;gap:6px;min-width:0}.ptb-collection-member{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;padding:7px;background:var(--ptb-panel-soft)}.ptb-collection-member-main{border:0;padding:0;background:transparent}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
-      @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-collection-header-row,.ptb-catalog-picker{grid-template-columns:1fr}.ptb-gallery-grid{grid-template-columns:1fr}}
+      .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member-main{display:flex;align-items:center;gap:9px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
+      .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:flex;flex-direction:column;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text small{color:var(--ptb-muted)}
+      .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
+      .ptb-color-field{align-items:flex-start}.ptb-color-input{width:38px;height:30px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;background:transparent}.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:7px}.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:36px;min-height:36px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-icon-choice.active{border-color:var(--ptb-accent);background:#223446}
+      .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:var(--ptb-text);border-color:rgba(121,200,255,.7);background:#224259}
+      .ptb-collection-member-list{display:flex;flex-direction:column;gap:6px;min-width:0}.ptb-collection-member{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;padding:7px;background:var(--ptb-panel-soft)}.ptb-collection-member-main{flex:1 1 180px;border:0;padding:0;background:transparent}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
+      @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
       if (document.head) {
         document.head.appendChild(style);
@@ -149,7 +149,7 @@
       setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minHeight: "42px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)" });
     }
     if (tokens.includes("ptb-section-body")) {
-      setStyles(node, { display: "block", minWidth: "0" });
+      setStyles(node, { display: "block", minWidth: "0", minHeight: "18px", padding: "0" });
     }
     if (tokens.includes("collapsed")) {
       setStyles(node, { borderBottom: "0" });
@@ -170,13 +170,13 @@
       setStyles(node, { color: "#ffd8d5", borderColor: "rgba(255, 116, 107, 0.45)" });
     }
     if (tokens.includes("ptb-gallery-grid")) {
-      setStyles(node, { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px", padding: "12px" });
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", padding: "12px" });
     }
     if (tokens.includes("ptb-gallery-card") || tokens.includes("ptb-collection-member-main")) {
       setStyles(node, Object.assign({}, sharedButton, { display: "flex", alignItems: "center", gap: "9px", minWidth: "0", textAlign: "left" }));
     }
     if (tokens.includes("ptb-gallery-card")) {
-      setStyles(node, { width: "100%", padding: "9px" });
+      setStyles(node, { width: "150px", minWidth: "150px", padding: "9px" });
     }
     if (tokens.includes("active")) {
       setStyles(node, { borderColor: "var(--ptb-accent)", background: "#223446" });
@@ -185,22 +185,22 @@
       setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", flex: "0 0 34px", borderRadius: "7px" });
     }
     if (tokens.includes("ptb-button-card-text")) {
-      setStyles(node, { display: "grid", gap: "2px", minWidth: "0" });
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "2px", minWidth: "0" });
     }
     if (tokens.includes("ptb-editor-shell") || tokens.includes("ptb-icon-editor") || tokens.includes("ptb-import-export")) {
-      setStyles(node, { display: "grid", gap: "12px", minWidth: "0", padding: "12px" });
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "12px", minWidth: "0", padding: "12px" });
     }
     if (tokens.includes("ptb-form-grid")) {
-      setStyles(node, { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "10px", minWidth: "0" });
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "10px", minWidth: "0" });
     }
     if (tokens.includes("ptb-catalog-picker")) {
-      setStyles(node, { display: "grid", gridTemplateColumns: "minmax(180px, 1fr) auto", gap: "8px", alignItems: "end", marginTop: "12px" });
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "flex-end", marginTop: "12px" });
     }
     if (tokens.includes("ptb-fieldset")) {
-      setStyles(node, { display: "grid", gap: "10px", minWidth: "0" });
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "10px", minWidth: "0" });
     }
     if (tokens.includes("ptb-field")) {
-      setStyles(node, { display: "grid", gridTemplateColumns: "1fr", gap: "4px", minWidth: "0" });
+      setStyles(node, { display: "flex", flex: "1 1 190px", flexDirection: "column", gap: "4px", minWidth: "0" });
     }
     if (tokens.includes("ptb-field-label")) {
       setStyles(node, { color: "var(--ptb-muted)", fontSize: "10px", fontWeight: "700", textTransform: "uppercase" });
@@ -209,40 +209,40 @@
       setStyles(node, { width: "100%", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "7px 8px", color: "var(--ptb-text)", background: "#101010", outline: "none" });
     }
     if (tokens.includes("ptb-color-field")) {
-      setStyles(node, { gridTemplateColumns: "1fr 44px", alignItems: "center" });
+      setStyles(node, { alignItems: "flex-start" });
     }
     if (tokens.includes("ptb-color-input")) {
-      setStyles(node, { gridColumn: "2 / 3", gridRow: "1 / 3", width: "38px", height: "30px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", background: "transparent" });
+      setStyles(node, { width: "38px", height: "30px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", background: "transparent" });
     }
     if (tokens.includes("ptb-icon-grid")) {
-      setStyles(node, { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(38px, 1fr))", gap: "7px" });
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "7px" });
     }
     if (tokens.includes("ptb-icon-choice")) {
       setStyles(node, Object.assign({}, sharedButton, { display: "inline-flex", alignItems: "center", justifyContent: "center", aspectRatio: "1", minWidth: "36px", minHeight: "36px", padding: "0" }));
     }
     if (tokens.includes("ptb-collections-board")) {
-      setStyles(node, { display: "grid", gap: "10px", padding: "12px" });
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "10px", padding: "12px" });
     }
     if (tokens.includes("ptb-collection-drop-card")) {
-      setStyles(node, { display: "grid", gap: "10px", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "10px", background: "#242424" });
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "10px", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "10px", background: "#242424" });
     }
     if (tokens.includes("ptb-collection-header-row")) {
-      setStyles(node, { display: "grid", gridTemplateColumns: "minmax(150px, 1fr) auto auto", gap: "8px", alignItems: "center", minWidth: "0" });
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", minWidth: "0" });
     }
     if (tokens.includes("ptb-collection-name-input")) {
-      setStyles(node, { width: "100%", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "7px 8px", color: "var(--ptb-text)", background: "#101010", fontWeight: "800", outline: "none" });
+      setStyles(node, { width: "100%", minWidth: "160px", flex: "1 1 180px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "7px 8px", color: "var(--ptb-text)", background: "#101010", fontWeight: "800", outline: "none" });
     }
     if (tokens.includes("ptb-bar-toggle")) {
       setStyles(node, Object.assign({}, sharedButton, { minWidth: "30px", minHeight: "26px", fontSize: "10px", fontWeight: "800" }));
     }
     if (tokens.includes("ptb-collection-member-list")) {
-      setStyles(node, { display: "grid", gap: "6px", minWidth: "0" });
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "6px", minWidth: "0" });
     }
     if (tokens.includes("ptb-collection-member")) {
-      setStyles(node, { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "8px", alignItems: "center", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "7px", background: "var(--ptb-panel-soft)" });
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "7px", background: "var(--ptb-panel-soft)" });
     }
     if (tokens.includes("ptb-collection-member-main")) {
-      setStyles(node, { border: "0", padding: "0", background: "transparent" });
+      setStyles(node, { flex: "1 1 180px", border: "0", padding: "0", background: "transparent" });
     }
     if (tokens.includes("ptb-icon-action")) {
       setStyles(node, Object.assign({}, sharedButton, { minWidth: "26px", minHeight: "24px", padding: "3px 6px", fontSize: "10px" }));
@@ -572,10 +572,10 @@
     shell.appendChild(content);
     rootNode.appendChild(shell);
     // Append every module after the shell is visible so UXP never leaves the settings panel blank.
-    appendSettingsModule(content, root.PTB_I18N.t("buttonGallery"), () => renderButtonGallery());
-    appendSettingsModule(content, root.PTB_I18N.t("buttonEditor"), () => renderButtonEditor(getButton(settingsState.selectedButtonId)));
-    appendSettingsModule(content, root.PTB_I18N.t("collections"), () => renderCollectionsBoard());
-    appendSettingsModule(content, root.PTB_I18N.t("data"), () => renderImportExportSettings());
+    appendSettingsModule(content, root.PTB_I18N.t("buttonGallery"), fillButtonGallery);
+    appendSettingsModule(content, root.PTB_I18N.t("buttonEditor"), fillButtonEditor);
+    appendSettingsModule(content, root.PTB_I18N.t("collections"), fillCollectionsBoard);
+    appendSettingsModule(content, root.PTB_I18N.t("data"), fillImportExportSettings);
   }
 
   // Render the compact settings header with version and top actions.
@@ -610,34 +610,42 @@
   }
 
   // Render one always-visible settings module.
-  function renderSettingsModule(title, bodyNode) {
+  function renderSettingsModule(title) {
     const section = el("div", "ptb-section");
     const header = el("div", "ptb-section-heading");
     const body = el("div", "ptb-section-body");
     header.appendChild(el("h2", "", title));
     section.appendChild(header);
-    if (bodyNode) {
-      body.appendChild(bodyNode);
-    }
     section.appendChild(body);
-    return section;
+    return { section, body };
   }
 
-  // Add one settings module while keeping the rest of the settings UI usable if one renderer fails.
-  function appendSettingsModule(content, title, renderBody) {
+  // Add one settings module first, then fill it while it is already attached to the UXP DOM.
+  function appendSettingsModule(content, title, fillBody) {
+    const module = renderSettingsModule(title);
+    content.appendChild(module.section);
     try {
-      content.appendChild(renderSettingsModule(title, renderBody()));
+      fillBody(module.body);
     } catch (error) {
-      content.appendChild(renderSettingsModule(title, renderModuleError(error)));
+      clearNode(module.body);
+      fillModuleError(module.body, error);
     }
   }
 
-  // Render an inline module error instead of silently dropping the whole settings workspace.
-  function renderModuleError(error) {
+  // Empty a node without replacing the node itself, which is safer in UXP panels.
+  function clearNode(node) {
+    while (node.firstChild) {
+      node.removeChild(node.firstChild);
+    }
+    node.innerHTML = "";
+  }
+
+  // Fill an inline module error instead of silently dropping the whole settings workspace.
+  function fillModuleError(target, error) {
     const errorNode = el("div", "ptb-module-error");
     errorNode.appendChild(el("strong", "", "This module could not render."));
     errorNode.appendChild(el("p", "ptb-muted", error && error.message ? error.message : String(error)));
-    return errorNode;
+    target.appendChild(errorNode);
   }
 
   // Render a visible error block instead of leaving the panel blank.
@@ -659,6 +667,11 @@
       gallery.appendChild(renderGalleryButtonCard(button));
     });
     return gallery;
+  }
+
+  // Fill the button gallery after its module body is already mounted.
+  function fillButtonGallery(target) {
+    target.appendChild(renderButtonGallery());
   }
 
   // Render one draggable gallery item.
@@ -738,6 +751,11 @@
     actions.appendChild(actionButton(root.PTB_I18N.t("deleteButton"), "ptb-button compact danger", () => deleteLibraryButton(button.id)));
     editor.appendChild(actions);
     return editor;
+  }
+
+  // Fill the selected button editor after its module body is already mounted.
+  function fillButtonEditor(target) {
+    target.appendChild(renderButtonEditor(getButton(settingsState.selectedButtonId)));
   }
 
   // Render action-specific button fields.
@@ -872,6 +890,11 @@
     return board;
   }
 
+  // Fill the collections board after its module body is already mounted.
+  function fillCollectionsBoard(target) {
+    target.appendChild(renderCollectionsBoard());
+  }
+
   // Render one collection with name editing, bar assignment, and drop handling.
   function renderCollectionDropCard(collection) {
     const card = el("div", collection.id === settingsState.selectedCollectionId ? "ptb-collection-drop-card active" : "ptb-collection-drop-card");
@@ -1004,6 +1027,11 @@
     actions.appendChild(actionButton(root.PTB_I18N.t("copyJson"), "ptb-button", async () => copyCurrentJson()));
     section.appendChild(actions);
     return section;
+  }
+
+  // Fill import and export actions after their module body is already mounted.
+  function fillImportExportSettings(target) {
+    target.appendChild(renderImportExportSettings());
   }
 
   // Create a standalone library button and optionally add it to a collection.
