@@ -79,7 +79,19 @@ npm run ptb:test
 npm run ptb:verify
 ```
 
+## Icon Notes
+
+The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. It follows simple SVG line-icon conventions; Lucide is a good open-source reference pack and is distributed under the ISC license.
+
 ## Changelog
+
+### 0.1.12 - 2026-05-21
+
+- Simplified button gallery and collection labels to show only the editable button name.
+- Added a graphical SVG icon gallery and visual color swatches for icon and button colors.
+- Added drag and drop reordering inside collections plus right-click removal from a collection.
+- Kept video effect display-name lookup, while match names remain the most reliable Premiere identifier.
+- Icon shapes use an internal SVG set compatible with Lucide-style open icons; Lucide is available under the ISC license.
 
 ### 0.1.11 - 2026-05-21
 

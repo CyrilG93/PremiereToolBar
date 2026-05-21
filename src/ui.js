@@ -16,6 +16,7 @@
     }
   };
   const mountedPanels = new Map();
+  const colorSwatches = ["#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986", "#ff9aa2", "#d7b6ff", "#d7dee8", "#6b7280", "#313840", "#263747", "#263d35", "#403724", "#342a45", "#422a2f", "#101010"];
 
   // Inject only into the document head; UXP can render style tags inside panel roots as visible text.
   function ensureHeadStyles() {
@@ -38,16 +39,16 @@
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
       .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:center;gap:1px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;align-items:flex-start}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;width:34px;min-width:34px;height:34px;min-height:34px;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-fallback-icon,.ptb-tool-text{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
-      .ptb-settings-shell{width:100%;min-height:100%;overflow:auto;background:var(--ptb-bg)}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}
+      .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
-      .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member-main{display:flex;align-items:center;gap:9px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
+      .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
       .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:flex;flex-direction:column;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text small{color:var(--ptb-muted)}
       .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
-      .ptb-color-field{align-items:flex-start}.ptb-color-input{width:38px;height:30px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;background:transparent}.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:7px}.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:36px;min-height:36px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-icon-choice.active{border-color:var(--ptb-accent);background:#223446}
+      .ptb-color-picker{display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-color-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.ptb-color-swatch{width:24px;height:24px;min-width:24px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;cursor:pointer}.ptb-color-swatch.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}.ptb-color-input{width:92px;max-width:92px}.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:7px}.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:38px;min-height:38px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-icon-choice.active{border-color:var(--ptb-accent);background:#223446}.ptb-svg-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;pointer-events:none}.ptb-svg-icon svg{display:block;width:20px;height:20px}.ptb-svg-icon .ptb-fallback-icon{display:none}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:var(--ptb-text);border-color:rgba(121,200,255,.7);background:#224259}
-      .ptb-collection-member-list{display:flex;flex-direction:column;gap:6px;min-width:0}.ptb-collection-member{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;padding:7px;background:var(--ptb-panel-soft)}.ptb-collection-member-main{flex:1 1 180px;border:0;padding:0;background:transparent}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
-      @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
+      .ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
+      @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
       if (document.head) {
         document.head.appendChild(style);
@@ -115,11 +116,14 @@
     if (tokens.includes("ptb-fallback-icon") || tokens.includes("ptb-tool-text")) {
       setStyles(node, { display: "block", maxWidth: "31px", overflow: "hidden", fontSize: "10px", fontWeight: "800", letterSpacing: "0", lineHeight: "1", textAlign: "center", textOverflow: "ellipsis", whiteSpace: "nowrap" });
     }
+    if (tokens.includes("ptb-svg-icon")) {
+      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "20px", height: "20px", pointerEvents: "none" });
+    }
     if (tokens.includes("ptb-empty")) {
       setStyles(node, { minWidth: "0", color: "var(--ptb-muted)", fontSize: "11px", lineHeight: "1.2" });
     }
     if (tokens.includes("ptb-settings-shell")) {
-      setStyles(node, { width: "100%", minHeight: "100%", overflow: "auto", background: "var(--ptb-bg)", color: "var(--ptb-text)" });
+      setStyles(node, { width: "100%", height: "100%", minHeight: "100%", overflow: "auto", paddingBottom: "24px", background: "var(--ptb-bg)", color: "var(--ptb-text)" });
     }
     if (tokens.includes("ptb-settings-header")) {
       setStyles(node, { position: "sticky", top: "0", zIndex: "4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)", background: "var(--ptb-bg)" });
@@ -172,7 +176,7 @@
     if (tokens.includes("ptb-gallery-grid")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", padding: "12px" });
     }
-    if (tokens.includes("ptb-gallery-card") || tokens.includes("ptb-collection-member-main")) {
+    if (tokens.includes("ptb-gallery-card") || tokens.includes("ptb-collection-member")) {
       setStyles(node, Object.assign({}, sharedButton, { display: "flex", alignItems: "center", gap: "9px", minWidth: "0", textAlign: "left" }));
     }
     if (tokens.includes("ptb-gallery-card")) {
@@ -208,11 +212,17 @@
     if (tokens.includes("ptb-input")) {
       setStyles(node, { width: "100%", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "7px 8px", color: "var(--ptb-text)", background: "#101010", outline: "none" });
     }
-    if (tokens.includes("ptb-color-field")) {
-      setStyles(node, { alignItems: "flex-start" });
+    if (tokens.includes("ptb-color-picker")) {
+      setStyles(node, { display: "flex", flex: "1 1 220px", flexDirection: "column", gap: "7px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-color-row")) {
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" });
+    }
+    if (tokens.includes("ptb-color-swatch")) {
+      setStyles(node, { width: "24px", height: "24px", minWidth: "24px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", cursor: "pointer" });
     }
     if (tokens.includes("ptb-color-input")) {
-      setStyles(node, { width: "38px", height: "30px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", background: "transparent" });
+      setStyles(node, { width: "92px", maxWidth: "92px" });
     }
     if (tokens.includes("ptb-icon-grid")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "7px" });
@@ -236,13 +246,10 @@
       setStyles(node, Object.assign({}, sharedButton, { minWidth: "30px", minHeight: "26px", fontSize: "10px", fontWeight: "800" }));
     }
     if (tokens.includes("ptb-collection-member-list")) {
-      setStyles(node, { display: "flex", flexDirection: "column", gap: "6px", minWidth: "0" });
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "6px", minWidth: "0" });
     }
     if (tokens.includes("ptb-collection-member")) {
-      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "7px", background: "var(--ptb-panel-soft)" });
-    }
-    if (tokens.includes("ptb-collection-member-main")) {
-      setStyles(node, { flex: "1 1 180px", border: "0", padding: "0", background: "transparent" });
+      setStyles(node, { width: "150px", minWidth: "150px", padding: "7px" });
     }
     if (tokens.includes("ptb-icon-action")) {
       setStyles(node, Object.assign({}, sharedButton, { minWidth: "26px", minHeight: "24px", padding: "3px 6px", fontSize: "10px" }));
@@ -310,6 +317,23 @@
       return [];
     }
     return collection.buttonIds.map(getButton).filter(Boolean);
+  }
+
+  // Return the user-facing button name shown in galleries, collections, and tooltips.
+  function getButtonName(button) {
+    return button ? (button.textOverride || button.label || "Button") : "Button";
+  }
+
+  // Keep the stored label and visible button name in sync.
+  function setButtonName(button, value) {
+    const name = value && value.trim() ? value.trim() : "Button";
+    button.textOverride = name;
+    button.label = name;
+  }
+
+  // Generate the default name for the next created button.
+  function nextButtonName() {
+    return "Button " + (config.buttons.length + 1);
   }
 
   // Keep settings focused on valid entities.
@@ -421,18 +445,37 @@
     return input;
   }
 
-  // Create a labeled color input.
-  function colorField(label, value, onChange) {
-    const wrap = el("label", "ptb-field ptb-color-field");
+  // Normalize a color value to a valid hex color.
+  function normalizeColor(value, fallback) {
+    return /^#[0-9a-f]{6}$/i.test(value || "") ? value : fallback;
+  }
+
+  // Create a visual color picker with swatches plus an editable hex fallback.
+  function colorPicker(label, value, onChange) {
+    const current = normalizeColor(value, "#8fd6ff");
+    const wrap = el("div", "ptb-color-picker");
     wrap.appendChild(el("span", "ptb-field-label", label));
-    const input = el("input", "ptb-color-input");
-    input.type = "color";
-    input.value = /^#[0-9a-f]{6}$/i.test(value || "") ? value : "#8fd6ff";
-    input.addEventListener("input", () => {
-      onChange(input.value);
-      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    const row = el("div", "ptb-color-row");
+    colorSwatches.forEach((color) => {
+      const swatch = actionButton("", color.toLowerCase() === current.toLowerCase() ? "ptb-color-swatch active" : "ptb-color-swatch", () => {
+        onChange(color);
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      });
+      swatch.title = color;
+      swatch.style.background = color;
+      row.appendChild(swatch);
     });
-    wrap.appendChild(input);
+    const input = el("input", "ptb-input ptb-color-input");
+    input.value = current;
+    input.addEventListener("input", () => {
+      if (/^#[0-9a-f]{6}$/i.test(input.value)) {
+        onChange(input.value);
+        statusMessage = root.PTB_I18N.t("statusSaved");
+      }
+    });
+    input.addEventListener("change", () => saveAndRender(root.PTB_I18N.t("statusSaved")));
+    row.appendChild(input);
+    wrap.appendChild(row);
     return wrap;
   }
 
@@ -538,13 +581,9 @@
         await root.PTB_PREMIERE.applyButton(button);
       });
     });
-    toolButton.title = button.label;
+    toolButton.title = getButtonName(button);
     toolButton.style.background = button.accentColor || "#2b3037";
-    if (button.textOverride) {
-      toolButton.appendChild(el("span", "ptb-tool-text", button.textOverride));
-    } else {
-      toolButton.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, button.label);
-    }
+    toolButton.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button));
     return toolButton;
   }
 
@@ -676,23 +715,20 @@
 
   // Render one draggable gallery item.
   function renderGalleryButtonCard(button) {
-    const card = actionButton("", button.id === settingsState.selectedButtonId ? "ptb-gallery-card active" : "ptb-gallery-card", () => {
+    const card = el("div", button.id === settingsState.selectedButtonId ? "ptb-gallery-card active" : "ptb-gallery-card");
+    card.addEventListener("click", () => {
       selectButton(button.id);
     });
+    card.title = getButtonName(button);
     card.draggable = true;
     card.setAttribute("draggable", "true");
     card.addEventListener("dragstart", (event) => {
       // Share the button id with collection drop zones.
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = "copy";
-        event.dataTransfer.setData("application/x-ptb-button", button.id);
-        event.dataTransfer.setData("text/plain", button.id);
-      }
+      writeDraggedButton(event, button.id, "");
     });
     card.appendChild(renderButtonSwatch(button));
     const text = el("span", "ptb-button-card-text");
-    text.appendChild(el("strong", "", button.label));
-    text.appendChild(el("small", "", describeButtonAction(button)));
+    text.appendChild(el("strong", "", getButtonName(button)));
     card.appendChild(text);
     return card;
   }
@@ -701,26 +737,8 @@
   function renderButtonSwatch(button) {
     const icon = el("span", "ptb-card-icon");
     icon.style.background = button.accentColor || "#2b3037";
-    if (button.textOverride) {
-      icon.appendChild(el("span", "ptb-tool-text", button.textOverride));
-    } else {
-      icon.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, button.label);
-    }
+    icon.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button));
     return icon;
-  }
-
-  // Describe a button action for cards and headers.
-  function describeButtonAction(button) {
-    if (button.actionType === "settings") {
-      return "Open settings";
-    }
-    if (button.actionType === "transition") {
-      return "Transition: " + (button.transition.matchName || "Not set");
-    }
-    if (button.actionType === "stack") {
-      return "Stack: " + button.stack.components.length + " effects";
-    }
-    return (button.mediaType === "audio" ? "Audio" : "Video") + ": " + (button.effect.displayName || button.effect.matchName);
   }
 
   // Render all editable properties for a selected button.
@@ -731,8 +749,8 @@
       return editor;
     }
     const form = el("div", "ptb-form-grid");
-    form.appendChild(textField(root.PTB_I18N.t("label"), button.label, (value) => {
-      button.label = value || "Button";
+    form.appendChild(textField(root.PTB_I18N.t("buttonName"), getButtonName(button), (value) => {
+      setButtonName(button, value);
     }));
     form.appendChild(selectField(root.PTB_I18N.t("action"), button.actionType, [
       { value: "settings", label: root.PTB_I18N.t("settings") },
@@ -795,7 +813,9 @@
       wrap.appendChild(actionButton(root.PTB_I18N.t("captureStack"), "ptb-button primary", async () => {
         await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
           button.stack = await root.PTB_PREMIERE.captureSelectedStack();
-          button.label = button.stack.components[0] ? button.stack.components[0].displayName : button.label;
+          if (button.stack.components[0]) {
+            setButtonName(button, button.stack.components[0].displayName);
+          }
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         });
       }));
@@ -812,6 +832,7 @@
     grid.appendChild(textField(root.PTB_I18N.t("effectDisplayName"), button.effect.displayName, (value) => {
       button.effect.displayName = value;
     }));
+    grid.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("displayNameHint")));
     grid.appendChild(textField(root.PTB_I18N.t("effectMatchName"), button.effect.matchName, (value) => {
       button.effect.matchName = value;
     }));
@@ -856,13 +877,10 @@
   function renderIconEditor(button) {
     const section = el("div", "ptb-icon-editor");
     const fields = el("div", "ptb-form-grid");
-    fields.appendChild(textField(root.PTB_I18N.t("textOverride"), button.textOverride, (value) => {
-      button.textOverride = value.slice(0, 4);
-    }));
-    fields.appendChild(colorField(root.PTB_I18N.t("iconColor"), button.iconColor, (value) => {
+    fields.appendChild(colorPicker(root.PTB_I18N.t("iconColor"), button.iconColor, (value) => {
       button.iconColor = value;
     }));
-    fields.appendChild(colorField(root.PTB_I18N.t("accentColor"), button.accentColor, (value) => {
+    fields.appendChild(colorPicker(root.PTB_I18N.t("accentColor"), button.accentColor, (value) => {
       button.accentColor = value;
     }));
     section.appendChild(fields);
@@ -870,7 +888,6 @@
     root.PTB_ICON_LIBRARY.icons.forEach((icon) => {
       const item = actionButton("", icon.id === button.icon ? "ptb-icon-choice active" : "ptb-icon-choice", () => {
         button.icon = icon.id;
-        button.textOverride = "";
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       item.title = icon.label;
@@ -913,9 +930,13 @@
     card.addEventListener("drop", (event) => {
       event.preventDefault();
       card.classList.remove("drag-over");
-      const buttonId = readDraggedButtonId(event);
-      if (buttonId) {
-        addButtonToCollection(collection.id, buttonId);
+      const payload = readDraggedButton(event);
+      if (payload.buttonId) {
+        if (payload.collectionId === collection.id) {
+          moveButtonToCollectionIndex(collection.id, payload.buttonId, collection.buttonIds.length - 1);
+        } else {
+          addButtonToCollection(collection.id, payload.buttonId);
+        }
       }
     });
     card.appendChild(renderCollectionHeader(collection));
@@ -924,8 +945,8 @@
     if (!buttons.length) {
       list.appendChild(el("div", "ptb-drop-hint", root.PTB_I18N.t("dropButtonsHere")));
     }
-    buttons.forEach((button) => {
-      list.appendChild(renderCollectionMember(collection, button));
+    buttons.forEach((button, index) => {
+      list.appendChild(renderCollectionMember(collection, button, index));
     });
     card.appendChild(list);
     card.appendChild(renderCollectionAddFallback(collection));
@@ -945,12 +966,35 @@
     return false;
   }
 
-  // Read the dragged gallery button id from a drop event.
-  function readDraggedButtonId(event) {
+  // Store a button drag payload that can come from the gallery or a collection.
+  function writeDraggedButton(event, buttonId, collectionId) {
     if (!event.dataTransfer) {
-      return "";
+      return;
     }
-    return event.dataTransfer.getData("application/x-ptb-button") || event.dataTransfer.getData("text/plain");
+    const payload = JSON.stringify({ buttonId, collectionId: collectionId || "" });
+    event.dataTransfer.effectAllowed = "copyMove";
+    event.dataTransfer.setData("application/x-ptb-button", payload);
+    event.dataTransfer.setData("text/plain", buttonId);
+  }
+
+  // Read the dragged button payload from a drop event.
+  function readDraggedButton(event) {
+    if (!event.dataTransfer) {
+      return { buttonId: "", collectionId: "" };
+    }
+    const raw = event.dataTransfer.getData("application/x-ptb-button");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        return {
+          buttonId: parsed.buttonId || "",
+          collectionId: parsed.collectionId || ""
+        };
+      } catch (error) {
+        return { buttonId: raw, collectionId: "" };
+      }
+    }
+    return { buttonId: event.dataTransfer.getData("text/plain") || "", collectionId: "" };
   }
 
   // Render the top row for a collection card.
@@ -984,20 +1028,44 @@
   }
 
   // Render one button inside a collection.
-  function renderCollectionMember(collection, button) {
+  function renderCollectionMember(collection, button, index) {
     const row = el("div", button.id === settingsState.selectedButtonId ? "ptb-collection-member active" : "ptb-collection-member");
-    const main = actionButton("", "ptb-collection-member-main", () => selectButton(button.id, collection.id));
-    main.appendChild(renderButtonSwatch(button));
+    row.title = getButtonName(button) + " - right click to remove";
+    row.draggable = true;
+    row.setAttribute("draggable", "true");
+    row.addEventListener("click", () => selectButton(button.id, collection.id));
+    row.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      removeButtonFromCollection(collection.id, button.id);
+    });
+    row.addEventListener("dragstart", (event) => {
+      writeDraggedButton(event, button.id, collection.id);
+    });
+    row.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      row.classList.add("drag-over");
+    });
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drag-over");
+    });
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      row.classList.remove("drag-over");
+      const payload = readDraggedButton(event);
+      if (!payload.buttonId) {
+        return;
+      }
+      if (payload.collectionId === collection.id) {
+        moveButtonToCollectionIndex(collection.id, payload.buttonId, index);
+      } else {
+        addButtonToCollection(collection.id, payload.buttonId, true);
+        moveButtonToCollectionIndex(collection.id, payload.buttonId, index);
+      }
+    });
+    row.appendChild(renderButtonSwatch(button));
     const text = el("span", "ptb-button-card-text");
-    text.appendChild(el("strong", "", button.label));
-    text.appendChild(el("small", "", describeButtonAction(button)));
-    main.appendChild(text);
-    row.appendChild(main);
-    const actions = el("div", "ptb-card-actions");
-    actions.appendChild(actionButton(root.PTB_I18N.t("moveUp"), "ptb-icon-action", () => moveButtonInCollection(collection.id, button.id, -1)));
-    actions.appendChild(actionButton(root.PTB_I18N.t("moveDown"), "ptb-icon-action", () => moveButtonInCollection(collection.id, button.id, 1)));
-    actions.appendChild(actionButton(root.PTB_I18N.t("removeFromCollection"), "ptb-icon-action danger", () => removeButtonFromCollection(collection.id, button.id)));
-    row.appendChild(actions);
+    text.appendChild(el("strong", "", getButtonName(button)));
+    row.appendChild(text);
     return row;
   }
 
@@ -1006,7 +1074,7 @@
     const row = el("div", "ptb-add-existing-row");
     const options = [{ value: "", label: root.PTB_I18N.t("addExistingButton") }];
     config.buttons.forEach((button) => {
-      options.push({ value: button.id, label: button.label });
+      options.push({ value: button.id, label: getButtonName(button) });
     });
     row.appendChild(createSelect("", options, "ptb-input", (buttonId) => {
       if (buttonId) {
@@ -1036,11 +1104,13 @@
 
   // Create a standalone library button and optionally add it to a collection.
   function createLibraryButton(collectionId) {
+    const name = nextButtonName();
     const button = root.PTB_SCHEMA.createButton({
-      label: "New Button",
+      label: name,
       icon: "bolt",
       iconColor: "#8fd6ff",
-      accentColor: "#313840"
+      accentColor: "#313840",
+      textOverride: name
     });
     config.buttons.push(button);
     if (collectionId) {
@@ -1060,7 +1130,8 @@
     }
     const copy = root.PTB_SCHEMA.createButton(Object.assign(root.PTB_SCHEMA.clone(button), {
       id: root.PTB_SCHEMA.createId("button"),
-      label: button.label + " Copy"
+      label: getButtonName(button) + " Copy",
+      textOverride: getButtonName(button) + " Copy"
     }));
     config.buttons.push(copy);
     settingsState.selectedButtonId = copy.id;
@@ -1144,19 +1215,21 @@
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
-  // Move a button inside one collection.
-  function moveButtonInCollection(collectionId, buttonId, direction) {
+  // Move a button to a specific visual position inside a collection.
+  function moveButtonToCollectionIndex(collectionId, buttonId, targetIndex) {
     const collection = getCollection(collectionId);
     if (!collection) {
       return;
     }
-    const index = collection.buttonIds.indexOf(buttonId);
-    const nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= collection.buttonIds.length) {
+    const currentIndex = collection.buttonIds.indexOf(buttonId);
+    if (currentIndex < 0) {
       return;
     }
-    const item = collection.buttonIds.splice(index, 1)[0];
-    collection.buttonIds.splice(nextIndex, 0, item);
+    const item = collection.buttonIds.splice(currentIndex, 1)[0];
+    const clampedIndex = Math.min(collection.buttonIds.length, Math.max(0, targetIndex));
+    collection.buttonIds.splice(clampedIndex, 0, item);
+    settingsState.selectedCollectionId = collection.id;
+    settingsState.selectedButtonId = buttonId;
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 

@@ -50,15 +50,15 @@
     const mediaType = MEDIA_TYPES.includes(input.mediaType) ? input.mediaType : "video";
     const button = {
       id: safeString(input.id, createId("button")),
-      label: safeString(input.label, actionType === "settings" ? "Settings" : "New Button"),
+      label: safeString(input.label, actionType === "settings" ? "Settings" : "Button"),
       actionType,
       mediaType,
       icon: safeString(input.icon, actionType === "settings" ? "gear" : "bolt"),
       iconColor: safeString(input.iconColor, actionType === "settings" ? "#d7dee8" : "#8fd6ff"),
       accentColor: safeString(input.accentColor, actionType === "settings" ? "#313840" : "#1f2937"),
-      textOverride: typeof input.textOverride === "string" ? input.textOverride.slice(0, 4) : "",
+      textOverride: safeString(input.textOverride, safeString(input.label, actionType === "settings" ? "Settings" : "Button")),
       effect: {
-        matchName: safeString(input.effect && input.effect.matchName, input.effectMatchName || "AE.ADBE Mosaic"),
+        matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
         displayName: safeString(input.effect && input.effect.displayName, input.effectDisplayName || "Mosaic")
       },
       transition: {
@@ -205,6 +205,7 @@
         icon: "frame",
         iconColor: "#9bd3ff",
         accentColor: "#263747",
+        textOverride: "Transform",
         effect: { matchName: "AE.ADBE Transform", displayName: "Transform" }
       }),
       createButton({
@@ -214,6 +215,7 @@
         icon: "crop",
         iconColor: "#9fe3c1",
         accentColor: "#263d35",
+        textOverride: "Crop",
         effect: { matchName: "AE.ADBE Crop", displayName: "Crop" }
       }),
       createButton({
@@ -223,6 +225,7 @@
         icon: "blur",
         iconColor: "#ffd166",
         accentColor: "#403724",
+        textOverride: "Gaussian Blur",
         effect: { matchName: "AE.ADBE Gaussian Blur 2", displayName: "Gaussian Blur" }
       }),
       createButton({
@@ -232,6 +235,7 @@
         icon: "moon",
         iconColor: "#d7b6ff",
         accentColor: "#342a45",
+        textOverride: "Drop Shadow",
         effect: { matchName: "AE.ADBE Drop Shadow", displayName: "Drop Shadow" }
       }),
       createButton({
@@ -241,6 +245,7 @@
         icon: "wave",
         iconColor: "#ffb986",
         accentColor: "#423025",
+        textOverride: "Flip Horizontal",
         effect: { matchName: "AE.ADBE Horizontal Flip", displayName: "Horizontal Flip" }
       }),
       createButton({
@@ -250,6 +255,7 @@
         icon: "wave",
         iconColor: "#ff9aa2",
         accentColor: "#422a2f",
+        textOverride: "Flip Vertical",
         effect: { matchName: "AE.ADBE Vertical Flip", displayName: "Vertical Flip" }
       }),
       createButton({
@@ -259,6 +265,7 @@
         icon: "key",
         iconColor: "#9dffcf",
         accentColor: "#263b31",
+        textOverride: "Ultra Key",
         effect: { matchName: "AE.ADBE Ultra Key", displayName: "Ultra Key" }
       })
     ];
