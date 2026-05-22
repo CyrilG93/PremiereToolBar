@@ -16,6 +16,7 @@ assert.equal(defaultConfig.bars[0].id, "bar-1");
 assert.equal(defaultConfig.bars[0].collectionId, "collection-base-effects");
 assert.equal(defaultConfig.collections[0].buttonIds.length, 8);
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-settings"));
+assert.ok(defaultConfig.buttons.every((item) => item.displayMode === "icon"));
 assert.ok(defaultConfig.buttons.some((button) => button.effect && button.effect.displayName === "Ultra Key"));
 
 // Verify malformed legacy configs are migrated to the collection model.
@@ -222,6 +223,7 @@ assert.ok(settingsRoot.textContent.includes("Button Gallery"));
 assert.ok(settingsRoot.textContent.includes("Button Editor"));
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
+assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
 
 // Report success for CI and local verification.

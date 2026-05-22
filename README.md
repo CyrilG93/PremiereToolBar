@@ -54,9 +54,9 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Create buttons from the top action bar, then edit the selected button below the gallery.
 - Drag buttons from the gallery into any collection, or use the add-button menu inside a collection.
 - Rename collections and assign them to bars 1-4 with the compact `B1` to `B4` toggles.
-- Collapse the gallery, editor, collections, or import/export sections to keep the panel compact.
-- Assign an icon, icon color, button color, or short text label.
-- Choose native video/audio effects from Premiere after refreshing the catalog.
+- Choose whether a button shows a graphic icon or a three-letter text shortcut.
+- Assign an icon, icon color, and button color with native color pickers.
+- Type either the Premiere effect name or the effect match name in one field.
 - Assign video transition match names from Premiere.
 - Capture an exposed effect stack from the currently selected clip and reuse it as a Tool Bar preset.
 - Export all collections or one collection, then import them later.
@@ -84,6 +84,14 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. It follows simple SVG line-icon conventions; Lucide is a good open-source reference pack and is distributed under the ISC license.
 
 ## Changelog
+
+### 0.1.13 - 2026-05-22
+
+- Added separate icon-only and text-only display modes for buttons.
+- Reworked icon rendering so toolbar buttons and collection cards show graphic icons without fallback initials.
+- Replaced color swatch rows with native color pickers for icon and button colors.
+- Merged effect display name and match name into one effect lookup field.
+- Improved collection drag and drop behavior and showed the assigned collection name in each toolbar panel.
 
 ### 0.1.12 - 2026-05-21
 

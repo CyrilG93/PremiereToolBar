@@ -8,6 +8,7 @@
   let settingsState = {
     selectedCollectionId: config.activeCollectionId,
     selectedButtonId: config.activeButtonId,
+    pendingDrag: { buttonId: "", collectionId: "" },
     collapsed: {
       buttonGallery: false,
       buttonEditor: false,
@@ -16,7 +17,6 @@
     }
   };
   const mountedPanels = new Map();
-  const colorSwatches = ["#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986", "#ff9aa2", "#d7b6ff", "#d7dee8", "#6b7280", "#313840", "#263747", "#263d35", "#403724", "#342a45", "#422a2f", "#101010"];
 
   // Inject only into the document head; UXP can render style tags inside panel roots as visible text.
   function ensureHeadStyles() {
@@ -38,14 +38,14 @@
       style.textContent = `
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
-      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:center;gap:1px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;align-items:flex-start}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;width:34px;min-width:34px;height:34px;min-height:34px;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-fallback-icon,.ptb-tool-text{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
-      .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}
+      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-title{max-width:100%;overflow:hidden;margin:0 0 3px;padding:0 3px;color:var(--ptb-muted);font-size:10px;font-weight:800;line-height:14px;text-overflow:ellipsis;white-space:nowrap}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:center;gap:1px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;align-items:flex-start}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;width:34px;min-width:34px;height:34px;min-height:34px;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-tool-text{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
+      .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
       .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
       .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:flex;flex-direction:column;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text small{color:var(--ptb-muted)}
       .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
-      .ptb-color-picker{display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-color-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.ptb-color-swatch{width:24px;height:24px;min-width:24px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;cursor:pointer}.ptb-color-swatch.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}.ptb-color-input{width:92px;max-width:92px}.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:7px}.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:38px;min-height:38px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-icon-choice.active{border-color:var(--ptb-accent);background:#223446}.ptb-svg-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;pointer-events:none}.ptb-svg-icon svg{display:block;width:20px;height:20px}.ptb-svg-icon .ptb-fallback-icon{display:none}
+      .ptb-color-picker{display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-color-preview{width:30px;height:30px;border:1px solid var(--ptb-line);border-radius:7px}.ptb-native-color-input{width:42px;height:30px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:7px}.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1;min-width:38px;min-height:38px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-icon-choice.active{border-color:var(--ptb-accent);background:#223446}.ptb-svg-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background-position:center;background-repeat:no-repeat;background-size:contain;pointer-events:none}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:var(--ptb-text);border-color:rgba(121,200,255,.7);background:#224259}
       .ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
@@ -95,6 +95,9 @@
     if (tokens.includes("ptb-toolbar-shell")) {
       setStyles(node, { width: "100%", height: "100%", minHeight: "44px", padding: "3px", overflow: "auto", background: "var(--ptb-bg)" });
     }
+    if (tokens.includes("ptb-toolbar-title")) {
+      setStyles(node, { maxWidth: "100%", overflow: "hidden", margin: "0 0 3px", padding: "0 3px", color: "var(--ptb-muted)", fontSize: "10px", fontWeight: "800", lineHeight: "14px", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+    }
     if (tokens.includes("ptb-toolbar-strip")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "1px", width: "100%", minHeight: "34px" });
     }
@@ -113,11 +116,11 @@
         padding: "0"
       }));
     }
-    if (tokens.includes("ptb-fallback-icon") || tokens.includes("ptb-tool-text")) {
+    if (tokens.includes("ptb-tool-text")) {
       setStyles(node, { display: "block", maxWidth: "31px", overflow: "hidden", fontSize: "10px", fontWeight: "800", letterSpacing: "0", lineHeight: "1", textAlign: "center", textOverflow: "ellipsis", whiteSpace: "nowrap" });
     }
     if (tokens.includes("ptb-svg-icon")) {
-      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "20px", height: "20px", pointerEvents: "none" });
+      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "20px", height: "20px", backgroundPosition: "center", backgroundRepeat: "no-repeat", backgroundSize: "contain", pointerEvents: "none" });
     }
     if (tokens.includes("ptb-empty")) {
       setStyles(node, { minWidth: "0", color: "var(--ptb-muted)", fontSize: "11px", lineHeight: "1.2" });
@@ -126,7 +129,7 @@
       setStyles(node, { width: "100%", height: "100%", minHeight: "100%", overflow: "auto", paddingBottom: "24px", background: "var(--ptb-bg)", color: "var(--ptb-text)" });
     }
     if (tokens.includes("ptb-settings-header")) {
-      setStyles(node, { position: "sticky", top: "0", zIndex: "4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)", background: "var(--ptb-bg)" });
+      setStyles(node, { position: "sticky", top: "0", zIndex: "4", display: "flex", width: "100%", alignItems: "center", justifyContent: "flex-start", gap: "10px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)", background: "var(--ptb-bg)" });
     }
     if (tokens.includes("ptb-title-line")) {
       setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minWidth: "0" });
@@ -139,6 +142,9 @@
     }
     if (tokens.includes("ptb-header-actions") || tokens.includes("ptb-action-row") || tokens.includes("ptb-card-actions") || tokens.includes("ptb-bar-toggles")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "7px" });
+    }
+    if (tokens.includes("ptb-header-actions")) {
+      setStyles(node, { marginLeft: "auto" });
     }
     if (tokens.includes("ptb-card-actions") || tokens.includes("ptb-bar-toggles")) {
       setStyles(node, { gap: "4px", justifyContent: "flex-end" });
@@ -216,10 +222,13 @@
       setStyles(node, { display: "flex", flex: "1 1 220px", flexDirection: "column", gap: "7px", minWidth: "0" });
     }
     if (tokens.includes("ptb-color-row")) {
-      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" });
+      setStyles(node, { display: "flex", gap: "8px", alignItems: "center" });
     }
-    if (tokens.includes("ptb-color-swatch")) {
-      setStyles(node, { width: "24px", height: "24px", minWidth: "24px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", cursor: "pointer" });
+    if (tokens.includes("ptb-color-preview")) {
+      setStyles(node, { width: "30px", height: "30px", border: "1px solid var(--ptb-line)", borderRadius: "7px" });
+    }
+    if (tokens.includes("ptb-native-color-input")) {
+      setStyles(node, { width: "42px", height: "30px", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "0", background: "transparent", cursor: "pointer" });
     }
     if (tokens.includes("ptb-color-input")) {
       setStyles(node, { width: "92px", maxWidth: "92px" });
@@ -322,6 +331,47 @@
   // Return the user-facing button name shown in galleries, collections, and tooltips.
   function getButtonName(button) {
     return button ? (button.textOverride || button.label || "Button") : "Button";
+  }
+
+  // Return the three-character label used only when the user chooses text mode.
+  function getButtonShortText(button) {
+    return getButtonName(button).replace(/\s+/g, "").slice(0, 3).toUpperCase() || "BTN";
+  }
+
+  // Return the saved display mode with a safe fallback for older configs.
+  function getButtonDisplayMode(button) {
+    return button && button.displayMode === "text" ? "text" : "icon";
+  }
+
+  // Read the unified effect identifier field shown in the editor.
+  function getEffectLookupValue(button) {
+    return button && button.effect ? (button.effect.displayName || button.effect.matchName || "") : "";
+  }
+
+  // Store a manual effect entry as both display lookup and direct match-name candidate.
+  function setEffectLookupValue(button, value) {
+    const lookup = value && value.trim ? value.trim() : "";
+    button.effect.displayName = lookup;
+    button.effect.matchName = lookup;
+  }
+
+  // Render the actual button face, either as a graphic icon or as three text characters.
+  function renderButtonFace(button) {
+    if (getButtonDisplayMode(button) === "text") {
+      return '<span class="ptb-tool-text">' + escapeHtml(getButtonShortText(button)) + "</span>";
+    }
+    return root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button));
+  }
+
+  // Escape short text before assigning it through innerHTML.
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[character]));
   }
 
   // Keep the stored label and visible button name in sync.
@@ -450,26 +500,36 @@
     return /^#[0-9a-f]{6}$/i.test(value || "") ? value : fallback;
   }
 
-  // Create a visual color picker with swatches plus an editable hex fallback.
+  // Create a native color picker with a small hex fallback for UXP builds.
   function colorPicker(label, value, onChange) {
     const current = normalizeColor(value, "#8fd6ff");
     const wrap = el("div", "ptb-color-picker");
     wrap.appendChild(el("span", "ptb-field-label", label));
     const row = el("div", "ptb-color-row");
-    colorSwatches.forEach((color) => {
-      const swatch = actionButton("", color.toLowerCase() === current.toLowerCase() ? "ptb-color-swatch active" : "ptb-color-swatch", () => {
-        onChange(color);
-        saveAndRender(root.PTB_I18N.t("statusSaved"));
-      });
-      swatch.title = color;
-      swatch.style.background = color;
-      row.appendChild(swatch);
+    const preview = el("span", "ptb-color-preview");
+    preview.style.background = current;
+    row.appendChild(preview);
+    const nativeInput = el("input", "ptb-native-color-input");
+    nativeInput.type = "color";
+    nativeInput.value = current;
+    nativeInput.title = label;
+    nativeInput.addEventListener("input", () => {
+      const next = normalizeColor(nativeInput.value, current);
+      preview.style.background = next;
+      input.value = next;
+      onChange(next);
+      statusMessage = root.PTB_I18N.t("statusSaved");
     });
+    nativeInput.addEventListener("change", () => saveAndRender(root.PTB_I18N.t("statusSaved")));
+    row.appendChild(nativeInput);
     const input = el("input", "ptb-input ptb-color-input");
     input.value = current;
     input.addEventListener("input", () => {
       if (/^#[0-9a-f]{6}$/i.test(input.value)) {
-        onChange(input.value);
+        const next = input.value;
+        nativeInput.value = next;
+        preview.style.background = next;
+        onChange(next);
         statusMessage = root.PTB_I18N.t("statusSaved");
       }
     });
@@ -557,6 +617,9 @@
     const buttons = collection && bar.enabled ? getCollectionButtons(collection.id) : [];
     const shell = el("section", "ptb-toolbar-shell " + (bar && shouldRenderVertical(rootNode, bar) ? "ptb-vertical" : ""));
     const strip = el("div", "ptb-toolbar-strip");
+    if (collection) {
+      shell.appendChild(el("div", "ptb-toolbar-title", collection.name));
+    }
     if (!bar || !bar.enabled) {
       strip.appendChild(el("div", "ptb-empty", root.PTB_I18N.t("disabledBar")));
     } else if (!collection) {
@@ -583,7 +646,7 @@
     });
     toolButton.title = getButtonName(button);
     toolButton.style.background = button.accentColor || "#2b3037";
-    toolButton.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button));
+    toolButton.innerHTML = renderButtonFace(button);
     return toolButton;
   }
 
@@ -718,7 +781,10 @@
     const card = el("div", button.id === settingsState.selectedButtonId ? "ptb-gallery-card active" : "ptb-gallery-card");
     card.addEventListener("click", () => {
       selectButton(button.id);
+      clearPendingDrag();
     });
+    card.addEventListener("mousedown", () => beginButtonDrag(button.id, ""));
+    card.addEventListener("pointerdown", () => beginButtonDrag(button.id, ""));
     card.title = getButtonName(button);
     card.draggable = true;
     card.setAttribute("draggable", "true");
@@ -737,7 +803,7 @@
   function renderButtonSwatch(button) {
     const icon = el("span", "ptb-card-icon");
     icon.style.background = button.accentColor || "#2b3037";
-    icon.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button));
+    icon.innerHTML = renderButtonFace(button);
     return icon;
   }
 
@@ -751,6 +817,13 @@
     const form = el("div", "ptb-form-grid");
     form.appendChild(textField(root.PTB_I18N.t("buttonName"), getButtonName(button), (value) => {
       setButtonName(button, value);
+    }));
+    form.appendChild(selectField(root.PTB_I18N.t("displayMode"), getButtonDisplayMode(button), [
+      { value: "icon", label: root.PTB_I18N.t("displayModeIcon") },
+      { value: "text", label: root.PTB_I18N.t("displayModeText") }
+    ], (value) => {
+      button.displayMode = value === "text" ? "text" : "icon";
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     form.appendChild(selectField(root.PTB_I18N.t("action"), button.actionType, [
       { value: "settings", label: root.PTB_I18N.t("settings") },
@@ -829,13 +902,10 @@
       button.mediaType = value;
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
-    grid.appendChild(textField(root.PTB_I18N.t("effectDisplayName"), button.effect.displayName, (value) => {
-      button.effect.displayName = value;
+    grid.appendChild(textField(root.PTB_I18N.t("effectLookupName"), getEffectLookupValue(button), (value) => {
+      setEffectLookupValue(button, value);
     }));
-    grid.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("displayNameHint")));
-    grid.appendChild(textField(root.PTB_I18N.t("effectMatchName"), button.effect.matchName, (value) => {
-      button.effect.matchName = value;
-    }));
+    grid.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("effectLookupHint")));
     wrap.appendChild(grid);
     const catalogPicker = renderCatalogPicker("effect", button);
     if (catalogPicker) {
@@ -920,6 +990,11 @@
         selectCollection(collection.id);
       }
     });
+    card.addEventListener("mouseup", (event) => {
+      if (!isInteractiveTarget(event.target, card)) {
+        applyPendingDragToCollection(collection);
+      }
+    });
     card.addEventListener("dragover", (event) => {
       event.preventDefault();
       card.classList.add("drag-over");
@@ -933,11 +1008,12 @@
       const payload = readDraggedButton(event);
       if (payload.buttonId) {
         if (payload.collectionId === collection.id) {
-          moveButtonToCollectionIndex(collection.id, payload.buttonId, collection.buttonIds.length - 1);
+          moveButtonToCollectionIndex(collection.id, payload.buttonId, collection.buttonIds.length);
         } else {
           addButtonToCollection(collection.id, payload.buttonId);
         }
       }
+      clearPendingDrag();
     });
     card.appendChild(renderCollectionHeader(collection));
     const list = el("div", "ptb-collection-member-list");
@@ -968,21 +1044,30 @@
 
   // Store a button drag payload that can come from the gallery or a collection.
   function writeDraggedButton(event, buttonId, collectionId) {
+    beginButtonDrag(buttonId, collectionId || "");
     if (!event.dataTransfer) {
       return;
     }
     const payload = JSON.stringify({ buttonId, collectionId: collectionId || "" });
     event.dataTransfer.effectAllowed = "copyMove";
-    event.dataTransfer.setData("application/x-ptb-button", payload);
-    event.dataTransfer.setData("text/plain", buttonId);
+    try {
+      event.dataTransfer.setData("application/x-ptb-button", payload);
+    } catch (error) {
+      // Some UXP builds only accept text/plain drag payloads.
+    }
+    try {
+      event.dataTransfer.setData("text/plain", payload);
+    } catch (error) {
+      // Pointer fallback keeps drag available when dataTransfer is restricted.
+    }
   }
 
   // Read the dragged button payload from a drop event.
   function readDraggedButton(event) {
     if (!event.dataTransfer) {
-      return { buttonId: "", collectionId: "" };
+      return getPendingDrag();
     }
-    const raw = event.dataTransfer.getData("application/x-ptb-button");
+    const raw = event.dataTransfer.getData("application/x-ptb-button") || event.dataTransfer.getData("text/plain");
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -994,7 +1079,48 @@
         return { buttonId: raw, collectionId: "" };
       }
     }
-    return { buttonId: event.dataTransfer.getData("text/plain") || "", collectionId: "" };
+    return getPendingDrag();
+  }
+
+  // Remember the latest dragged button because some UXP builds expose only partial dataTransfer support.
+  function beginButtonDrag(buttonId, collectionId) {
+    settingsState.pendingDrag = { buttonId: buttonId || "", collectionId: collectionId || "" };
+  }
+
+  // Return the pending drag payload without exposing the mutable state object.
+  function getPendingDrag() {
+    const payload = settingsState.pendingDrag || {};
+    return { buttonId: payload.buttonId || "", collectionId: payload.collectionId || "" };
+  }
+
+  // Clear stale drag state after clicks and completed drops.
+  function clearPendingDrag() {
+    settingsState.pendingDrag = { buttonId: "", collectionId: "" };
+  }
+
+  // Add or move the pending payload into a collection when native drop events are not fired.
+  function applyPendingDragToCollection(collection, targetIndex) {
+    const payload = getPendingDrag();
+    if (!collection || !payload.buttonId) {
+      return false;
+    }
+    if (payload.collectionId === collection.id) {
+      const currentIndex = collection.buttonIds.indexOf(payload.buttonId);
+      if (typeof targetIndex === "number" && currentIndex === targetIndex) {
+        clearPendingDrag();
+        return false;
+      }
+      moveButtonToCollectionIndex(collection.id, payload.buttonId, typeof targetIndex === "number" ? targetIndex : collection.buttonIds.length);
+    } else {
+      addButtonToCollection(collection.id, payload.buttonId, true);
+      if (typeof targetIndex === "number") {
+        moveButtonToCollectionIndex(collection.id, payload.buttonId, targetIndex);
+      } else {
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }
+    }
+    clearPendingDrag();
+    return true;
   }
 
   // Render the top row for a collection card.
@@ -1034,6 +1160,12 @@
     row.draggable = true;
     row.setAttribute("draggable", "true");
     row.addEventListener("click", () => selectButton(button.id, collection.id));
+    row.addEventListener("mousedown", () => beginButtonDrag(button.id, collection.id));
+    row.addEventListener("pointerdown", () => beginButtonDrag(button.id, collection.id));
+    row.addEventListener("mouseup", (event) => {
+      event.stopPropagation();
+      applyPendingDragToCollection(collection, index);
+    });
     row.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       removeButtonFromCollection(collection.id, button.id);
@@ -1061,6 +1193,7 @@
         addButtonToCollection(collection.id, payload.buttonId, true);
         moveButtonToCollectionIndex(collection.id, payload.buttonId, index);
       }
+      clearPendingDrag();
     });
     row.appendChild(renderButtonSwatch(button));
     const text = el("span", "ptb-button-card-text");
@@ -1226,7 +1359,8 @@
       return;
     }
     const item = collection.buttonIds.splice(currentIndex, 1)[0];
-    const clampedIndex = Math.min(collection.buttonIds.length, Math.max(0, targetIndex));
+    const adjustedIndex = currentIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    const clampedIndex = Math.min(collection.buttonIds.length, Math.max(0, adjustedIndex));
     collection.buttonIds.splice(clampedIndex, 0, item);
     settingsState.selectedCollectionId = collection.id;
     settingsState.selectedButtonId = buttonId;

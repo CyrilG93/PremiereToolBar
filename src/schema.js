@@ -16,6 +16,7 @@
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
   const ACTION_TYPES = ["settings", "effect", "transition", "stack"];
   const MEDIA_TYPES = ["video", "audio"];
+  const DISPLAY_MODES = ["icon", "text"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -56,6 +57,7 @@
       icon: safeString(input.icon, actionType === "settings" ? "gear" : "bolt"),
       iconColor: safeString(input.iconColor, actionType === "settings" ? "#d7dee8" : "#8fd6ff"),
       accentColor: safeString(input.accentColor, actionType === "settings" ? "#313840" : "#1f2937"),
+      displayMode: DISPLAY_MODES.includes(input.displayMode) ? input.displayMode : "icon",
       textOverride: safeString(input.textOverride, safeString(input.label, actionType === "settings" ? "Settings" : "Button")),
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
@@ -196,6 +198,7 @@
         icon: "gear",
         iconColor: "#d7dee8",
         accentColor: "#3a4149",
+        displayMode: "icon",
         textOverride: "SET"
       }),
       createButton({
@@ -205,6 +208,7 @@
         icon: "frame",
         iconColor: "#9bd3ff",
         accentColor: "#263747",
+        displayMode: "icon",
         textOverride: "Transform",
         effect: { matchName: "AE.ADBE Transform", displayName: "Transform" }
       }),
@@ -215,6 +219,7 @@
         icon: "crop",
         iconColor: "#9fe3c1",
         accentColor: "#263d35",
+        displayMode: "icon",
         textOverride: "Crop",
         effect: { matchName: "AE.ADBE Crop", displayName: "Crop" }
       }),
@@ -225,6 +230,7 @@
         icon: "blur",
         iconColor: "#ffd166",
         accentColor: "#403724",
+        displayMode: "icon",
         textOverride: "Gaussian Blur",
         effect: { matchName: "AE.ADBE Gaussian Blur 2", displayName: "Gaussian Blur" }
       }),
@@ -235,6 +241,7 @@
         icon: "moon",
         iconColor: "#d7b6ff",
         accentColor: "#342a45",
+        displayMode: "icon",
         textOverride: "Drop Shadow",
         effect: { matchName: "AE.ADBE Drop Shadow", displayName: "Drop Shadow" }
       }),
@@ -245,6 +252,7 @@
         icon: "wave",
         iconColor: "#ffb986",
         accentColor: "#423025",
+        displayMode: "icon",
         textOverride: "Flip Horizontal",
         effect: { matchName: "AE.ADBE Horizontal Flip", displayName: "Horizontal Flip" }
       }),
@@ -255,6 +263,7 @@
         icon: "wave",
         iconColor: "#ff9aa2",
         accentColor: "#422a2f",
+        displayMode: "icon",
         textOverride: "Flip Vertical",
         effect: { matchName: "AE.ADBE Vertical Flip", displayName: "Vertical Flip" }
       }),
@@ -265,6 +274,7 @@
         icon: "key",
         iconColor: "#9dffcf",
         accentColor: "#263b31",
+        displayMode: "icon",
         textOverride: "Ultra Key",
         effect: { matchName: "AE.ADBE Ultra Key", displayName: "Ultra Key" }
       })
@@ -501,6 +511,7 @@
     BAR_IDS,
     ACTION_TYPES,
     MEDIA_TYPES,
+    DISPLAY_MODES,
     createId,
     clone,
     createButton,

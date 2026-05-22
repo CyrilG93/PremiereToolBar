@@ -51,6 +51,19 @@ button {
   background: var(--ptb-bg);
 }
 
+.ptb-toolbar-title {
+  max-width: 100%;
+  overflow: hidden;
+  margin: 0 0 3px;
+  padding: 0 3px;
+  color: var(--ptb-muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ptb-toolbar-strip {
   display: flex;
   flex-wrap: wrap;
@@ -109,7 +122,6 @@ button {
   background: #242b35;
 }
 
-.ptb-fallback-icon,
 .ptb-tool-text {
   display: block;
   max-width: 31px;
@@ -130,17 +142,10 @@ button {
   justify-content: center;
   width: 20px;
   height: 20px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
   pointer-events: none;
-}
-
-.ptb-svg-icon svg {
-  display: block;
-  width: 20px;
-  height: 20px;
-}
-
-.ptb-svg-icon .ptb-fallback-icon {
-  display: none;
 }
 
 .ptb-empty {
@@ -164,8 +169,9 @@ button {
   top: 0;
   z-index: 4;
   display: flex;
+  width: 100%;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--ptb-line);
@@ -204,6 +210,7 @@ button {
 
 .ptb-header-actions {
   flex: 0 0 auto;
+  margin-left: auto;
   justify-content: flex-end;
 }
 
@@ -575,24 +582,25 @@ button {
 
 .ptb-color-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 
-.ptb-color-swatch {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
+.ptb-color-preview {
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--ptb-line);
-  border-radius: 6px;
-  padding: 0;
-  cursor: pointer;
+  border-radius: 7px;
 }
 
-.ptb-color-swatch.active {
-  border-color: var(--ptb-accent);
-  box-shadow: 0 0 0 1px var(--ptb-accent);
+.ptb-native-color-input {
+  width: 42px;
+  height: 30px;
+  border: 1px solid var(--ptb-line);
+  border-radius: 7px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .ptb-color-input {
