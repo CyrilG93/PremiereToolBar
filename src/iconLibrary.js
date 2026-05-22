@@ -1,43 +1,43 @@
 (function (root) {
   "use strict";
 
-  // Built-in icon gallery with glyph fallbacks that render reliably in Premiere UXP.
+  // Built-in icon gallery rendered with CSS shapes for Premiere UXP reliability.
   const icons = [
-    { id: "bolt", label: "Bolt", glyph: "⚡" },
-    { id: "spark", label: "Spark", glyph: "✦" },
-    { id: "crop", label: "Crop", glyph: "⌗" },
-    { id: "frame", label: "Frame", glyph: "▣" },
-    { id: "mosaic", label: "Mosaic", glyph: "▦" },
-    { id: "blur", label: "Blur", glyph: "◌" },
-    { id: "sun", label: "Sun", glyph: "☼" },
-    { id: "moon", label: "Moon", glyph: "◐" },
-    { id: "wave", label: "Wave", glyph: "≋" },
-    { id: "audio", label: "Audio", glyph: "♪" },
-    { id: "cut", label: "Cut", glyph: "✂" },
-    { id: "dissolve", label: "Dissolve", glyph: "◫" },
-    { id: "speed", label: "Speed", glyph: "⏩" },
-    { id: "key", label: "Key", glyph: "◆" },
-    { id: "color", label: "Color", glyph: "◈" },
-    { id: "text", label: "Text", glyph: "T" },
-    { id: "star", label: "Star", glyph: "★" },
-    { id: "move", label: "Move", glyph: "✥" },
-    { id: "rotate", label: "Rotate", glyph: "↻" },
-    { id: "scale", label: "Scale", glyph: "⤢" },
-    { id: "anchor", label: "Anchor", glyph: "⌖" },
-    { id: "opacity", label: "Opacity", glyph: "◒" },
-    { id: "mask", label: "Mask", glyph: "⬟" },
-    { id: "eye", label: "Eye", glyph: "◉" },
-    { id: "layers", label: "Layers", glyph: "▤" },
-    { id: "camera", label: "Camera", glyph: "▰" },
-    { id: "play", label: "Play", glyph: "▶" },
-    { id: "pause", label: "Pause", glyph: "Ⅱ" },
-    { id: "stop", label: "Stop", glyph: "■" },
-    { id: "marker", label: "Marker", glyph: "♦" },
-    { id: "link", label: "Link", glyph: "∞" },
-    { id: "unlink", label: "Unlink", glyph: "⧉" },
-    { id: "plus", label: "Plus", glyph: "+" },
-    { id: "minus", label: "Minus", glyph: "−" },
-    { id: "gear", label: "Settings", glyph: "⚙" }
+    { id: "bolt", label: "Bolt" },
+    { id: "spark", label: "Spark" },
+    { id: "crop", label: "Crop" },
+    { id: "frame", label: "Frame" },
+    { id: "mosaic", label: "Mosaic" },
+    { id: "blur", label: "Blur" },
+    { id: "sun", label: "Sun" },
+    { id: "moon", label: "Moon" },
+    { id: "wave", label: "Wave" },
+    { id: "audio", label: "Audio" },
+    { id: "cut", label: "Cut" },
+    { id: "dissolve", label: "Dissolve" },
+    { id: "speed", label: "Speed" },
+    { id: "key", label: "Key" },
+    { id: "color", label: "Color" },
+    { id: "text", label: "Text" },
+    { id: "star", label: "Star" },
+    { id: "move", label: "Move" },
+    { id: "rotate", label: "Rotate" },
+    { id: "scale", label: "Scale" },
+    { id: "anchor", label: "Anchor" },
+    { id: "opacity", label: "Opacity" },
+    { id: "mask", label: "Mask" },
+    { id: "eye", label: "Eye" },
+    { id: "layers", label: "Layers" },
+    { id: "camera", label: "Camera" },
+    { id: "play", label: "Play" },
+    { id: "pause", label: "Pause" },
+    { id: "stop", label: "Stop" },
+    { id: "marker", label: "Marker" },
+    { id: "link", label: "Link" },
+    { id: "unlink", label: "Unlink" },
+    { id: "plus", label: "Plus" },
+    { id: "minus", label: "Minus" },
+    { id: "gear", label: "Settings" }
   ];
 
   // Find an icon definition by id.
@@ -56,12 +56,12 @@
     }[character]));
   }
 
-  // Render a graphic glyph instead of SVG because Premiere UXP can hide injected SVGs.
+  // Render a CSS-shape icon with no text fallback, so no font tofu square can appear.
   function renderIcon(id, color, title) {
     const icon = getIcon(id);
     const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "currentColor";
     const safeTitle = title || icon.label;
-    return '<span class="ptb-glyph-icon" style="color:' + safeColor + ';" role="img" aria-label="' + escapeText(safeTitle) + '">' + escapeText(icon.glyph) + "</span>";
+    return '<span class="ptb-shape-icon ptb-shape-' + escapeText(icon.id) + '" style="color:' + safeColor + ';" role="img" aria-label="' + escapeText(safeTitle) + '"></span>';
   }
 
   // Expose the icon library for UI rendering.
