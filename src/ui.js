@@ -10,6 +10,7 @@
     selectedButtonId: config.activeButtonId,
     pendingDrag: { buttonId: "", collectionId: "" },
     dropTarget: { collectionId: "", index: -1 },
+    dragActive: false,
     openColorPicker: "",
     openIconPicker: "",
     collapsed: {
@@ -20,6 +21,7 @@
     }
   };
   const mountedPanels = new Map();
+  let globalDragEndBound = false;
   const colorPalette = [
     "#d7dee8", "#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986",
     "#ff9aa2", "#d7b6ff", "#f4f4f5", "#a7a7a7", "#6b7280", "#313840",
@@ -47,7 +49,7 @@
       style.textContent = `
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
-      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:1px;width:100%;min-height:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-shape-icon{position:relative;display:inline-block;width:18px;height:18px;color:inherit;pointer-events:none}.ptb-shape-icon:before,.ptb-shape-icon:after{content:"";position:absolute;box-sizing:border-box}.ptb-shape-icon:before{left:4px;top:4px;width:10px;height:10px;border:2px solid currentColor;border-radius:2px}.ptb-shape-bolt:before{left:7px;top:1px;width:5px;height:16px;border:0;border-radius:1px;background:currentColor;transform:skew(-24deg)}.ptb-shape-spark:before{left:8px;top:2px;width:2px;height:14px;border:0;background:currentColor}.ptb-shape-spark:after{left:2px;top:8px;width:14px;height:2px;background:currentColor}.ptb-shape-crop:before{left:3px;top:3px;width:12px;height:12px;border-width:0 0 2px 2px;border-radius:0}.ptb-shape-crop:after{left:7px;top:7px;width:8px;height:8px;border-width:2px 2px 0 0;border-radius:0}.ptb-shape-frame:before{left:2px;top:2px;width:14px;height:14px;border-radius:2px}.ptb-shape-mosaic:before{left:2px;top:2px;width:5px;height:5px;border:0;background:currentColor;box-shadow:9px 0 0 currentColor,0 9px 0 currentColor,9px 9px 0 currentColor}.ptb-shape-blur:before{left:3px;top:3px;width:4px;height:4px;border:0;border-radius:999px;background:currentColor;box-shadow:7px 0 0 currentColor,3px 6px 0 currentColor,10px 8px 0 currentColor,1px 12px 0 currentColor}.ptb-shape-sun:before,.ptb-shape-moon:before,.ptb-shape-color:before,.ptb-shape-opacity:before,.ptb-shape-eye:before{left:3px;top:3px;width:12px;height:12px;border-radius:999px}.ptb-shape-moon:after{left:7px;top:2px;width:10px;height:14px;border:0;border-radius:999px;background:var(--ptb-panel-soft)}.ptb-shape-wave:before{left:2px;top:8px;width:14px;height:6px;border-width:2px 0 0;border-radius:999px;transform:skewX(-25deg)}.ptb-shape-audio:before{left:2px;top:6px;width:6px;height:6px;border:0;background:currentColor}.ptb-shape-audio:after{left:9px;top:4px;width:6px;height:10px;border-width:2px 2px 2px 0;border-radius:0 999px 999px 0}.ptb-shape-cut:before{left:2px;top:8px;width:14px;height:2px;border:0;background:currentColor;transform:rotate(35deg)}.ptb-shape-cut:after{left:2px;top:8px;width:14px;height:2px;border:0;background:currentColor;transform:rotate(-35deg)}.ptb-shape-speed:before{left:2px;top:6px;width:14px;height:10px;border-width:2px 2px 0;border-radius:999px 999px 0 0}.ptb-shape-speed:after{left:9px;top:8px;width:7px;height:2px;border:0;background:currentColor;transform:rotate(-38deg);transform-origin:left center}.ptb-shape-play:before{left:5px;top:3px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:9px solid currentColor;border-radius:0}.ptb-shape-pause:before{left:5px;top:3px;width:3px;height:12px;border:0;background:currentColor;box-shadow:6px 0 0 currentColor}.ptb-shape-stop:before{left:4px;top:4px;width:10px;height:10px;border:0;background:currentColor}.ptb-shape-plus:before{left:8px;top:3px;width:2px;height:12px;border:0;background:currentColor}.ptb-shape-plus:after,.ptb-shape-minus:before{left:3px;top:8px;width:12px;height:2px;border:0;background:currentColor}.ptb-shape-text:before{left:3px;top:2px;width:12px;height:2px;border:0;background:currentColor;box-shadow:5px 2px 0 currentColor,5px 4px 0 currentColor,5px 6px 0 currentColor,5px 8px 0 currentColor,2px 12px 0 currentColor,8px 12px 0 currentColor}.ptb-shape-layers:before{left:3px;top:4px;width:12px;height:8px;transform:skewY(-20deg)}.ptb-shape-layers:after{left:4px;top:10px;width:10px;height:2px;border:0;background:currentColor}.ptb-shape-gear:before{left:3px;top:3px;width:12px;height:12px;border-radius:999px}.ptb-shape-gear:after{left:7px;top:7px;width:4px;height:4px;border:0;border-radius:999px;background:currentColor}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
+      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:1px;width:100%;min-height:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-built-icon,.ptb-built-part{box-sizing:border-box}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
       .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
@@ -126,6 +128,9 @@
     }
     if (tokens.includes("with-caption")) {
       setStyles(node, { flexDirection: "column", gap: "1px" });
+    }
+    if (tokens.includes("ptb-built-icon") || tokens.includes("ptb-built-part")) {
+      setStyles(node, { boxSizing: "border-box" });
     }
     if (tokens.includes("ptb-shape-icon")) {
       setStyles(node, { position: "relative", display: "inline-block", width: "18px", height: "18px", color: "inherit", pointerEvents: "none" });
@@ -1058,6 +1063,16 @@
         applyPendingDragToCollection(collection);
       }
     });
+    card.addEventListener("mouseenter", () => {
+      if (hasPendingDrag()) {
+        setDropTarget(collection.id, collection.buttonIds.length, card);
+      }
+    });
+    card.addEventListener("mousemove", () => {
+      if (hasPendingDrag()) {
+        setDropTarget(collection.id, collection.buttonIds.length, card);
+      }
+    });
     card.addEventListener("dragover", (event) => {
       event.preventDefault();
       card.classList.add("drag-over");
@@ -1074,6 +1089,13 @@
     });
     card.appendChild(renderCollectionHeader(collection));
     const list = el("div", "ptb-collection-member-list");
+    const setTailTarget = () => {
+      if (hasPendingDrag()) {
+        setDropTarget(collection.id, collection.buttonIds.length, list);
+      }
+    };
+    list.addEventListener("mouseenter", setTailTarget);
+    list.addEventListener("mousemove", setTailTarget);
     list.addEventListener("dragover", (event) => {
       event.preventDefault();
       setDropTarget(collection.id, collection.buttonIds.length, list);
@@ -1155,6 +1177,28 @@
   // Remember the latest dragged button because some UXP builds expose only partial dataTransfer support.
   function beginButtonDrag(buttonId, collectionId) {
     settingsState.pendingDrag = { buttonId: buttonId || "", collectionId: collectionId || "" };
+    settingsState.dragActive = Boolean(buttonId);
+    bindGlobalDragEnd();
+  }
+
+  // Bind one global mouseup fallback so UXP does not need to fire a native drop event.
+  function bindGlobalDragEnd() {
+    if (globalDragEndBound || !document || !document.addEventListener) {
+      return;
+    }
+    globalDragEndBound = true;
+    document.addEventListener("mouseup", handleGlobalDragEnd);
+    document.addEventListener("pointerup", handleGlobalDragEnd);
+  }
+
+  // Apply the hovered target on mouseup when native drag/drop skipped the drop event.
+  function handleGlobalDragEnd() {
+    if (!settingsState.dragActive) {
+      return;
+    }
+    if (!applyPendingDragTarget()) {
+      settingsState.dragActive = false;
+    }
   }
 
   // Return the pending drag payload without exposing the mutable state object.
@@ -1167,11 +1211,18 @@
   function clearPendingDrag() {
     settingsState.pendingDrag = { buttonId: "", collectionId: "" };
     settingsState.dropTarget = { collectionId: "", index: -1 };
+    settingsState.dragActive = false;
+  }
+
+  // Return whether a pointer drag fallback is currently armed.
+  function hasPendingDrag() {
+    return Boolean(getPendingDrag().buttonId);
   }
 
   // Remember where the dragged button will be inserted and update the visual guide.
   function setDropTarget(collectionId, index, node) {
     settingsState.dropTarget = { collectionId: collectionId || "", index: typeof index === "number" ? index : -1 };
+    clearDropMarkers();
     if (node && node.classList) {
       if (node.className && String(node.className).includes("ptb-collection-member-list")) {
         node.classList.add("drop-tail");
@@ -1179,6 +1230,19 @@
         node.classList.add("drop-before");
       }
     }
+  }
+
+  // Remove stale insertion markers before showing the current target.
+  function clearDropMarkers() {
+    if (!document || !document.querySelectorAll) {
+      return;
+    }
+    Array.from(document.querySelectorAll(".drop-before,.drop-tail")).forEach((node) => {
+      if (node.classList) {
+        node.classList.remove("drop-before");
+        node.classList.remove("drop-tail");
+      }
+    });
   }
 
   // Apply the latest native drop payload to the requested collection/index.
@@ -1204,6 +1268,7 @@
     if (collection && target.index >= 0) {
       return applyPendingDragToCollection(collection, target.index);
     }
+    clearPendingDrag();
     return false;
   }
 
@@ -1274,6 +1339,16 @@
     row.addEventListener("mouseup", (event) => {
       event.stopPropagation();
       applyPendingDragToCollection(collection, index);
+    });
+    row.addEventListener("mouseenter", () => {
+      if (hasPendingDrag()) {
+        setDropTarget(collection.id, index, row);
+      }
+    });
+    row.addEventListener("mousemove", () => {
+      if (hasPendingDrag()) {
+        setDropTarget(collection.id, index, row);
+      }
     });
     row.addEventListener("contextmenu", (event) => {
       event.preventDefault();

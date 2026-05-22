@@ -81,9 +81,15 @@ npm run ptb:verify
 
 ## Icon Notes
 
-The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The icons are drawn with CSS shapes because Premiere UXP can hide injected SVGs in some panel states.
+The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The icons are drawn with small HTML/CSS shapes because Premiere UXP can hide injected SVGs in some panel states. If you want to provide an external icon pack later, transparent PNG files are the safest option for this UXP panel.
 
 ## Changelog
+
+### 0.1.16 - 2026-05-22
+
+- Rebuilt icon rendering with real HTML shape elements instead of pseudo-elements.
+- Added a mouseup fallback for collection drag and drop so the hovered target applies even when UXP skips native drop events.
+- Clarified that transparent PNG icon packs are safer than SVG packs for this panel.
 
 ### 0.1.15 - 2026-05-22
 
