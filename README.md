@@ -81,9 +81,14 @@ npm run ptb:verify
 
 ## Icon Notes
 
-The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The icons are drawn with small HTML/CSS shapes because Premiere UXP can hide injected SVGs in some panel states. If you want to provide an external icon pack later, transparent PNG files are the safest option for this UXP panel.
+The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.17 - 2026-05-22
+
+- Switched the icon gallery and toolbar buttons to the bundled PNG icon pack.
+- Replaced picker previews with custom controls to avoid gray native button squares in Premiere.
 
 ### 0.1.16 - 2026-05-22
 

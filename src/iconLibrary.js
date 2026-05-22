@@ -1,49 +1,62 @@
 (function (root) {
   "use strict";
 
-  // Built-in icon gallery rendered with CSS shapes for Premiere UXP reliability.
+  // Use real PNG files because Premiere UXP is more reliable with img tags than glyphs, SVG masks, or pseudo-elements.
+  const iconBasePath = "./assets/Icons/";
   const icons = [
-    { id: "bolt", label: "Bolt" },
-    { id: "spark", label: "Spark" },
-    { id: "crop", label: "Crop" },
-    { id: "frame", label: "Frame" },
-    { id: "mosaic", label: "Mosaic" },
-    { id: "blur", label: "Blur" },
-    { id: "sun", label: "Sun" },
-    { id: "moon", label: "Moon" },
-    { id: "wave", label: "Wave" },
-    { id: "audio", label: "Audio" },
-    { id: "cut", label: "Cut" },
-    { id: "dissolve", label: "Dissolve" },
-    { id: "speed", label: "Speed" },
-    { id: "key", label: "Key" },
-    { id: "color", label: "Color" },
-    { id: "text", label: "Text" },
-    { id: "star", label: "Star" },
-    { id: "move", label: "Move" },
-    { id: "rotate", label: "Rotate" },
-    { id: "scale", label: "Scale" },
-    { id: "anchor", label: "Anchor" },
-    { id: "opacity", label: "Opacity" },
-    { id: "mask", label: "Mask" },
-    { id: "eye", label: "Eye" },
-    { id: "layers", label: "Layers" },
-    { id: "camera", label: "Camera" },
-    { id: "play", label: "Play" },
-    { id: "pause", label: "Pause" },
-    { id: "stop", label: "Stop" },
-    { id: "marker", label: "Marker" },
-    { id: "link", label: "Link" },
-    { id: "unlink", label: "Unlink" },
-    { id: "plus", label: "Plus" },
-    { id: "minus", label: "Minus" },
-    { id: "gear", label: "Settings" }
+    { id: "aperture", label: "Aperture", file: "icons8-aperture-100.png" },
+    { id: "camera-addon", label: "Camera Addon", file: "icons8-camera-addon-100.png" },
+    { id: "camera-addon-identification", label: "Camera ID", file: "icons8-camera-addon-identification-100.png" },
+    { id: "drone", label: "Drone", file: "icons8-drone-100.png" },
+    { id: "focal-length", label: "Focal Length", file: "icons8-focal-length-100.png" },
+    { id: "lens", label: "Lens", file: "icons8-lens-100.png" },
+    { id: "quadcopter", label: "Quadcopter", file: "icons8-quadcopter-100.png" },
+    { id: "slr-large-lens", label: "SLR Large Lens", file: "icons8-slr-large-lens-100.png" },
+    { id: "slr-small-lens", label: "SLR Small Lens", file: "icons8-slr-small-lens-100.png" },
+    { id: "small-lens", label: "Small Lens", file: "icons8-small-lens-100.png" },
+    { id: "softbox", label: "Softbox", file: "icons8-softbox-100.png" },
+    { id: "viewfinder", label: "Viewfinder", file: "icons8-viewfinder-100.png" },
+    { id: "wire", label: "Wire", file: "icons8-wire-100.png" }
   ];
 
-  // Find an icon definition by id.
-  function getIcon(id) {
-    return icons.find((icon) => icon.id === id) || icons[0];
-  }
+  // Keep existing saved beta configurations readable after switching from built-in glyph ids to PNG ids.
+  const aliases = {
+    gear: "camera-addon-identification",
+    bolt: "aperture",
+    spark: "focal-length",
+    crop: "viewfinder",
+    frame: "slr-large-lens",
+    mosaic: "small-lens",
+    blur: "lens",
+    sun: "softbox",
+    moon: "softbox",
+    wave: "wire",
+    audio: "camera-addon",
+    cut: "wire",
+    dissolve: "aperture",
+    speed: "drone",
+    key: "camera-addon-identification",
+    color: "focal-length",
+    text: "camera-addon",
+    star: "aperture",
+    move: "quadcopter",
+    rotate: "drone",
+    scale: "slr-small-lens",
+    anchor: "viewfinder",
+    opacity: "lens",
+    mask: "small-lens",
+    eye: "viewfinder",
+    layers: "slr-large-lens",
+    camera: "camera-addon",
+    play: "drone",
+    pause: "softbox",
+    stop: "small-lens",
+    marker: "focal-length",
+    link: "wire",
+    unlink: "wire",
+    plus: "camera-addon",
+    minus: "small-lens"
+  };
 
   // Escape text before injecting it through innerHTML.
   function escapeText(value) {
@@ -56,84 +69,38 @@
     }[character]));
   }
 
-  // Create one real child element so the icon does not depend on pseudo-elements.
-  function part(style) {
-    return '<span class="ptb-built-part" style="' + style + '"></span>';
+  // Resolve old icon ids to the matching PNG entry.
+  function normalizeIconId(id) {
+    return aliases[id] || id;
   }
 
-  // Return simple HTML shape parts for one icon id.
-  function getShapeParts(id) {
-    const borderSquare = part("position:absolute;left:4px;top:4px;width:10px;height:10px;border:2px solid currentColor;border-radius:2px;");
-    if (id === "bolt") {
-      return part("position:absolute;left:7px;top:1px;width:5px;height:16px;border-radius:1px;background:currentColor;transform:skew(-24deg);");
-    }
-    if (id === "spark" || id === "move") {
-      return part("position:absolute;left:8px;top:2px;width:2px;height:14px;background:currentColor;") + part("position:absolute;left:2px;top:8px;width:14px;height:2px;background:currentColor;");
-    }
-    if (id === "crop") {
-      return part("position:absolute;left:3px;top:3px;width:12px;height:12px;border:0 solid currentColor;border-left-width:2px;border-bottom-width:2px;") + part("position:absolute;left:7px;top:7px;width:8px;height:8px;border:0 solid currentColor;border-top-width:2px;border-right-width:2px;");
-    }
-    if (id === "mosaic" || id === "layers") {
-      return part("position:absolute;left:2px;top:2px;width:5px;height:5px;background:currentColor;box-shadow:9px 0 0 currentColor,0 9px 0 currentColor,9px 9px 0 currentColor;");
-    }
-    if (id === "blur") {
-      return part("position:absolute;left:3px;top:3px;width:4px;height:4px;border-radius:999px;background:currentColor;box-shadow:7px 0 0 currentColor,3px 6px 0 currentColor,10px 8px 0 currentColor,1px 12px 0 currentColor;");
-    }
-    if (["sun", "moon", "color", "opacity", "eye", "gear", "anchor"].includes(id)) {
-      const dot = id === "gear" ? part("position:absolute;left:7px;top:7px;width:4px;height:4px;border-radius:999px;background:currentColor;") : "";
-      return part("position:absolute;left:3px;top:3px;width:12px;height:12px;border:2px solid currentColor;border-radius:999px;") + dot;
-    }
-    if (id === "wave") {
-      return part("position:absolute;left:2px;top:8px;width:14px;height:6px;border:0 solid currentColor;border-top-width:2px;border-radius:999px;transform:skewX(-25deg);");
-    }
-    if (id === "audio") {
-      return part("position:absolute;left:2px;top:6px;width:6px;height:6px;background:currentColor;") + part("position:absolute;left:9px;top:4px;width:6px;height:10px;border:0 solid currentColor;border-top-width:2px;border-right-width:2px;border-bottom-width:2px;border-radius:0 999px 999px 0;");
-    }
-    if (id === "cut" || id === "unlink") {
-      return part("position:absolute;left:2px;top:8px;width:14px;height:2px;background:currentColor;transform:rotate(35deg);") + part("position:absolute;left:2px;top:8px;width:14px;height:2px;background:currentColor;transform:rotate(-35deg);");
-    }
-    if (id === "speed" || id === "rotate") {
-      return part("position:absolute;left:2px;top:6px;width:14px;height:10px;border:0 solid currentColor;border-top-width:2px;border-left-width:2px;border-right-width:2px;border-radius:999px 999px 0 0;") + part("position:absolute;left:9px;top:8px;width:7px;height:2px;background:currentColor;transform:rotate(-38deg);transform-origin:left center;");
-    }
-    if (id === "play") {
-      return part("position:absolute;left:5px;top:3px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:9px solid currentColor;");
-    }
-    if (id === "pause") {
-      return part("position:absolute;left:5px;top:3px;width:3px;height:12px;background:currentColor;box-shadow:6px 0 0 currentColor;");
-    }
-    if (id === "stop") {
-      return part("position:absolute;left:4px;top:4px;width:10px;height:10px;background:currentColor;");
-    }
-    if (id === "plus") {
-      return part("position:absolute;left:8px;top:3px;width:2px;height:12px;background:currentColor;") + part("position:absolute;left:3px;top:8px;width:12px;height:2px;background:currentColor;");
-    }
-    if (id === "minus") {
-      return part("position:absolute;left:3px;top:8px;width:12px;height:2px;background:currentColor;");
-    }
-    if (id === "text") {
-      return part("position:absolute;left:3px;top:2px;width:12px;height:2px;background:currentColor;box-shadow:5px 2px 0 currentColor,5px 4px 0 currentColor,5px 6px 0 currentColor,5px 8px 0 currentColor,2px 12px 0 currentColor,8px 12px 0 currentColor;");
-    }
-    if (id === "play" || id === "marker") {
-      return part("position:absolute;left:5px;top:3px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:9px solid currentColor;");
-    }
-    if (id === "key" || id === "mask" || id === "star" || id === "link" || id === "scale" || id === "camera" || id === "dissolve") {
-      return part("position:absolute;left:4px;top:4px;width:10px;height:10px;border:2px solid currentColor;transform:rotate(45deg);");
-    }
-    return borderSquare;
+  // Find an icon definition by id.
+  function getIcon(id) {
+    const resolvedId = normalizeIconId(id || "");
+    return icons.find((icon) => icon.id === resolvedId) || icons[0];
   }
 
-  // Render a built HTML icon with no text fallback, so no font tofu square can appear.
+  // Return the browser-relative PNG source for the selected icon.
+  function getIconSrc(id) {
+    const icon = getIcon(id);
+    return iconBasePath + icon.file;
+  }
+
+  // Render an image icon without text fallback so no missing-glyph box can appear.
   function renderIcon(id, color, title) {
     const icon = getIcon(id);
-    const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "currentColor";
     const safeTitle = title || icon.label;
-    return '<span class="ptb-built-icon ptb-built-' + escapeText(icon.id) + '" style="position:relative;display:inline-block;width:18px;height:18px;color:' + safeColor + ';pointer-events:none;" role="img" aria-label="' + escapeText(safeTitle) + '">' + getShapeParts(icon.id) + "</span>";
+    const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "currentColor";
+    return '<img class="ptb-image-icon" src="' + escapeText(getIconSrc(icon.id)) + '" alt="" role="img" aria-label="' + escapeText(safeTitle) + '" style="display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;color:' + safeColor + ';pointer-events:none;" />';
   }
 
   // Expose the icon library for UI rendering.
   root.PTB_ICON_LIBRARY = {
     icons,
+    aliases,
     getIcon,
+    getIconSrc,
+    normalizeIconId,
     renderIcon
   };
 }(typeof window !== "undefined" ? window : globalThis));

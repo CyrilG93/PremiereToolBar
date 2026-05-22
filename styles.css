@@ -98,6 +98,17 @@ button {
   gap: 1px;
 }
 
+.ptb-image-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  object-fit: contain;
+  outline: 0;
+  pointer-events: none;
+}
+
 .ptb-bar-label {
   max-width: 110px;
   min-width: 44px;
@@ -861,6 +872,7 @@ button {
   border: 1px solid var(--ptb-line);
   border-radius: 7px;
   padding: 0;
+  background: transparent;
   cursor: pointer;
 }
 
@@ -888,12 +900,18 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--ptb-line);
   border-radius: 6px;
   padding: 0;
+  background: transparent;
   cursor: pointer;
+}
+
+.ptb-icon-choice {
+  width: 34px;
+  height: 34px;
 }
 
 .ptb-color-choice.active,
