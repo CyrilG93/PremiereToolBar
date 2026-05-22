@@ -16,7 +16,7 @@
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
   const ACTION_TYPES = ["settings", "effect", "transition", "stack"];
   const MEDIA_TYPES = ["video", "audio"];
-  const DISPLAY_MODES = ["icon", "text"];
+  const DISPLAY_MODES = ["icon", "text", "both"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
