@@ -86,12 +86,28 @@
     return iconBasePath + icon.file;
   }
 
+  // Convert a hex color into a CSS filter that tints black PNG icons.
+  function getIconFilter(color) {
+    const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f0f0f0";
+    const red = parseInt(safeColor.slice(1, 3), 16);
+    const green = parseInt(safeColor.slice(3, 5), 16);
+    const blue = parseInt(safeColor.slice(5, 7), 16);
+    if (red === 0 && green === 0 && blue === 0) {
+      return "brightness(0)";
+    }
+    const brightness = Math.max(red, green, blue) / 255;
+    const average = (red + green + blue) / 3;
+    const saturation = average ? Math.max(red, green, blue) / average : 1;
+    const hue = Math.round(Math.atan2(Math.sqrt(3) * (green - blue), 2 * red - green - blue) * 180 / Math.PI);
+    return "brightness(0) saturate(100%) invert(1) sepia(1) saturate(" + Math.round(saturation * 180) + "%) hue-rotate(" + hue + "deg) brightness(" + Math.round((0.45 + brightness * 0.7) * 100) + "%)";
+  }
+
   // Render an image icon without text fallback so no missing-glyph box can appear.
   function renderIcon(id, color, title) {
     const icon = getIcon(id);
     const safeTitle = title || icon.label;
     const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "currentColor";
-    return '<img class="ptb-image-icon" src="' + escapeText(getIconSrc(icon.id)) + '" alt="" role="img" aria-label="' + escapeText(safeTitle) + '" style="display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;color:' + safeColor + ';pointer-events:none;" />';
+    return '<img class="ptb-image-icon" src="' + escapeText(getIconSrc(icon.id)) + '" alt="" role="img" aria-label="' + escapeText(safeTitle) + '" style="display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;color:' + safeColor + ';filter:' + getIconFilter(safeColor) + ';pointer-events:none;" />';
   }
 
   // Expose the icon library for UI rendering.
@@ -100,6 +116,7 @@
     aliases,
     getIcon,
     getIconSrc,
+    getIconFilter,
     normalizeIconId,
     renderIcon
   };

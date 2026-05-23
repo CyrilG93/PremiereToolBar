@@ -60,6 +60,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Create buttons from the top action bar, then edit the selected button below the gallery.
 - Drag buttons from the gallery into any collection, or use the add-button menu inside a collection.
 - Rename collections and assign them to bars 1-4 with the compact `B1` to `B4` toggles.
+- Set each bar to horizontal or vertical from the compact bar controls.
 - Choose whether a button shows an icon, a three-letter text shortcut, or both.
 - Assign an icon, icon color, and button color with popover pickers.
 - Type either the Premiere effect name or the effect match name in one field.
@@ -90,6 +91,13 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.24 - 2026-05-23
+
+- Added compact horizontal/vertical controls for bars 1-4.
+- Improved icon editing, icon/text coloring, collection drag previews, and active bar assignment highlights.
+- Added a backup mirror for saved buttons to better survive installer updates.
+- Added new effects at the bottom of the existing effect stack.
 
 ### 0.1.23 - 2026-05-23
 

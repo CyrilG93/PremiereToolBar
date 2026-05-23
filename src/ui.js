@@ -22,12 +22,32 @@
   };
   const mountedPanels = new Map();
   let globalDragEndBound = false;
+  let backupRestoreStarted = false;
   const colorPalette = [
     "#d7dee8", "#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986",
     "#ff9aa2", "#d7b6ff", "#f4f4f5", "#a7a7a7", "#6b7280", "#313840",
     "#263747", "#263d35", "#403724", "#342a45", "#422a2f", "#101010",
     "#ffffff", "#000000", "#e11d48", "#f97316", "#22c55e", "#3b82f6"
   ];
+
+  // Restore a mirrored config after installer updates that clear localStorage.
+  function startBackupRestore() {
+    if (backupRestoreStarted || !root.PTB_STORAGE.restoreConfigBackup) {
+      return;
+    }
+    backupRestoreStarted = true;
+    root.PTB_STORAGE.restoreConfigBackup().then((restoredConfig) => {
+      if (restoredConfig) {
+        config = restoredConfig;
+        settingsState.selectedCollectionId = config.activeCollectionId;
+        settingsState.selectedButtonId = config.activeButtonId;
+        statusMessage = root.PTB_I18N.t("statusRestored");
+        renderAll();
+      }
+    }).catch((error) => {
+      console.warn("Tool Bar config restore skipped:", error);
+    });
+  }
 
   // Inject only into the document head; UXP can render style tags inside panel roots as visible text.
   function ensureHeadStyles() {
@@ -49,16 +69,16 @@
       style.textContent = `
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
-      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:1px;width:100%;min-height:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
+      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:1px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:nowrap;width:max-content;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:800;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
       .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
       .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
       .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:flex;flex-direction:column;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text small{color:var(--ptb-muted)}
       .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
-      .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:34px;height:30px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:34px;height:34px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
-      .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:var(--ptb-text);border-color:rgba(121,200,255,.7);background:#224259}
-      .ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-4px 0 0 var(--ptb-accent)}.ptb-collection-member-list.drop-tail{box-shadow:inset -4px 0 0 var(--ptb-accent)}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
+      .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 100%}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-icon-button,.ptb-icon-choice{background:#f6f7f8}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px;background:#f6f7f8}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
+      .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
+      .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-4px 0 0 #9fe3c1}.ptb-collection-member.drop-after{box-shadow:4px 0 0 #9fe3c1}.ptb-collection-member-list.drop-tail{box-shadow:inset -4px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
       if (document.head) {
@@ -108,6 +128,9 @@
     }
     if (tokens.includes("ptb-toolbar-strip")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", alignItems: "flex-start", alignContent: "flex-start", justifyContent: "flex-start", gap: "1px", width: "100%", minHeight: "34px" });
+    }
+    if (tokens.includes("ptb-vertical") && tokens.includes("ptb-toolbar-shell")) {
+      setStyles(node, { width: "auto", minWidth: "40px" });
     }
     if (tokens.includes("ptb-tool-button")) {
       setStyles(node, Object.assign({}, sharedButton, {
@@ -237,14 +260,23 @@
     if (tokens.includes("ptb-picker")) {
       setStyles(node, { position: "relative", display: "flex", flex: "1 1 220px", flexDirection: "column", gap: "7px", minWidth: "0" });
     }
+    if (tokens.includes("ptb-icon-picker")) {
+      setStyles(node, { flex: "1 1 100%" });
+    }
     if (tokens.includes("ptb-color-row")) {
       setStyles(node, { display: "flex", gap: "8px", alignItems: "center" });
     }
     if (tokens.includes("ptb-color-button") || tokens.includes("ptb-icon-button")) {
-      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "34px", height: "30px", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "0", background: "transparent", cursor: "pointer" });
+      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "0", background: "transparent", cursor: "pointer" });
+    }
+    if (tokens.includes("ptb-icon-button")) {
+      setStyles(node, { background: "#f6f7f8", backgroundColor: "#f6f7f8" });
     }
     if (tokens.includes("ptb-popover")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "8px", width: "190px", marginTop: "2px", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", background: "#181818" });
+    }
+    if (tokens.includes("ptb-icon-popover")) {
+      setStyles(node, { width: "100%" });
     }
     if (tokens.includes("ptb-color-grid") || tokens.includes("ptb-icon-grid")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "5px" });
@@ -253,7 +285,7 @@
       setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", background: "transparent", cursor: "pointer" });
     }
     if (tokens.includes("ptb-icon-choice")) {
-      setStyles(node, { width: "34px", height: "34px" });
+      setStyles(node, { width: "42px", height: "42px", background: "#f6f7f8", backgroundColor: "#f6f7f8" });
     }
     if (tokens.includes("ptb-color-input")) {
       setStyles(node, { width: "92px", maxWidth: "92px" });
@@ -267,6 +299,12 @@
     if (tokens.includes("ptb-collection-drop-card")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "10px", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "10px", background: "#242424" });
     }
+    if (tokens.includes("ptb-bar-control-grid")) {
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", padding: "12px" });
+    }
+    if (tokens.includes("ptb-bar-control")) {
+      setStyles(node, { display: "flex", alignItems: "end", gap: "8px", minWidth: "210px" });
+    }
     if (tokens.includes("ptb-collection-header-row")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", minWidth: "0" });
     }
@@ -276,6 +314,9 @@
     if (tokens.includes("ptb-bar-toggle")) {
       setStyles(node, Object.assign({}, sharedButton, { minWidth: "30px", minHeight: "26px", fontSize: "10px", fontWeight: "800" }));
     }
+    if (tokens.includes("ptb-bar-toggle") && tokens.includes("active")) {
+      setStyles(node, { color: "#e9fff3", borderColor: "#4ade80", background: "#14532d" });
+    }
     if (tokens.includes("ptb-collection-member-list")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "6px", minWidth: "0" });
     }
@@ -283,10 +324,13 @@
       setStyles(node, { position: "relative", width: "150px", minWidth: "150px", padding: "7px" });
     }
     if (tokens.includes("drop-before")) {
-      setStyles(node, { boxShadow: "-4px 0 0 var(--ptb-accent)" });
+      setStyles(node, { boxShadow: "-4px 0 0 #9fe3c1" });
+    }
+    if (tokens.includes("drop-after")) {
+      setStyles(node, { boxShadow: "4px 0 0 #9fe3c1" });
     }
     if (tokens.includes("drop-tail")) {
-      setStyles(node, { boxShadow: "inset -4px 0 0 var(--ptb-accent)" });
+      setStyles(node, { boxShadow: "inset -4px 0 0 #9fe3c1" });
     }
     if (tokens.includes("ptb-icon-action")) {
       setStyles(node, Object.assign({}, sharedButton, { minWidth: "26px", minHeight: "24px", padding: "3px 6px", fontSize: "10px" }));
@@ -408,11 +452,13 @@
   function renderButtonFace(button) {
     const mode = getButtonDisplayMode(button);
     const shortText = escapeHtml(getButtonShortText(button));
+    const textColor = /^#[0-9a-f]{6}$/i.test(button && button.iconColor || "") ? button.iconColor : "#f0f0f0";
+    const textStyle = ' style="color:' + textColor + ';"';
     if (mode === "text") {
-      return '<span class="ptb-button-face"><span class="ptb-tool-text">' + shortText + "</span></span>";
+      return '<span class="ptb-button-face"><span class="ptb-tool-text"' + textStyle + ">" + shortText + "</span></span>";
     }
     if (mode === "both") {
-      return '<span class="ptb-button-face with-caption">' + root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button)) + '<span class="ptb-tool-caption">' + shortText + "</span></span>";
+      return '<span class="ptb-button-face with-caption">' + root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button)) + '<span class="ptb-tool-caption"' + textStyle + ">" + shortText + "</span></span>";
     }
     return '<span class="ptb-button-face">' + root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button)) + "</span>";
   }
@@ -594,7 +640,7 @@
 
   // Create an icon picker that opens only when requested, matching the color picker behavior.
   function iconPicker(button) {
-    const wrap = el("div", "ptb-picker");
+    const wrap = el("div", "ptb-picker ptb-icon-picker");
     wrap.appendChild(el("span", "ptb-field-label", root.PTB_I18N.t("icon")));
     const pickerKey = button.id + ":icon";
     const row = el("div", "ptb-color-row");
@@ -603,14 +649,14 @@
       renderAll();
     });
     preview.title = root.PTB_I18N.t("icon");
-    preview.style.background = button.accentColor || "#2b3037";
-    preview.style.backgroundColor = button.accentColor || "#2b3037";
+    preview.style.background = "#f6f7f8";
+    preview.style.backgroundColor = "#f6f7f8";
     preview.style.borderColor = button.iconColor || "var(--ptb-line)";
     preview.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button));
     row.appendChild(preview);
     wrap.appendChild(row);
     if (settingsState.openIconPicker === pickerKey) {
-      const popover = el("div", "ptb-popover");
+      const popover = el("div", "ptb-popover ptb-icon-popover");
       const grid = el("div", "ptb-icon-grid");
       const activeIconId = root.PTB_ICON_LIBRARY.normalizeIconId(button.icon);
       root.PTB_ICON_LIBRARY.icons.forEach((icon) => {
@@ -756,6 +802,7 @@
 
   // Render the full settings workspace.
   function renderSettingsPanel(rootNode) {
+    startBackupRestore();
     ensureSettingsSelection();
     const shell = el("div", "ptb-settings-shell");
     shell.appendChild(renderSettingsHeader());
@@ -765,6 +812,7 @@
     // Append every module after the shell is visible so UXP never leaves the settings panel blank.
     appendSettingsModule(content, root.PTB_I18N.t("buttonGallery"), fillButtonGallery);
     appendSettingsModule(content, root.PTB_I18N.t("buttonEditor"), fillButtonEditor);
+    appendSettingsModule(content, root.PTB_I18N.t("barControls"), fillBarControls);
     appendSettingsModule(content, root.PTB_I18N.t("collections"), fillCollectionsBoard);
     appendSettingsModule(content, root.PTB_I18N.t("data"), fillImportExportSettings);
   }
@@ -887,6 +935,7 @@
     card.appendChild(renderButtonSwatch(button));
     const text = el("span", "ptb-button-card-text");
     text.appendChild(el("strong", "", getButtonName(button)));
+    text.style.color = button.iconColor || "var(--ptb-text)";
     card.appendChild(text);
     return card;
   }
@@ -945,6 +994,29 @@
   // Fill the selected button editor after its module body is already mounted.
   function fillButtonEditor(target) {
     target.appendChild(renderButtonEditor(getButton(settingsState.selectedButtonId)));
+  }
+
+  // Render compact controls for each dockable toolbar orientation.
+  function renderBarControls() {
+    const wrap = el("div", "ptb-bar-control-grid");
+    config.bars.forEach((bar, index) => {
+      const row = el("div", "ptb-bar-control");
+      row.appendChild(el("strong", "", "B" + (index + 1)));
+      row.appendChild(selectField(root.PTB_I18N.t("barOrientation"), bar.orientation === "vertical" ? "vertical" : "horizontal", [
+        { value: "horizontal", label: root.PTB_I18N.t("barHorizontal") },
+        { value: "vertical", label: root.PTB_I18N.t("barVertical") }
+      ], (value) => {
+        bar.orientation = value === "vertical" ? "vertical" : "horizontal";
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+      wrap.appendChild(row);
+    });
+    return wrap;
+  }
+
+  // Fill the compact bar controls module.
+  function fillBarControls(target) {
+    target.appendChild(renderBarControls());
   }
 
   // Render action-specific button fields.
@@ -1110,6 +1182,7 @@
     card.addEventListener("dragleave", () => {
       card.classList.remove("drag-over");
       card.classList.remove("drop-before");
+      card.classList.remove("drop-after");
     });
     card.addEventListener("drop", (event) => {
       event.preventDefault();
@@ -1249,12 +1322,14 @@
   }
 
   // Remember where the dragged button will be inserted and update the visual guide.
-  function setDropTarget(collectionId, index, node) {
+  function setDropTarget(collectionId, index, node, position) {
     settingsState.dropTarget = { collectionId: collectionId || "", index: typeof index === "number" ? index : -1 };
     clearDropMarkers();
     if (node && node.classList) {
       if (node.className && String(node.className).includes("ptb-collection-member-list")) {
         node.classList.add("drop-tail");
+      } else if (position === "after") {
+        node.classList.add("drop-after");
       } else {
         node.classList.add("drop-before");
       }
@@ -1266,12 +1341,23 @@
     if (!document || !document.querySelectorAll) {
       return;
     }
-    Array.from(document.querySelectorAll(".drop-before,.drop-tail")).forEach((node) => {
+    Array.from(document.querySelectorAll(".drop-before,.drop-after,.drop-tail")).forEach((node) => {
       if (node.classList) {
         node.classList.remove("drop-before");
+        node.classList.remove("drop-after");
         node.classList.remove("drop-tail");
       }
     });
+  }
+
+  // Choose before/after by pointer position so collection reordering previews the real insertion point.
+  function getPointerInsertion(event, node, index) {
+    if (!event || !node || typeof node.getBoundingClientRect !== "function") {
+      return { index, position: "before" };
+    }
+    const rect = node.getBoundingClientRect();
+    const after = typeof event.clientX === "number" && event.clientX > rect.left + rect.width / 2;
+    return { index: after ? index + 1 : index, position: after ? "after" : "before" };
   }
 
   // Apply the latest native drop payload to the requested collection/index.
@@ -1281,11 +1367,13 @@
       clearPendingDrag();
       return;
     }
+    const preview = settingsState.dropTarget || {};
+    const resolvedIndex = preview.collectionId === collection.id && preview.index >= 0 ? preview.index : targetIndex;
     if (payload.collectionId === collection.id) {
-      moveButtonToCollectionIndex(collection.id, payload.buttonId, targetIndex);
+      moveButtonToCollectionIndex(collection.id, payload.buttonId, resolvedIndex);
     } else {
       addButtonToCollection(collection.id, payload.buttonId, true);
-      moveButtonToCollectionIndex(collection.id, payload.buttonId, targetIndex);
+      moveButtonToCollectionIndex(collection.id, payload.buttonId, resolvedIndex);
     }
     clearPendingDrag();
   }
@@ -1367,16 +1455,19 @@
     row.addEventListener("pointerdown", () => beginButtonDrag(button.id, collection.id));
     row.addEventListener("mouseup", (event) => {
       event.stopPropagation();
-      applyPendingDragToCollection(collection, index);
+      const preview = settingsState.dropTarget || {};
+      applyPendingDragToCollection(collection, preview.collectionId === collection.id && preview.index >= 0 ? preview.index : index);
     });
-    row.addEventListener("mouseenter", () => {
+    row.addEventListener("mouseenter", (event) => {
       if (hasPendingDrag()) {
-        setDropTarget(collection.id, index, row);
+        const target = getPointerInsertion(event, row, index);
+        setDropTarget(collection.id, target.index, row, target.position);
       }
     });
-    row.addEventListener("mousemove", () => {
+    row.addEventListener("mousemove", (event) => {
       if (hasPendingDrag()) {
-        setDropTarget(collection.id, index, row);
+        const target = getPointerInsertion(event, row, index);
+        setDropTarget(collection.id, target.index, row, target.position);
       }
     });
     row.addEventListener("contextmenu", (event) => {
@@ -1392,21 +1483,25 @@
     row.addEventListener("dragover", (event) => {
       event.preventDefault();
       row.classList.add("drag-over");
-      setDropTarget(collection.id, index, row);
+      const target = getPointerInsertion(event, row, index);
+      setDropTarget(collection.id, target.index, row, target.position);
     });
     row.addEventListener("dragleave", () => {
       row.classList.remove("drag-over");
       row.classList.remove("drop-before");
+      row.classList.remove("drop-after");
     });
     row.addEventListener("drop", (event) => {
       event.preventDefault();
       row.classList.remove("drag-over");
       row.classList.remove("drop-before");
+      row.classList.remove("drop-after");
       applyDropEvent(collection, index, event);
     });
     row.appendChild(renderButtonSwatch(button));
     const text = el("span", "ptb-button-card-text");
     text.appendChild(el("strong", "", getButtonName(button)));
+    text.style.color = button.iconColor || "var(--ptb-text)";
     row.appendChild(text);
     return row;
   }
@@ -1630,6 +1725,7 @@
 
   // Public mount entry used by index.js lifecycle hooks.
   function mountPanel(rootNode, panelId, context) {
+    startBackupRestore();
     rootNode.ptbContext = context;
     document.body.ptbContext = context;
     mountedPanels.set(rootNode, panelId);

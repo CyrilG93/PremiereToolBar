@@ -200,6 +200,7 @@ function renderSettingsSmokeTest() {
     PTB_STORAGE: {
       loadConfig: () => schema.createDefaultConfig(),
       saveConfig: (config) => schema.normalizeConfig(config),
+      restoreConfigBackup: async () => null,
       exportJsonFile: async () => {},
       importJsonFile: async () => "",
       copyText: async () => {}
@@ -222,11 +223,12 @@ function renderSettingsSmokeTest() {
 
 const settingsRoot = renderSettingsSmokeTest();
 assert.ok(findByPredicate(settingsRoot, (node) => String(node.className).includes("ptb-settings-content")));
-assert.equal(countClass(settingsRoot, "ptb-section"), 4);
+assert.equal(countClass(settingsRoot, "ptb-section"), 5);
 assert.ok(settingsRoot.textContent.includes("Button Gallery"));
 assert.ok(settingsRoot.textContent.includes("Button Editor"));
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
+assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
@@ -298,6 +300,62 @@ async function capturePresetSmokeTest() {
 }
 
 await capturePresetSmokeTest();
+
+// Verify effect buttons insert at the bottom of the existing component chain.
+async function applyEffectOrderSmokeTest() {
+  let insertedIndex = -1;
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const chain = {
+        getComponentCount: () => 4,
+        createInsertComponentAction(component, index) {
+          insertedIndex = index;
+          return { component, index };
+        },
+        createAppendComponentAction(component) {
+          insertedIndex = -2;
+          return { component };
+        }
+      };
+      const item = {
+        createAddVideoTransitionAction() {},
+        getComponentChain: async () => chain
+      };
+      return {
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        VideoFilterFactory: {
+          createComponent: async () => ({})
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({ actionType: "effect", effect: { matchName: "AE.ADBE Mosaic", displayName: "Mosaic" } }));
+  assert.equal(insertedIndex, 4);
+}
+
+await applyEffectOrderSmokeTest();
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");

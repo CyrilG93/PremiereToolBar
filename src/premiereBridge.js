@@ -110,15 +110,23 @@
       if (button.mediaType === "video" && isVideoItem(item)) {
         const component = await createVideoFilterComponent(app, button.effect);
         const chain = await item.getComponentChain();
-        actions.push(chain.createAppendComponentAction(component));
+        actions.push(createNaturalAppendComponentAction(chain, component));
       }
       if (button.mediaType === "audio" && isAudioItem(item)) {
         const component = await app.AudioFilterFactory.createComponentByDisplayName(button.effect.displayName, item);
         const chain = await item.getComponentChain();
-        actions.push(chain.createAppendComponentAction(component));
+        actions.push(createNaturalAppendComponentAction(chain, component));
       }
     }
     return executeActions(project, actions, "Tool Bar: " + button.label);
+  }
+
+  // Insert at the current chain length so Premiere places new effects after existing user effects.
+  function createNaturalAppendComponentAction(chain, component, offset) {
+    if (chain && typeof chain.createInsertComponentAction === "function" && typeof chain.getComponentCount === "function") {
+      return chain.createInsertComponentAction(component, chain.getComponentCount() + (Number(offset) || 0));
+    }
+    return chain.createAppendComponentAction(component);
   }
 
   // Return known fallback match names for beta defaults and common display names.
@@ -224,17 +232,20 @@
     const stack = root.PTB_SCHEMA.normalizeStack(button.stack);
     const actions = [];
     for (const item of items) {
+      let appendOffset = 0;
       for (const componentSnapshot of stack.components) {
         if (componentSnapshot.mediaType === "video" && isVideoItem(item)) {
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
           const chain = await item.getComponentChain();
-          actions.push(chain.createAppendComponentAction(component));
+          actions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
+          appendOffset += 1;
           actions.push.apply(actions, await createParamActions(app, component, componentSnapshot.params));
         }
         if (componentSnapshot.mediaType === "audio" && isAudioItem(item)) {
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
           const chain = await item.getComponentChain();
-          actions.push(chain.createAppendComponentAction(component));
+          actions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
+          appendOffset += 1;
           actions.push.apply(actions, await createParamActions(app, component, componentSnapshot.params));
         }
       }
