@@ -47,6 +47,7 @@ REM // Stage only the files required by the UXP plugin runtime.
 set "PTB_BUILD_DIR=%PTB_ROOT%\.ptb-installer-build"
 set "PTB_STAGE_DIR=%PTB_BUILD_DIR%\package-%PTB_VERSION%-%RANDOM%"
 set "PTB_CCX=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%.ccx"
+set "PTB_ZIP=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%-%RANDOM%.zip"
 mkdir "%PTB_BUILD_DIR%" >nul 2>nul
 mkdir "%PTB_STAGE_DIR%" >nul 2>nul
 copy /Y "%PTB_ROOT%\manifest.json" "%PTB_STAGE_DIR%\manifest.json" >nul
@@ -56,10 +57,18 @@ copy /Y "%PTB_ROOT%\styles.css" "%PTB_STAGE_DIR%\styles.css" >nul
 xcopy "%PTB_ROOT%\src" "%PTB_STAGE_DIR%\src" /E /I /Y >nul
 if exist "%PTB_ROOT%\assets" xcopy "%PTB_ROOT%\assets" "%PTB_STAGE_DIR%\assets" /E /I /Y >nul
 
-REM // Build a .ccx package; Adobe documents CCX as a ZIP container for UXP plugins.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%PTB_STAGE_DIR%\*' -DestinationPath '%PTB_CCX%' -Force"
+REM // Build a ZIP first because some PowerShell versions only allow .zip output extensions.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%PTB_STAGE_DIR%\*' -DestinationPath '%PTB_ZIP%' -Force"
 if errorlevel 1 (
   echo Unable to package Tool Bar.
+  set "PTB_EXIT_CODE=1"
+  goto PTB_FINISH
+)
+
+REM // Rename the ZIP container to .ccx, which Adobe uses for UXP plugin installation packages.
+move /Y "%PTB_ZIP%" "%PTB_CCX%" >nul
+if errorlevel 1 (
+  echo Unable to create the Tool Bar CCX file.
   set "PTB_EXIT_CODE=1"
   goto PTB_FINISH
 )

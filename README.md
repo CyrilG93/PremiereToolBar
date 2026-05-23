@@ -87,6 +87,10 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.1.19 - 2026-05-23
+
+- Fixed Windows packaging on PowerShell versions that only allow `.zip` archive output.
+
 ### 0.1.18 - 2026-05-23
 
 - Kept the Windows installer window open after user launches so installation messages are visible.
