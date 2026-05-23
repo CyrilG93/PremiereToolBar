@@ -121,12 +121,15 @@
     return executeActions(project, actions, "Tool Bar: " + button.label);
   }
 
-  // Insert at the current chain length so Premiere places new effects after existing user effects.
+  // Prefer Premiere's native append action so new effects land after existing user effects.
   function createNaturalAppendComponentAction(chain, component, offset) {
+    if (chain && typeof chain.createAppendComponentAction === "function") {
+      return chain.createAppendComponentAction(component);
+    }
     if (chain && typeof chain.createInsertComponentAction === "function" && typeof chain.getComponentCount === "function") {
       return chain.createInsertComponentAction(component, chain.getComponentCount() + (Number(offset) || 0));
     }
-    return chain.createAppendComponentAction(component);
+    throw new Error("Selected clip does not expose a Premiere component append action.");
   }
 
   // Return known fallback match names for beta defaults and common display names.

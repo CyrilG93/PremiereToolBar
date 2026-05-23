@@ -13,6 +13,9 @@ if [ -z "${PTB_VERSION}" ]; then
   exit 1
 fi
 
+# // Preserve existing user buttons before packaging or installing because some UXP installers clear plugin storage.
+/bin/bash "${PTB_ROOT}/scripts/ptb-backup-macos.sh" backup "${PTB_VERSION}"
+
 # // Stage only the files required by the UXP plugin runtime.
 PTB_BUILD_DIR="${PTB_ROOT}/.ptb-installer-build"
 PTB_STAGE_DIR="${PTB_BUILD_DIR}/package-${PTB_VERSION}-$(date +%Y%m%d%H%M%S)"
@@ -64,6 +67,14 @@ if [ -z "${PTB_UPIA}" ]; then
   exit 2
 fi
 
-# // Install the packaged UXP plugin through Adobe UPIA.
+# // Install the packaged UXP plugin through Adobe UPIA and restore the backup mirror afterward.
+set +e
 "${PTB_UPIA}" --install "${PTB_CCX}"
+PTB_UPIA_EXIT=$?
+set -e
+/bin/bash "${PTB_ROOT}/scripts/ptb-backup-macos.sh" restore "${PTB_VERSION}"
+if [ "${PTB_UPIA_EXIT}" -ne 0 ]; then
+  echo "Adobe UPIA returned an installation error."
+  exit "${PTB_UPIA_EXIT}"
+fi
 echo "Tool Bar ${PTB_VERSION} installation command completed."

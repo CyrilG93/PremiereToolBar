@@ -38,7 +38,7 @@ If Adobe UPIA reports a failed install status, open Creative Cloud Desktop first
 
 Some third-party CCX installers may warn that no compatible application was found even when the plugin installs correctly. Tool Bar's manifest targets Premiere Pro 25.6 or later.
 
-On Windows, Tool Bar also keeps buttons and collections in `%APPDATA%\Tool Bar\ToolBar-config.json`, outside Adobe's UXP plugin storage. The included installer backs up existing data to `%APPDATA%\Tool Bar\Backups` before packaging or installing, then restores the UXP backup mirror after installation.
+On Windows, Tool Bar also keeps buttons and collections in `%APPDATA%\Tool Bar\ToolBar-config.json`, outside Adobe's UXP plugin storage. On macOS, it uses `~/Library/Application Support/Tool Bar/ToolBar-config.json`. The included installers back up existing data before packaging or installing, then restore the UXP backup mirror after installation.
 
 ### Development Loading
 
@@ -95,6 +95,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.28 - 2026-05-23
+
+- Added the same automatic update backup flow to the macOS installer.
+- Changed effect application to use Premiere's native append action.
+- Improved icon and button text recoloring inside Premiere panels.
 
 ### 0.1.27 - 2026-05-23
 

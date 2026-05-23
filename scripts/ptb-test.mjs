@@ -301,8 +301,9 @@ async function capturePresetSmokeTest() {
 
 await capturePresetSmokeTest();
 
-// Verify effect buttons insert at the bottom of the existing component chain.
+// Verify effect buttons use Premiere's native append action for the bottom of the component chain.
 async function applyEffectOrderSmokeTest() {
+  let appended = false;
   let insertedIndex = -1;
   const context = {
     console,
@@ -320,7 +321,7 @@ async function applyEffectOrderSmokeTest() {
           return { component, index };
         },
         createAppendComponentAction(component) {
-          insertedIndex = -2;
+          appended = true;
           return { component };
         }
       };
@@ -352,7 +353,8 @@ async function applyEffectOrderSmokeTest() {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
   await context.PTB_PREMIERE.applyButton(schema.createButton({ actionType: "effect", effect: { matchName: "AE.ADBE Mosaic", displayName: "Mosaic" } }));
-  assert.equal(insertedIndex, 4);
+  assert.equal(appended, true);
+  assert.equal(insertedIndex, -1);
 }
 
 await applyEffectOrderSmokeTest();

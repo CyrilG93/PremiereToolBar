@@ -29,6 +29,7 @@
     "#263747", "#263d35", "#403724", "#342a45", "#422a2f", "#101010",
     "#ffffff", "#000000", "#e11d48", "#f97316", "#22c55e", "#3b82f6"
   ];
+  const tintedIconCache = {};
 
   // Restore a mirrored config after installer updates that clear localStorage.
   function startBackupRestore() {
@@ -451,12 +452,77 @@
     button.effect.matchName = lookup;
   }
 
+  // Return a valid hex color for text and icon rendering.
+  function getSafeIconColor(button) {
+    return /^#[0-9a-f]{6}$/i.test(button && button.iconColor || "") ? button.iconColor : "#f0f0f0";
+  }
+
+  // Recolor a PNG through canvas because Premiere UXP can ignore CSS filters on img tags.
+  function tintIconWithCanvas(img, source, color) {
+    const imageCtor = root.Image || (root.window && root.window.Image);
+    if (!imageCtor || !document || typeof document.createElement !== "function") {
+      return;
+    }
+    const cacheKey = source + "|" + color.toLowerCase();
+    if (tintedIconCache[cacheKey]) {
+      img.src = tintedIconCache[cacheKey];
+      return;
+    }
+    const image = new imageCtor();
+    image.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const width = image.naturalWidth || image.width || 22;
+        const height = image.naturalHeight || image.height || 22;
+        canvas.width = width;
+        canvas.height = height;
+        if (typeof canvas.getContext !== "function") {
+          return;
+        }
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+        const pixels = context.getImageData(0, 0, width, height);
+        const red = parseInt(color.slice(1, 3), 16);
+        const green = parseInt(color.slice(3, 5), 16);
+        const blue = parseInt(color.slice(5, 7), 16);
+        for (let index = 0; index < pixels.data.length; index += 4) {
+          if (pixels.data[index + 3] > 0) {
+            pixels.data[index] = red;
+            pixels.data[index + 1] = green;
+            pixels.data[index + 2] = blue;
+          }
+        }
+        context.putImageData(pixels, 0, 0);
+        const tintedSource = canvas.toDataURL("image/png");
+        tintedIconCache[cacheKey] = tintedSource;
+        img.src = tintedSource;
+      } catch (error) {
+        // Keep the original icon visible when the host blocks canvas pixel access.
+      }
+    };
+    image.src = source;
+  }
+
+  // Create an icon image with CSS and canvas tinting fallbacks.
+  function createIconImage(iconId, color, title) {
+    const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f0f0f0";
+    const source = root.PTB_ICON_LIBRARY.getIconSrc(iconId);
+    const img = el("img", "ptb-image-icon");
+    img.src = source;
+    img.alt = title || "";
+    img.title = title || "";
+    const filter = root.PTB_ICON_LIBRARY.getIconFilter(safeColor);
+    setStyles(img, { filter, webkitFilter: filter, opacity: "1", background: "transparent" });
+    tintIconWithCanvas(img, source, safeColor);
+    return img;
+  }
+
   // Render the actual button face as icon, short text, or icon plus short text.
   function renderButtonFace(button) {
     const mode = getButtonDisplayMode(button);
     const shortText = escapeHtml(getButtonShortText(button));
-    const textColor = /^#[0-9a-f]{6}$/i.test(button && button.iconColor || "") ? button.iconColor : "#f0f0f0";
-    const textStyle = ' style="color:' + textColor + ';"';
+    const textColor = getSafeIconColor(button);
+    const textStyle = ' style="color:' + textColor + ';-webkit-text-fill-color:' + textColor + ';"';
     if (mode === "text") {
       return '<span class="ptb-button-face"><span class="ptb-tool-text"' + textStyle + ">" + shortText + "</span></span>";
     }
@@ -464,6 +530,23 @@
       return '<span class="ptb-button-face with-caption">' + root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button)) + '<span class="ptb-tool-caption"' + textStyle + ">" + shortText + "</span></span>";
     }
     return '<span class="ptb-button-face">' + root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button)) + "</span>";
+  }
+
+  // Render the actual button face as DOM nodes so UXP receives color styles directly.
+  function renderButtonFaceElement(button) {
+    const mode = getButtonDisplayMode(button);
+    const textColor = getSafeIconColor(button);
+    const face = el("span", mode === "both" ? "ptb-button-face with-caption" : "ptb-button-face");
+    setStyles(face, { color: textColor });
+    if (mode === "icon" || mode === "both") {
+      face.appendChild(createIconImage(button.icon, textColor, getButtonName(button)));
+    }
+    if (mode === "text" || mode === "both") {
+      const text = el("span", mode === "both" ? "ptb-tool-caption" : "ptb-tool-text", getButtonShortText(button));
+      setStyles(text, { color: textColor, webkitTextFillColor: textColor });
+      face.appendChild(text);
+    }
+    return face;
   }
 
   // Escape short text before assigning it through innerHTML.
@@ -655,7 +738,7 @@
     preview.style.background = "#f6f7f8";
     preview.style.backgroundColor = "#f6f7f8";
     preview.style.borderColor = button.iconColor || "var(--ptb-line)";
-    preview.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(button.icon, button.iconColor, getButtonName(button));
+    preview.appendChild(createIconImage(button.icon, button.iconColor, getButtonName(button)));
     row.appendChild(preview);
     wrap.appendChild(row);
     return wrap;
@@ -676,7 +759,7 @@
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       item.title = icon.label;
-      item.innerHTML = root.PTB_ICON_LIBRARY.renderIcon(icon.id, button.iconColor, icon.label);
+      item.appendChild(createIconImage(icon.id, button.iconColor, icon.label));
       grid.appendChild(item);
     });
     popover.appendChild(grid);
@@ -795,7 +878,7 @@
     toolButton.style.background = button.accentColor || "#2b3037";
     toolButton.style.backgroundColor = button.accentColor || "#2b3037";
     toolButton.style.borderColor = button.iconColor || "rgba(255,255,255,0.12)";
-    toolButton.innerHTML = renderButtonFace(button);
+    toolButton.appendChild(renderButtonFaceElement(button));
     return toolButton;
   }
 
@@ -962,7 +1045,7 @@
     icon.style.background = button.accentColor || "#2b3037";
     icon.style.backgroundColor = button.accentColor || "#2b3037";
     icon.style.border = "1px solid " + (button.iconColor || "rgba(255,255,255,0.12)");
-    icon.innerHTML = renderButtonFace(button);
+    icon.appendChild(renderButtonFaceElement(button));
     return icon;
   }
 
