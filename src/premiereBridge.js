@@ -312,33 +312,52 @@
     return actions;
   }
 
+  // Unwrap UXP keyframe/value containers while supporting multiple host shapes.
+  function unwrapParamValue(value) {
+    if (value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "value")) {
+      return unwrapParamValue(value.value);
+    }
+    return value;
+  }
+
   // Serialize a Premiere parameter value into JSON-safe data.
   function serializeValue(value) {
-    if (value && typeof value === "object" && typeof value.x === "number" && typeof value.y === "number") {
-      return { kind: "point", x: value.x, y: value.y };
+    const rawValue = unwrapParamValue(value);
+    if (rawValue && typeof rawValue === "object" && typeof rawValue.x === "number" && typeof rawValue.y === "number") {
+      return { kind: "point", x: rawValue.x, y: rawValue.y };
     }
-    if (value && typeof value === "object" && typeof value.red === "number" && typeof value.green === "number" && typeof value.blue === "number") {
+    if (rawValue && typeof rawValue === "object" && typeof rawValue.red === "number" && typeof rawValue.green === "number" && typeof rawValue.blue === "number") {
       return {
         kind: "color",
-        red: value.red,
-        green: value.green,
-        blue: value.blue,
-        alpha: typeof value.alpha === "number" ? value.alpha : 1
+        red: rawValue.red,
+        green: rawValue.green,
+        blue: rawValue.blue,
+        alpha: typeof rawValue.alpha === "number" ? rawValue.alpha : 1
       };
     }
-    return { kind: "primitive", value };
+    return { kind: "primitive", value: rawValue };
   }
 
   // Serialize a keyframe into JSON-safe data.
-  async function serializeKeyframe(keyframe) {
-    const temporalInterpolation = typeof keyframe.getTemporalInterpolationMode === "function"
+  async function serializeKeyframe(param, time) {
+    const keyframe = await param.getKeyframePtr(time);
+    let value = keyframe && keyframe.value;
+    if (typeof param.getValueAtTime === "function") {
+      try {
+        value = await param.getValueAtTime(time);
+      } catch (error) {
+        // Keep the keyframe payload value when direct time sampling is unavailable.
+      }
+    }
+    const temporalInterpolation = keyframe && typeof keyframe.getTemporalInterpolationMode === "function"
       ? await keyframe.getTemporalInterpolationMode()
       : null;
+    const position = (keyframe && keyframe.position) || time;
     return {
-      ticks: keyframe.position && keyframe.position.ticks ? String(keyframe.position.ticks) : "0",
-      seconds: keyframe.position && typeof keyframe.position.seconds === "number" ? keyframe.position.seconds : 0,
+      ticks: position && position.ticks ? String(position.ticks) : "0",
+      seconds: position && typeof position.seconds === "number" ? position.seconds : 0,
       temporalInterpolation,
-      value: serializeValue(keyframe.value && keyframe.value.value)
+      value: serializeValue(value)
     };
   }
 
@@ -347,19 +366,18 @@
     const startKeyframe = await param.getStartValue();
     const timeVarying = typeof param.isTimeVarying === "function" ? param.isTimeVarying() : false;
     const keyframeTimes = timeVarying && typeof param.getKeyframeListAsTickTimes === "function"
-      ? param.getKeyframeListAsTickTimes()
+      ? await param.getKeyframeListAsTickTimes()
       : [];
     const keyframes = [];
     for (const time of keyframeTimes) {
-      const keyframe = param.getKeyframePtr(time);
-      keyframes.push(await serializeKeyframe(keyframe));
+      keyframes.push(await serializeKeyframe(param, time));
     }
     return {
       index,
       displayName: param.displayName || "Param " + (index + 1),
       timeVarying,
-      startValue: serializeValue(startKeyframe.value && startKeyframe.value.value),
-      startTemporalInterpolation: typeof startKeyframe.getTemporalInterpolationMode === "function"
+      startValue: serializeValue(startKeyframe && startKeyframe.value),
+      startTemporalInterpolation: startKeyframe && typeof startKeyframe.getTemporalInterpolationMode === "function"
         ? await startKeyframe.getTemporalInterpolationMode()
         : null,
       keyframes

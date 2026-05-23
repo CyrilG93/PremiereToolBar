@@ -927,6 +927,9 @@
       { value: "preset", label: root.PTB_I18N.t("presetAction") }
     ], (value) => {
       button.actionType = value;
+      if (value === "preset" && !button.preset.name) {
+        button.preset.name = getButtonName(button);
+      }
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     editor.appendChild(form);
@@ -977,12 +980,21 @@
       const summary = button.stack.components.length
         ? button.stack.components.map((component) => component.displayName).join(", ")
         : root.PTB_I18N.t("noPresetCaptured");
+      wrap.appendChild(textField(root.PTB_I18N.t("presetName"), button.preset.name || getButtonName(button), (value) => {
+        button.preset.name = value;
+        if (value) {
+          setButtonName(button, value);
+        }
+      }));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("presetHelp")));
       wrap.appendChild(el("p", "ptb-muted", summary));
       wrap.appendChild(actionButton(root.PTB_I18N.t("capturePreset"), "ptb-button primary", async () => {
         await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
+          const presetName = button.preset.name || getButtonName(button);
+          button.preset.name = presetName;
           button.stack = await root.PTB_PREMIERE.captureSelectedStack();
-          if (button.stack.components[0]) {
+          button.stack.sourceName = presetName;
+          if (!presetName && button.stack.components[0]) {
             setButtonName(button, button.stack.components[0].displayName);
           }
           saveAndRender(root.PTB_I18N.t("statusSaved"));

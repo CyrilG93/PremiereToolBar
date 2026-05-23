@@ -72,6 +72,9 @@
         forceSingleSided: Boolean(input.transition && input.transition.forceSingleSided),
         alignment: safeNumber(input.transition && input.transition.alignment, 0, -2, 2)
       },
+      preset: {
+        name: safeString(input.preset && input.preset.name, safeString(input.presetName, ""))
+      },
       stack: normalizeStack(input.stack)
     };
     if (button.effect.matchName === "PR.ADBE Solarize") {

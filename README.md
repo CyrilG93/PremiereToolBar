@@ -64,14 +64,14 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Assign an icon, icon color, and button color with popover pickers.
 - Type either the Premiere effect name or the effect match name in one field.
 - Assign video transition match names from Premiere.
-- Create a `Preset` action by applying a Premiere preset to one clip, selecting that clip, then using `Capture Selected Preset`.
+- Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.
 - Export all collections or one collection, then import them later.
 
 ## Important API Notes
 
 Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. It also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Some third-party effects or protected parameters may not expose all values to UXP.
+Directly applying Premiere `.prfpset` effect preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. The preset name is stored in the button settings. Some third-party effects or protected parameters may not expose all values to UXP.
 
 ## Development
 
@@ -90,6 +90,11 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.23 - 2026-05-23
+
+- Improved preset capture so exposed keyframes are preserved more reliably.
+- Added a preset name field for `Preset` buttons.
 
 ### 0.1.22 - 2026-05-23
 

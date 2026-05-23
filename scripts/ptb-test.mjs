@@ -231,5 +231,73 @@ assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
 
+// Verify preset capture preserves time-varying keyframes exposed by the Premiere API.
+async function capturePresetSmokeTest() {
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const keyTimes = [
+        { ticks: "254016000000", seconds: 1 },
+        { ticks: "508032000000", seconds: 2 }
+      ];
+      const param = {
+        displayName: "Amount",
+        async getStartValue() {
+          return { value: 10, getTemporalInterpolationMode: async () => 1 };
+        },
+        isTimeVarying: () => true,
+        getKeyframeListAsTickTimes: async () => keyTimes,
+        getKeyframePtr: async (time) => ({
+          position: time,
+          value: { value: 0 },
+          getTemporalInterpolationMode: async () => 2
+        }),
+        getValueAtTime: async (time) => (time.seconds === 1 ? 25 : 50)
+      };
+      const component = {
+        getDisplayName: async () => "Custom Blur",
+        getMatchName: async () => "AE.ADBE Custom Blur",
+        getParamCount: () => 1,
+        getParam: () => param
+      };
+      const item = {
+        createAddVideoTransitionAction() {},
+        getName: async () => "Preset Source Clip",
+        getComponentChain: async () => ({
+          getComponentCount: () => 1,
+          getComponentAtIndex: () => component
+        })
+      };
+      return {
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            })
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  const stack = await context.PTB_PREMIERE.captureSelectedStack();
+  assert.equal(stack.sourceName, "Preset Source Clip");
+  assert.equal(stack.components[0].params[0].keyframes.length, 2);
+  assert.equal(stack.components[0].params[0].keyframes[0].value.value, 25);
+  assert.equal(stack.components[0].params[0].keyframes[1].ticks, "508032000000");
+}
+
+await capturePresetSmokeTest();
+
 // Report success for CI and local verification.
 console.log("ptb:test passed");
