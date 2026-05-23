@@ -96,8 +96,8 @@
     if (normalizedButton.actionType === "transition") {
       return applyTransitionButton(normalizedButton);
     }
-    if (normalizedButton.actionType === "stack") {
-      return applyStackButton(normalizedButton);
+    if (normalizedButton.actionType === "preset") {
+      return applyPresetButton(normalizedButton);
     }
     return applyEffectButton(normalizedButton);
   }
@@ -218,8 +218,8 @@
     return executeActions(project, actions, "Tool Bar: " + button.label);
   }
 
-  // Apply a captured stack of effects and parameter values.
-  async function applyStackButton(button) {
+  // Apply a captured Tool Bar preset made from exposed effects and parameter values.
+  async function applyPresetButton(button) {
     const { app, project, items } = await getSelectedItems();
     const stack = root.PTB_SCHEMA.normalizeStack(button.stack);
     const actions = [];

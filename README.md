@@ -1,6 +1,6 @@
 # Tool Bar
 
-Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortcut bars. Each button can apply a configured native effect, a video transition, or an internally captured effect stack to the clips currently selected in the timeline.
+Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortcut bars. Each button can apply a configured native effect, a video transition, or a captured Tool Bar preset to the clips currently selected in the timeline.
 
 ## Requirements
 
@@ -35,6 +35,8 @@ If Adobe UPIA is not found, the scripts still create a `.ccx` file in `.ptb-inst
 
 If Adobe UPIA reports a failed install status, open Creative Cloud Desktop first, then run the installer again. For development loading, add this project folder or `manifest.json` in UXP Developer Tool instead of using the `.ccx` installer.
 
+Some third-party CCX installers may warn that no compatible application was found even when the plugin installs correctly. Tool Bar's manifest targets Premiere Pro 25.6 or later.
+
 ### Development Loading
 
 1. Open Premiere Pro.
@@ -62,14 +64,14 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Assign an icon, icon color, and button color with popover pickers.
 - Type either the Premiere effect name or the effect match name in one field.
 - Assign video transition match names from Premiere.
-- Capture an exposed effect stack from the currently selected clip and reuse it as a Tool Bar preset.
+- Create a `Preset` action by applying a Premiere preset to one clip, selecting that clip, then using `Capture Selected Preset`.
 - Export all collections or one collection, then import them later.
 
 ## Important API Notes
 
 Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. It also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes an internal captured-stack preset mode for exposed effects, parameters, and keyframes. Some third-party effects or protected parameters may not expose all values to UXP.
+Directly applying Premiere `.prfpset` effect preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Some third-party effects or protected parameters may not expose all values to UXP.
 
 ## Development
 
@@ -88,6 +90,11 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.22 - 2026-05-23
+
+- Added a user-facing `Preset` button action that captures and reapplies exposed effect stacks from selected clips.
+- Documented the third-party CCX installer compatibility warning.
 
 ### 0.1.21 - 2026-05-23
 

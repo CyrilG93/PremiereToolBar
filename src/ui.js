@@ -924,7 +924,7 @@
       { value: "settings", label: root.PTB_I18N.t("settings") },
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
-      { value: "stack", label: root.PTB_I18N.t("capturedStack") }
+      { value: "preset", label: root.PTB_I18N.t("presetAction") }
     ], (value) => {
       button.actionType = value;
       saveAndRender(root.PTB_I18N.t("statusSaved"));
@@ -973,12 +973,13 @@
       }
       return wrap;
     }
-    if (button.actionType === "stack") {
+    if (button.actionType === "preset") {
       const summary = button.stack.components.length
         ? button.stack.components.map((component) => component.displayName).join(", ")
-        : root.PTB_I18N.t("noStackCaptured");
+        : root.PTB_I18N.t("noPresetCaptured");
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("presetHelp")));
       wrap.appendChild(el("p", "ptb-muted", summary));
-      wrap.appendChild(actionButton(root.PTB_I18N.t("captureStack"), "ptb-button primary", async () => {
+      wrap.appendChild(actionButton(root.PTB_I18N.t("capturePreset"), "ptb-button primary", async () => {
         await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
           button.stack = await root.PTB_PREMIERE.captureSelectedStack();
           if (button.stack.components[0]) {

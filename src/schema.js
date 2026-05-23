@@ -14,7 +14,7 @@
   const CONFIG_VERSION = 2;
   const MAX_BARS = 4;
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
-  const ACTION_TYPES = ["settings", "effect", "transition", "stack"];
+  const ACTION_TYPES = ["settings", "effect", "transition", "preset"];
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
 
@@ -47,7 +47,9 @@
   // Build a normalized toolbar button.
   function createButton(overrides) {
     const input = overrides || {};
-    const actionType = ACTION_TYPES.includes(input.actionType) ? input.actionType : "effect";
+    // Migrate the old captured-stack action name to the user-facing preset action.
+    const requestedActionType = input.actionType === "stack" ? "preset" : input.actionType;
+    const actionType = ACTION_TYPES.includes(requestedActionType) ? requestedActionType : "effect";
     const mediaType = MEDIA_TYPES.includes(input.mediaType) ? input.mediaType : "video";
     const button = {
       id: safeString(input.id, createId("button")),

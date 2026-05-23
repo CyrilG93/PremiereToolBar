@@ -43,7 +43,7 @@ assert.equal(schema.getCollection(importedConfig, "collection-empty-2").buttonId
 
 // Verify captured stack snapshots survive normalization.
 const button = schema.createButton({
-  actionType: "stack",
+  actionType: "preset",
   stack: {
     components: [{
       mediaType: "video",
@@ -60,6 +60,10 @@ const button = schema.createButton({
   }
 });
 assert.equal(button.stack.components[0].params[0].keyframes[0].seconds, 1);
+
+// Verify legacy captured-stack buttons migrate to the user-facing preset action.
+const legacyStackButton = schema.createButton({ actionType: "stack" });
+assert.equal(legacyStackButton.actionType, "preset");
 
 // Verify the old beta Solarize starter button is migrated to a safer default.
 const migratedButton = schema.createButton({
@@ -224,6 +228,7 @@ assert.ok(settingsRoot.textContent.includes("Button Editor"));
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
+assert.ok(settingsRoot.textContent.includes("Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
 
 // Report success for CI and local verification.
