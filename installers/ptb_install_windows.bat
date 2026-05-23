@@ -48,6 +48,7 @@ set "PTB_BUILD_DIR=%PTB_ROOT%\.ptb-installer-build"
 set "PTB_STAGE_DIR=%PTB_BUILD_DIR%\package-%PTB_VERSION%-%RANDOM%"
 set "PTB_CCX=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%.ccx"
 set "PTB_ZIP=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%-%RANDOM%.zip"
+set "PTB_UPIA_LOG=%PTB_BUILD_DIR%\upia-install-%PTB_VERSION%-%RANDOM%.log"
 mkdir "%PTB_BUILD_DIR%" >nul 2>nul
 mkdir "%PTB_STAGE_DIR%" >nul 2>nul
 copy /Y "%PTB_ROOT%\manifest.json" "%PTB_STAGE_DIR%\manifest.json" >nul
@@ -89,6 +90,9 @@ if exist "%ProgramFiles%\Common Files\Adobe\Adobe Desktop Common\RemoteComponent
 if "%PTB_UPIA%"=="" if exist "%ProgramFiles(x86)%\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" (
   set "PTB_UPIA=%ProgramFiles(x86)%\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe"
 )
+if not "%PTB_UPIA_OVERRIDE%"=="" if exist "%PTB_UPIA_OVERRIDE%" (
+  set "PTB_UPIA=%PTB_UPIA_OVERRIDE%"
+)
 
 REM // If UPIA is unavailable, keep the generated CCX and tell the user the supported manual method.
 if "%PTB_UPIA%"=="" (
@@ -99,15 +103,31 @@ if "%PTB_UPIA%"=="" (
   goto PTB_FINISH
 )
 
-REM // Install the packaged UXP plugin through Adobe UPIA.
-"%PTB_UPIA%" /install "%PTB_CCX%"
-if errorlevel 1 (
+REM // Install through Adobe UPIA and inspect its output because some failures still return exit code 0.
+"%PTB_UPIA%" /install "%PTB_CCX%" > "%PTB_UPIA_LOG%" 2>&1
+set "PTB_UPIA_EXIT=%ERRORLEVEL%"
+type "%PTB_UPIA_LOG%"
+if not "%PTB_UPIA_EXIT%"=="0" (
   echo Adobe UPIA returned an installation error.
   set "PTB_EXIT_CODE=1"
   goto PTB_FINISH
 )
+findstr /I /C:"Failed to install" "%PTB_UPIA_LOG%" >nul
+if not errorlevel 1 (
+  echo Adobe UPIA reported that Tool Bar was not installed.
+  echo Start Creative Cloud Desktop, then double-click the generated CCX or run this installer again.
+  set "PTB_EXIT_CODE=1"
+  goto PTB_FINISH
+)
+findstr /I /C:"status = -" "%PTB_UPIA_LOG%" >nul
+if not errorlevel 1 (
+  echo Adobe UPIA reported that Tool Bar was not installed.
+  echo Start Creative Cloud Desktop, then double-click the generated CCX or run this installer again.
+  set "PTB_EXIT_CODE=1"
+  goto PTB_FINISH
+)
 
-echo Tool Bar %PTB_VERSION% installation command completed.
+echo Tool Bar %PTB_VERSION% installed successfully.
 set "PTB_EXIT_CODE=0"
 
 REM // Pause only for normal user runs so double-clicked errors stay visible.
