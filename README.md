@@ -29,6 +29,8 @@ bash installers/ptb_install_macos.sh
 2. Open the Tool Bar folder.
 3. Double-click `installers\ptb_install_windows.bat`.
 
+The Windows installer window stays open after it finishes so you can read any Creative Cloud or UPIA message. For packaging workflows that should not wait for a key press, run `installers\ptb_install_windows.bat --package-only`.
+
 If Adobe UPIA is not found, the scripts still create a `.ccx` file in `.ptb-installer-build`. Double-click that `.ccx` file to install it through Creative Cloud Desktop.
 
 ### Development Loading
@@ -84,6 +86,10 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.18 - 2026-05-23
+
+- Kept the Windows installer window open after user launches so installation messages are visible.
 
 ### 0.1.17 - 2026-05-22
 
