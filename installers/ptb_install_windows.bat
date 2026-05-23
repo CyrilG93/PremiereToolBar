@@ -43,6 +43,9 @@ if "%PTB_VERSION%"=="" (
   goto PTB_FINISH
 )
 
+REM // Preserve existing user buttons before packaging or installing because some UXP installers clear plugin storage.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" -Mode backup -Version "%PTB_VERSION%"
+
 REM // Stage only the files required by the UXP plugin runtime.
 set "PTB_BUILD_DIR=%PTB_ROOT%\.ptb-installer-build"
 set "PTB_STAGE_DIR=%PTB_BUILD_DIR%\package-%PTB_VERSION%-%RANDOM%"
@@ -108,6 +111,8 @@ REM // Install through Adobe UPIA and inspect its output because some failures s
 "%PTB_UPIA%" /install "%PTB_CCX%" > "%PTB_UPIA_LOG%" 2>&1
 set "PTB_UPIA_EXIT=%ERRORLEVEL%"
 type "%PTB_UPIA_LOG%"
+REM // Put the user backup mirror back where Tool Bar can restore it if UPIA cleared localStorage.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" -Mode restore -Version "%PTB_VERSION%"
 if not "%PTB_UPIA_EXIT%"=="0" (
   echo Adobe UPIA returned an installation error.
   set "PTB_EXIT_CODE=1"

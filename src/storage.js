@@ -5,6 +5,8 @@
   const STORAGE_KEY = "com.cyrilplugin.toolbar.config.v2";
   const LEGACY_STORAGE_KEY = "com.cyrilplugin.toolbar.config.v1";
   const BACKUP_FILE_NAME = "ToolBar-config-backup.json";
+  const EXTERNAL_CONFIG_FOLDER_NAME = "Tool Bar";
+  const EXTERNAL_CONFIG_FILE_NAME = "ToolBar-config.json";
 
   // Load the toolbar configuration from persistent UXP localStorage.
   function loadConfig() {
@@ -22,6 +24,7 @@
     const normalized = root.PTB_SCHEMA.normalizeConfig(config);
     root.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
     writeConfigBackup(normalized);
+    writeExternalConfig(normalized);
     return normalized;
   }
 
@@ -37,6 +40,91 @@
       return require("uxp").storage.localFileSystem;
     } catch (error) {
       return null;
+    }
+  }
+
+  // Access the full UXP storage module when fullAccess path operations are available.
+  function getStorageModule() {
+    try {
+      return require("uxp").storage;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Convert a native path to the file:/ URL format expected by UXP.
+  function toFileUrl(nativePath) {
+    const normalized = String(nativePath || "").replace(/\\/g, "/");
+    return encodeURI(normalized.charAt(0) === "/" ? "file:" + normalized : "file:/" + normalized);
+  }
+
+  // Derive the user's Adobe app data root from UXP's data folder, then move outside Adobe's plugin storage.
+  async function getExternalConfigLocation() {
+    const localFileSystem = getLocalFileSystem();
+    if (!localFileSystem || typeof localFileSystem.getDataFolder !== "function") {
+      return null;
+    }
+    const dataFolder = await localFileSystem.getDataFolder();
+    const nativePath = String(dataFolder && dataFolder.nativePath ? dataFolder.nativePath : "");
+    const windowsMarker = "\\Adobe\\UXP\\";
+    const macMarker = "/Adobe/UXP/";
+    const windowsIndex = nativePath.indexOf(windowsMarker);
+    const macIndex = nativePath.indexOf(macMarker);
+    if (windowsIndex > 0) {
+      const appDataRoot = nativePath.slice(0, windowsIndex);
+      const folderPath = appDataRoot + "\\" + EXTERNAL_CONFIG_FOLDER_NAME;
+      return { folderPath, filePath: folderPath + "\\" + EXTERNAL_CONFIG_FILE_NAME };
+    }
+    if (macIndex > 0) {
+      const appSupportRoot = nativePath.slice(0, macIndex);
+      const folderPath = appSupportRoot + "/" + EXTERNAL_CONFIG_FOLDER_NAME;
+      return { folderPath, filePath: folderPath + "/" + EXTERNAL_CONFIG_FILE_NAME };
+    }
+    return null;
+  }
+
+  // Read the user-level config copy that should survive UXP plugin reinstallations.
+  async function readExternalConfig() {
+    const storage = getStorageModule();
+    if (!storage || !storage.localFileSystem || typeof storage.localFileSystem.getEntryWithUrl !== "function") {
+      return null;
+    }
+    try {
+      const location = await getExternalConfigLocation();
+      if (!location) {
+        return null;
+      }
+      const file = await storage.localFileSystem.getEntryWithUrl(toFileUrl(location.filePath));
+      const raw = await file.read();
+      return root.PTB_SCHEMA.normalizeConfig(JSON.parse(raw));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Write a user-level config copy outside Adobe's UXP plugin storage when fullAccess is granted.
+  async function writeExternalConfig(config) {
+    const storage = getStorageModule();
+    if (!storage || !storage.localFileSystem || !storage.types || typeof storage.localFileSystem.createEntryWithUrl !== "function") {
+      return false;
+    }
+    try {
+      const location = await getExternalConfigLocation();
+      if (!location) {
+        return false;
+      }
+      let folder;
+      try {
+        folder = await storage.localFileSystem.createEntryWithUrl(toFileUrl(location.folderPath), { type: storage.types.folder });
+      } catch (error) {
+        folder = await storage.localFileSystem.getEntryWithUrl(toFileUrl(location.folderPath));
+      }
+      const file = await folder.createFile(EXTERNAL_CONFIG_FILE_NAME, { overwrite: true });
+      await file.write(JSON.stringify(root.PTB_SCHEMA.normalizeConfig(config)));
+      return true;
+    } catch (error) {
+      console.warn("Tool Bar external config backup failed:", error);
+      return false;
     }
   }
 
@@ -62,11 +150,21 @@
   // Restore the plugin-data backup when localStorage is empty after a reinstall/update.
   async function restoreConfigBackup() {
     try {
-      if (readLocalStorageConfig()) {
+      const existingConfig = readLocalStorageConfig();
+      if (existingConfig) {
+        const normalizedExisting = root.PTB_SCHEMA.normalizeConfig(existingConfig);
+        writeConfigBackup(normalizedExisting);
+        writeExternalConfig(normalizedExisting);
         return null;
       }
     } catch (error) {
       // A corrupt localStorage payload should not block the backup restore attempt.
+    }
+    const externalConfig = await readExternalConfig();
+    if (externalConfig) {
+      root.localStorage.setItem(STORAGE_KEY, JSON.stringify(externalConfig));
+      writeConfigBackup(externalConfig);
+      return externalConfig;
     }
     const localFileSystem = getLocalFileSystem();
     if (!localFileSystem || typeof localFileSystem.getDataFolder !== "function") {

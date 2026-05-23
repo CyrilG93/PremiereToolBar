@@ -8,6 +8,7 @@ Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortc
 - Adobe Creative Cloud Desktop for `.ccx` installation.
 - UXP Developer Tool 2.2 or later for development loading and packaging.
 - Premiere Developer Mode enabled in `Preferences > Plugins`.
+- Local file access permission, used to keep buttons and collections in a Windows user data folder that survives plugin updates.
 
 ## Install
 
@@ -36,6 +37,8 @@ If Adobe UPIA is not found, the scripts still create a `.ccx` file in `.ptb-inst
 If Adobe UPIA reports a failed install status, open Creative Cloud Desktop first, then run the installer again. For development loading, add this project folder or `manifest.json` in UXP Developer Tool instead of using the `.ccx` installer.
 
 Some third-party CCX installers may warn that no compatible application was found even when the plugin installs correctly. Tool Bar's manifest targets Premiere Pro 25.6 or later.
+
+On Windows, Tool Bar also keeps buttons and collections in `%APPDATA%\Tool Bar\ToolBar-config.json`, outside Adobe's UXP plugin storage. The included installer backs up existing data to `%APPDATA%\Tool Bar\Backups` before packaging or installing, then restores the UXP backup mirror after installation.
 
 ### Development Loading
 
@@ -92,6 +95,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.27 - 2026-05-23
+
+- Added automatic Windows installer backup for buttons and collections before updates.
+- Stored buttons and collections in a user-level Tool Bar config file outside Adobe's UXP plugin storage.
+- Restored the internal UXP backup mirror after Windows installer runs.
 
 ### 0.1.26 - 2026-05-23
 
