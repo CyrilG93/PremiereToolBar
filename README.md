@@ -66,6 +66,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Type either the Premiere effect name or the effect match name in one field.
 - Assign video transition match names from Premiere.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.
+- Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
 - Export all collections or one collection, then import them later.
 
 ## Important API Notes
@@ -91,6 +92,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.26 - 2026-05-23
+
+- Restored visible PNG icons in Premiere panels.
+- Improved vertical bar layout consistency.
+- Added quick button backup and restore actions for update-safe JSON copies.
 
 ### 0.1.25 - 2026-05-23
 

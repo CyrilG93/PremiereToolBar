@@ -69,7 +69,7 @@
       style.textContent = `
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
-      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:1px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:wrap;align-content:flex-start;width:auto;height:100%;max-height:100%;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;outline:0;pointer-events:none}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:900;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
+      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:1px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:wrap;align-content:flex-start;width:auto;height:100%;max-height:100%;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:900;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
       .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
@@ -759,8 +759,14 @@
     const bar = getBar(panelIdToBarId(panelId));
     const collection = bar ? getCollection(bar.collectionId) : null;
     const buttons = collection && bar.enabled ? getCollectionButtons(collection.id) : [];
-    const shell = el("section", "ptb-toolbar-shell " + (bar && shouldRenderVertical(rootNode, bar) ? "ptb-vertical" : ""));
+    const isVertical = bar && shouldRenderVertical(rootNode, bar);
+    const shell = el("section", "ptb-toolbar-shell " + (isVertical ? "ptb-vertical" : ""));
     const strip = el("div", "ptb-toolbar-strip");
+    if (isVertical) {
+      // Apply the vertical layout inline too because docked UXP panels can miss descendant CSS rules.
+      setStyles(shell, { width: "auto", minWidth: "40px" });
+      setStyles(strip, { flexDirection: "column", flexWrap: "wrap", alignContent: "flex-start", width: "auto", height: "100%", maxHeight: "100%", minWidth: "34px" });
+    }
     if (!bar || !bar.enabled) {
       strip.appendChild(el("div", "ptb-empty", root.PTB_I18N.t("disabledBar")));
     } else if (!collection) {
@@ -851,6 +857,8 @@
   // Render always-visible settings actions in the header.
   function renderHeaderActions() {
     const actions = el("div", "ptb-header-actions");
+    actions.appendChild(actionButton(root.PTB_I18N.t("backupButtons"), "ptb-button compact", () => exportPayload(false, "ToolBar-buttons-backup.json")));
+    actions.appendChild(actionButton(root.PTB_I18N.t("restoreButtons"), "ptb-button compact", () => importPayload(false)));
     actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button primary compact", () => createLibraryButton()));
     actions.appendChild(actionButton(root.PTB_I18N.t("addCollection"), "ptb-button compact", () => createNewCollection()));
     return actions;
@@ -1700,10 +1708,10 @@
   }
 
   // Export all collections or the selected collection to JSON.
-  async function exportPayload(selectedOnly) {
+  async function exportPayload(selectedOnly, suggestedName) {
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
       const json = root.PTB_SCHEMA.exportToJson(config, selectedOnly ? settingsState.selectedCollectionId : null);
-      await root.PTB_STORAGE.exportJsonFile(json, selectedOnly ? "ToolBar-" + settingsState.selectedCollectionId + ".json" : "ToolBar-all-collections.json");
+      await root.PTB_STORAGE.exportJsonFile(json, suggestedName || (selectedOnly ? "ToolBar-" + settingsState.selectedCollectionId + ".json" : "ToolBar-all-collections.json"));
       statusMessage = root.PTB_I18N.t("statusExported");
     });
   }

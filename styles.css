@@ -113,6 +113,7 @@ button {
   width: 22px;
   height: 22px;
   border: 0;
+  background: transparent;
   object-fit: contain;
   outline: 0;
   pointer-events: none;

@@ -7,6 +7,8 @@
     settings: "Settings",
     emptyBar: "No buttons yet",
     disabledBar: "This bar is disabled",
+    backupButtons: "Backup Buttons",
+    restoreButtons: "Restore Buttons",
     addButton: "Add Button",
     duplicateButton: "Duplicate",
     deleteButton: "Delete",

@@ -102,13 +102,13 @@
     return "brightness(0) saturate(100%) invert(1) sepia(1) saturate(" + Math.round(saturation * 180) + "%) hue-rotate(" + hue + "deg) brightness(" + Math.round((0.45 + brightness * 0.7) * 100) + "%)";
   }
 
-  // Render a tinted icon from the black transparent PNG using CSS masks when available.
+  // Render the PNG directly because UXP panels can ignore CSS mask images in Premiere.
   function renderIcon(id, color, title) {
     const icon = getIcon(id);
     const safeTitle = title || icon.label;
     const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f0f0f0";
     const safeSrc = escapeText(getIconSrc(icon.id));
-    return '<span class="ptb-image-icon ptb-mask-icon" role="img" aria-label="' + escapeText(safeTitle) + '" style="display:block;width:22px;height:22px;background:' + safeColor + ';background-color:' + safeColor + ';-webkit-mask:url(' + safeSrc + ') center / contain no-repeat;mask:url(' + safeSrc + ') center / contain no-repeat;color:' + safeColor + ';pointer-events:none;"><img src="' + safeSrc + '" alt="" style="display:block;width:22px;height:22px;object-fit:contain;border:0;filter:' + getIconFilter(safeColor) + ';opacity:0;" /></span>';
+    return '<img class="ptb-image-icon" src="' + safeSrc + '" alt="' + escapeText(safeTitle) + '" title="' + escapeText(safeTitle) + '" style="display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;filter:' + getIconFilter(safeColor) + ';opacity:1;pointer-events:none;" />';
   }
 
   // Expose the icon library for UI rendering.
