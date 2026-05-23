@@ -64,8 +64,11 @@ button {
 
 .ptb-vertical .ptb-toolbar-strip {
   flex-direction: column;
-  flex-wrap: nowrap;
-  width: max-content;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  width: auto;
+  height: 100%;
+  max-height: 100%;
   min-width: 34px;
 }
 
@@ -110,7 +113,6 @@ button {
   width: 22px;
   height: 22px;
   border: 0;
-  background: transparent;
   object-fit: contain;
   outline: 0;
   pointer-events: none;
@@ -416,7 +418,7 @@ button {
   max-width: 31px;
   overflow: hidden;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0;
   line-height: 1;
   pointer-events: none;
@@ -737,6 +739,7 @@ button {
 .ptb-bar-card-text strong,
 .ptb-button-card-text strong {
   overflow: hidden;
+  font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -883,6 +886,10 @@ button {
   cursor: pointer;
 }
 
+.ptb-button-card-text strong {
+  font-weight: 900;
+}
+
 .ptb-icon-button,
 .ptb-icon-choice {
   background: #f6f7f8;
@@ -901,11 +908,12 @@ button {
 }
 
 .ptb-icon-picker {
-  flex: 1 1 100%;
+  flex: 1 1 220px;
 }
 
 .ptb-icon-popover {
   width: 100%;
+  margin: 0;
 }
 
 .ptb-color-grid,

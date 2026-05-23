@@ -92,6 +92,10 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.1.25 - 2026-05-23
+
+- Improved icon color rendering, icon gallery placement, vertical bar wrapping, and text weight consistency.
+
 ### 0.1.24 - 2026-05-23
 
 - Added compact horizontal/vertical controls for bars 1-4.
