@@ -31,9 +31,9 @@ bash installers/ptb_install_macos.sh
 
 The Windows installer window stays open after it finishes so you can read any Creative Cloud or UPIA message. For packaging workflows that should not wait for a key press, run `installers\ptb_install_windows.bat --package-only`.
 
-If Adobe UPIA is not found, the scripts still create a `.ccx` file in `.ptb-installer-build`. Double-click that `.ccx` file to install it through Creative Cloud Desktop.
+If Adobe UPIA is not found, the scripts still create a `.ccx` file in `.ptb-installer-build`. Double-clicking that `.ccx` file still requires Adobe Creative Cloud Desktop.
 
-If Adobe UPIA reports a failed install status, open Creative Cloud Desktop first, then run the installer again or double-click the generated `.ccx` file.
+If Adobe UPIA reports a failed install status, open Creative Cloud Desktop first, then run the installer again. For development loading, add this project folder or `manifest.json` in UXP Developer Tool instead of using the `.ccx` installer.
 
 ### Development Loading
 
@@ -88,6 +88,10 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
 
 ## Changelog
+
+### 0.1.21 - 2026-05-23
+
+- Clarified the Windows installer messages when CCX installation depends on Creative Cloud Desktop.
 
 ### 0.1.20 - 2026-05-23
 

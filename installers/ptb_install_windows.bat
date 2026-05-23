@@ -97,8 +97,9 @@ if not "%PTB_UPIA_OVERRIDE%"=="" if exist "%PTB_UPIA_OVERRIDE%" (
 REM // If UPIA is unavailable, keep the generated CCX and tell the user the supported manual method.
 if "%PTB_UPIA%"=="" (
   echo Adobe UPIA was not found.
-  echo Install manually by double-clicking: %PTB_CCX%
-  echo You can also package/load the folder with the UXP Developer Tool.
+  echo CCX file ready here: %PTB_CCX%
+  echo Double-clicking the CCX still requires Adobe Creative Cloud Desktop.
+  echo For development loading, add this manifest in UXP Developer Tool: %PTB_MANIFEST%
   set "PTB_EXIT_CODE=2"
   goto PTB_FINISH
 )
@@ -115,14 +116,18 @@ if not "%PTB_UPIA_EXIT%"=="0" (
 findstr /I /C:"Failed to install" "%PTB_UPIA_LOG%" >nul
 if not errorlevel 1 (
   echo Adobe UPIA reported that Tool Bar was not installed.
-  echo Start Creative Cloud Desktop, then double-click the generated CCX or run this installer again.
+  echo CCX file ready here: %PTB_CCX%
+  echo Double-clicking the CCX still uses Adobe Creative Cloud Desktop and may close immediately if Creative Cloud cannot install it.
+  echo For development loading, add this manifest in UXP Developer Tool: %PTB_MANIFEST%
   set "PTB_EXIT_CODE=1"
   goto PTB_FINISH
 )
 findstr /I /C:"status = -" "%PTB_UPIA_LOG%" >nul
 if not errorlevel 1 (
   echo Adobe UPIA reported that Tool Bar was not installed.
-  echo Start Creative Cloud Desktop, then double-click the generated CCX or run this installer again.
+  echo CCX file ready here: %PTB_CCX%
+  echo Double-clicking the CCX still uses Adobe Creative Cloud Desktop and may close immediately if Creative Cloud cannot install it.
+  echo For development loading, add this manifest in UXP Developer Tool: %PTB_MANIFEST%
   set "PTB_EXIT_CODE=1"
   goto PTB_FINISH
 )
