@@ -155,6 +155,152 @@
     return { app, project, sequence, items };
   }
 
+  // Safely call optional Premiere object methods while keeping diagnostics alive.
+  async function readOptionalMethod(target, methodName, fallback) {
+    try {
+      if (target && typeof target[methodName] === "function") {
+        return await target[methodName]();
+      }
+    } catch (error) {
+      logBridge("warn", "Could not read " + methodName + ".", describeBridgeError(error));
+    }
+    return fallback;
+  }
+
+  // Convert Premiere TickTime-like objects into compact diagnostic data.
+  function describeTickTime(time) {
+    if (!time) {
+      return { ticks: "", seconds: null };
+    }
+    return {
+      ticks: time.ticks !== undefined ? String(time.ticks) : "",
+      seconds: typeof time.seconds === "number" ? time.seconds : null
+    };
+  }
+
+  // Use seconds when available, otherwise compare best-effort numeric ticks.
+  function timeToNumber(time) {
+    const described = describeTickTime(time);
+    if (typeof described.seconds === "number") {
+      return described.seconds;
+    }
+    const ticks = Number(described.ticks);
+    return Number.isFinite(ticks) ? ticks : null;
+  }
+
+  // Read the fields common to clips and transition track items.
+  async function inspectTrackItemIdentity(item, index, mediaType, role) {
+    const startTime = await readOptionalMethod(item, "getStartTime", null);
+    const endTime = await readOptionalMethod(item, "getEndTime", null);
+    return {
+      index,
+      role,
+      mediaType,
+      name: await readOptionalMethod(item, "getName", ""),
+      matchName: await readOptionalMethod(item, "getMatchName", ""),
+      type: await readOptionalMethod(item, "getType", null),
+      trackIndex: await readOptionalMethod(item, "getTrackIndex", null),
+      start: describeTickTime(startTime),
+      end: describeTickTime(endTime),
+      _startNumber: timeToNumber(startTime),
+      _endNumber: timeToNumber(endTime)
+    };
+  }
+
+  // Guess the selected item media kind from APIs exposed by the UXP object.
+  function getItemMediaKind(item) {
+    if (isVideoItem(item)) {
+      return "video";
+    }
+    if (isAudioTransitionItem(item) || isAudioItem(item)) {
+      return "audio";
+    }
+    return "unknown";
+  }
+
+  // Return whether two track items overlap or touch on the timeline.
+  function itemsOverlapOrTouch(left, right) {
+    if (left._startNumber === null || left._endNumber === null || right._startNumber === null || right._endNumber === null) {
+      return false;
+    }
+    const tolerance = 0.0001;
+    return left._startNumber <= right._endNumber + tolerance && left._endNumber + tolerance >= right._startNumber;
+  }
+
+  // Remove private helper fields before logging JSON to the user.
+  function publicTrackItemInfo(info) {
+    const output = Object.assign({}, info);
+    delete output._startNumber;
+    delete output._endNumber;
+    return output;
+  }
+
+  // Read all component display names and match names from a selected clip.
+  async function inspectComponentChain(item, itemInfo) {
+    const components = [];
+    const chain = await readOptionalMethod(item, "getComponentChain", null);
+    const count = chain && typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+    for (let componentIndex = 0; componentIndex < count; componentIndex += 1) {
+      const component = chain.getComponentAtIndex(componentIndex);
+      components.push({
+        itemIndex: itemInfo.index,
+        itemName: itemInfo.name,
+        mediaType: itemInfo.mediaType,
+        componentIndex,
+        displayName: await readOptionalMethod(component, "getDisplayName", ""),
+        matchName: await readOptionalMethod(component, "getMatchName", ""),
+        paramCount: typeof (component && component.getParamCount) === "function" ? component.getParamCount() : null
+      });
+    }
+    return components;
+  }
+
+  // Return the constant Premiere uses for transition track items, falling back to the documented numeric value.
+  function getTransitionTrackItemType(app) {
+    return app && app.Constants && app.Constants.TrackItemType && app.Constants.TrackItemType.TRANSITION !== undefined
+      ? app.Constants.TrackItemType.TRANSITION
+      : 2;
+  }
+
+  // Inspect transition track items on the same selected tracks and keep the nearby ones.
+  async function inspectNearbyTransitions(app, sequence, selectedInfos) {
+    const transitions = [];
+    const seen = {};
+    const transitionType = getTransitionTrackItemType(app);
+    for (const selectedInfo of selectedInfos) {
+      if (selectedInfo.trackIndex === null || selectedInfo.mediaType === "unknown") {
+        continue;
+      }
+      const trackGetter = selectedInfo.mediaType === "audio" ? "getAudioTrack" : "getVideoTrack";
+      if (!sequence || typeof sequence[trackGetter] !== "function") {
+        continue;
+      }
+      const track = await sequence[trackGetter](selectedInfo.trackIndex);
+      const trackTransitions = track && typeof track.getTrackItems === "function"
+        ? await track.getTrackItems(transitionType, false)
+        : [];
+      for (let transitionIndex = 0; transitionIndex < trackTransitions.length; transitionIndex += 1) {
+        const transitionInfo = await inspectTrackItemIdentity(trackTransitions[transitionIndex], transitionIndex, selectedInfo.mediaType, "trackTransition");
+        transitionInfo.nearSelectedItem = selectedInfo.index;
+        if (!itemsOverlapOrTouch(selectedInfo, transitionInfo)) {
+          continue;
+        }
+        const key = [
+          transitionInfo.mediaType,
+          transitionInfo.trackIndex,
+          transitionInfo.start.ticks || transitionInfo.start.seconds,
+          transitionInfo.end.ticks || transitionInfo.end.seconds,
+          transitionInfo.matchName || transitionInfo.name
+        ].join("|");
+        if (!seen[key]) {
+          seen[key] = true;
+          transitions.push(publicTrackItemInfo(transitionInfo));
+        }
+      }
+    }
+    return transitions;
+  }
+
   // Determine whether a track item is a video clip by checking video-only APIs.
   function isVideoItem(item) {
     return Boolean(item && typeof item.createAddVideoTransitionAction === "function");
@@ -631,10 +777,41 @@
     });
   }
 
+  // Log match names for selected clips, their component chains, and nearby transition track items.
+  async function inspectSelectionMatchNames() {
+    const { app, sequence, items } = await getSelectedItems();
+    const selectedItems = [];
+    const components = [];
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      const mediaType = getItemMediaKind(item);
+      const itemInfo = await inspectTrackItemIdentity(item, index, mediaType, "selectedItem");
+      selectedItems.push(itemInfo);
+      if (typeof item.getComponentChain === "function") {
+        components.push.apply(components, await inspectComponentChain(item, itemInfo));
+      }
+    }
+    const transitions = await inspectNearbyTransitions(app, sequence, selectedItems);
+    const payload = {
+      selectedItems: selectedItems.map(publicTrackItemInfo),
+      effects: components,
+      transitions
+    };
+    logBridge("info", "Selection match-name inspection.", payload);
+    if (!components.length) {
+      logBridge("warn", "No effect components found on the selected item(s).");
+    }
+    if (!transitions.length) {
+      logBridge("warn", "No nearby transition track items found for the selected item(s).");
+    }
+    return payload;
+  }
+
   // Expose Premiere bridge methods for the UI.
   root.PTB_PREMIERE = {
     loadCatalogs,
     applyButton,
-    captureSelectedStack
+    captureSelectedStack,
+    inspectSelectionMatchNames
   };
 }(typeof window !== "undefined" ? window : globalThis));

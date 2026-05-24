@@ -1765,6 +1765,7 @@
   function renderLogsPanel() {
     const section = el("div", "ptb-logs-panel");
     const actions = el("div", "ptb-action-row");
+    actions.appendChild(actionButton(root.PTB_I18N.t("inspectSelectionMatchNames"), "ptb-button compact", async () => inspectSelectionMatchNames()));
     actions.appendChild(actionButton(root.PTB_I18N.t("copyLogs"), "ptb-button compact", async () => {
       await root.PTB_STORAGE.copyText(formatLogsForCopy());
       statusMessage = root.PTB_I18N.t("statusCopied");
@@ -1780,6 +1781,23 @@
     copyText.value = formatLogsForCopy();
     section.appendChild(copyText);
     return section;
+  }
+
+  // Ask Premiere for selected clip effect and transition match names, then write them to logs.
+  async function inspectSelectionMatchNames() {
+    await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
+      if (!root.PTB_PREMIERE || typeof root.PTB_PREMIERE.inspectSelectionMatchNames !== "function") {
+        throw new Error("Selection inspection is unavailable in this context.");
+      }
+      const result = await root.PTB_PREMIERE.inspectSelectionMatchNames();
+      statusMessage = root.PTB_I18N.t("statusInspected");
+      if (result) {
+        addInternalLog("info", "Selection inspection summary.", {
+          effects: result.effects ? result.effects.length : 0,
+          transitions: result.transitions ? result.transitions.length : 0
+        }, true);
+      }
+    });
   }
 
   // Convert logs to plain text that can be selected, copied, or pasted into a bug report.

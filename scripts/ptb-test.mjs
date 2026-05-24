@@ -230,6 +230,7 @@ assert.ok(settingsRoot.textContent.includes("Audio Transition"));
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
+assert.ok(settingsRoot.textContent.includes("Inspect Selection Match Names"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Preset"));
@@ -482,6 +483,87 @@ async function applyAudioTransitionSmokeTest() {
 }
 
 await applyAudioTransitionSmokeTest();
+
+// Verify selection diagnostics report component and nearby transition match names.
+async function inspectSelectionMatchNamesSmokeTest() {
+  const logs = [];
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    PTB_LOGGER: {
+      info(message, details) {
+        logs.push({ level: "info", message, details });
+      },
+      warn(message, details) {
+        logs.push({ level: "warn", message, details });
+      },
+      error(message, details) {
+        logs.push({ level: "error", message, details });
+      }
+    },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const component = {
+        getDisplayName: async () => "Gaussian Blur",
+        getMatchName: async () => "AE.ADBE Gaussian Blur 2",
+        getParamCount: () => 1
+      };
+      const clipItem = {
+        createAddVideoTransitionAction() {},
+        getName: async () => "Clip 1",
+        getMatchName: async () => "Clip.Match",
+        getType: async () => 1,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ ticks: "0", seconds: 10 }),
+        getEndTime: async () => ({ ticks: "1", seconds: 20 }),
+        getComponentChain: async () => ({
+          getComponentCount: () => 1,
+          getComponentAtIndex: () => component
+        })
+      };
+      const transitionItem = {
+        getName: async () => "Dip to Black",
+        getMatchName: async () => "AE.ADBE Dip To Black",
+        getType: async () => 2,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ ticks: "2", seconds: 19.5 }),
+        getEndTime: async () => ({ ticks: "3", seconds: 20.5 })
+      };
+      return {
+        Constants: {
+          TrackItemType: {
+            TRANSITION: 2
+          }
+        },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [clipItem]
+              }),
+              getVideoTrack: async () => ({
+                getTrackItems: async () => [transitionItem]
+              })
+            })
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  const result = await context.PTB_PREMIERE.inspectSelectionMatchNames();
+  assert.equal(result.effects[0].matchName, "AE.ADBE Gaussian Blur 2");
+  assert.equal(result.transitions[0].matchName, "AE.ADBE Dip To Black");
+  assert.ok(logs.some((entry) => entry.message === "Selection match-name inspection."));
+}
+
+await inspectSelectionMatchNamesSmokeTest();
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");
