@@ -13,22 +13,86 @@
     dragActive: false,
     openColorPicker: "",
     openIconPicker: "",
+    iconVisibleCount: 160,
     collapsed: {
       buttonGallery: false,
       buttonEditor: false,
       collections: false,
-      data: true
+      data: true,
+      logs: false
     }
   };
   const mountedPanels = new Map();
   let globalDragEndBound = false;
   let backupRestoreStarted = false;
+  const iconGalleryBatchSize = 160;
+  const maxInternalLogs = 160;
+  const internalLogs = [];
   const colorPalette = [
     "#d7dee8", "#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986",
     "#ff9aa2", "#d7b6ff", "#f4f4f5", "#a7a7a7", "#6b7280", "#313840",
     "#263747", "#263d35", "#403724", "#342a45", "#422a2f", "#101010",
     "#ffffff", "#000000", "#e11d48", "#f97316", "#22c55e", "#3b82f6"
   ];
+
+  // Format diagnostic details without letting circular objects break the log panel.
+  function formatLogDetails(details) {
+    if (details === undefined || details === null || details === "") {
+      return "";
+    }
+    if (details && details.message) {
+      return details.message;
+    }
+    try {
+      return typeof details === "string" ? details : JSON.stringify(details);
+    } catch (error) {
+      return String(details);
+    }
+  }
+
+  // Add one internal log entry and refresh open panels so debugging stays visible in Premiere.
+  function addInternalLog(level, message, details, skipRender) {
+    const entry = {
+      id: String(Date.now()) + "-" + String(internalLogs.length),
+      level: level || "info",
+      message: message || "",
+      details: formatLogDetails(details),
+      time: new Date().toLocaleTimeString()
+    };
+    internalLogs.unshift(entry);
+    if (internalLogs.length > maxInternalLogs) {
+      internalLogs.length = maxInternalLogs;
+    }
+    try {
+      const method = entry.level === "error" ? "error" : (entry.level === "warn" ? "warn" : "log");
+      console[method]("[Tool Bar]", entry.message, entry.details || "");
+    } catch (error) {
+      // Console output is optional in UXP; the in-panel log remains the source of truth.
+    }
+    if (!skipRender && mountedPanels.size) {
+      renderAll();
+    }
+  }
+
+  // Expose a tiny logger so Premiere bridge failures can be shown inside the settings panel.
+  root.PTB_LOGGER = {
+    info(message, details) {
+      addInternalLog("info", message, details);
+    },
+    warn(message, details) {
+      addInternalLog("warn", message, details);
+    },
+    error(message, details) {
+      addInternalLog("error", message, details);
+    },
+    clear() {
+      internalLogs.length = 0;
+      renderAll();
+    },
+    entries() {
+      return internalLogs.slice();
+    }
+  };
 
   // Restore a mirrored config after installer updates that clear localStorage.
   function startBackupRestore() {
@@ -79,6 +143,7 @@
       .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;max-height:190px;margin:0;overflow:auto}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
       .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-4px 0 0 #9fe3c1}.ptb-collection-member.drop-after{box-shadow:4px 0 0 #9fe3c1}.ptb-collection-member-list.drop-tail{box-shadow:inset -4px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
+      .ptb-logs-panel{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px}.ptb-log-list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-log-entry{display:flex;flex-direction:column;gap:4px;min-width:0;border-bottom:1px solid rgba(255,255,255,.08);padding:6px;color:var(--ptb-text)}.ptb-log-meta{display:flex;gap:8px;color:var(--ptb-muted);font-size:10px;font-weight:800;text-transform:uppercase}.ptb-log-entry.error .ptb-log-level{color:#ff9aa2}.ptb-log-entry.warn .ptb-log-level{color:#ffd166}.ptb-log-entry.info .ptb-log-level{color:#79c8ff}.ptb-log-message,.ptb-log-details{overflow-wrap:anywhere;line-height:1.35}.ptb-log-details{color:var(--ptb-muted);font-size:11px}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
       if (document.head) {
@@ -241,6 +306,33 @@
     }
     if (tokens.includes("ptb-editor-shell") || tokens.includes("ptb-icon-editor") || tokens.includes("ptb-import-export")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "12px", minWidth: "0", padding: "12px" });
+    }
+    if (tokens.includes("ptb-logs-panel")) {
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "8px", minWidth: "0", padding: "12px" });
+    }
+    if (tokens.includes("ptb-log-list")) {
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "190px", overflow: "auto", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", background: "#181818" });
+    }
+    if (tokens.includes("ptb-log-entry")) {
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "4px", minWidth: "0", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "6px", color: "var(--ptb-text)" });
+    }
+    if (tokens.includes("ptb-log-meta")) {
+      setStyles(node, { display: "flex", gap: "8px", color: "var(--ptb-muted)", fontSize: "10px", fontWeight: "800", textTransform: "uppercase" });
+    }
+    if (tokens.includes("ptb-log-level") && tokens.includes("error")) {
+      setStyles(node, { color: "#ff9aa2" });
+    }
+    if (tokens.includes("ptb-log-level") && tokens.includes("warn")) {
+      setStyles(node, { color: "#ffd166" });
+    }
+    if (tokens.includes("ptb-log-level") && tokens.includes("info")) {
+      setStyles(node, { color: "#79c8ff" });
+    }
+    if (tokens.includes("ptb-log-message") || tokens.includes("ptb-log-details")) {
+      setStyles(node, { overflowWrap: "anywhere", lineHeight: "1.35" });
+    }
+    if (tokens.includes("ptb-log-details")) {
+      setStyles(node, { color: "var(--ptb-muted)", fontSize: "11px" });
     }
     if (tokens.includes("ptb-form-grid")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "10px", minWidth: "0" });
@@ -456,6 +548,31 @@
     return /^#[0-9a-f]{6}$/i.test(button && button.iconColor || "") ? button.iconColor : "#f0f0f0";
   }
 
+  // Force SVG paint attributes because Premiere UXP does not always cascade currentColor into inline SVG.
+  function applySvgColor(node, color) {
+    const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f0f0f0";
+    const svg = node && node.querySelector ? node.querySelector("svg") : null;
+    if (!svg) {
+      return;
+    }
+    svg.style.color = safeColor;
+    svg.style.fill = safeColor;
+    svg.setAttribute("fill", safeColor);
+    const children = svg.querySelectorAll ? Array.from(svg.querySelectorAll("*")) : [];
+    children.forEach((child) => {
+      const fill = child.getAttribute ? child.getAttribute("fill") : "";
+      const stroke = child.getAttribute ? child.getAttribute("stroke") : "";
+      if (fill !== "none") {
+        child.setAttribute("fill", safeColor);
+        child.style.fill = safeColor;
+      }
+      if (stroke && stroke !== "none") {
+        child.setAttribute("stroke", safeColor);
+        child.style.stroke = safeColor;
+      }
+    });
+  }
+
   // Create an inline SVG icon that inherits the selected icon color.
   function createIconImage(iconId, color, title) {
     const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f0f0f0";
@@ -466,6 +583,7 @@
     node.setAttribute("aria-label", title || icon.label);
     setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "22px", height: "22px", color: safeColor, background: "transparent", pointerEvents: "none" });
     node.innerHTML = root.PTB_ICON_LIBRARY.getIconSvg(icon.id);
+    applySvgColor(node, safeColor);
     return node;
   }
 
@@ -683,7 +801,12 @@
     const pickerKey = button.id + ":icon";
     const row = el("div", "ptb-color-row");
     const preview = clickControl("ptb-icon-button", () => {
-      settingsState.openIconPicker = settingsState.openIconPicker === pickerKey ? "" : pickerKey;
+      if (settingsState.openIconPicker === pickerKey) {
+        settingsState.openIconPicker = "";
+      } else {
+        settingsState.openIconPicker = pickerKey;
+        settingsState.iconVisibleCount = iconGalleryBatchSize;
+      }
       renderAll();
     });
     preview.title = root.PTB_I18N.t("icon");
@@ -704,7 +827,8 @@
     const popover = el("div", "ptb-popover ptb-icon-popover");
     const grid = el("div", "ptb-icon-grid");
     const activeIconId = root.PTB_ICON_LIBRARY.normalizeIconId(button.icon);
-    root.PTB_ICON_LIBRARY.icons.forEach((icon) => {
+    const visibleCount = Math.min(settingsState.iconVisibleCount || iconGalleryBatchSize, root.PTB_ICON_LIBRARY.icons.length);
+    root.PTB_ICON_LIBRARY.icons.slice(0, visibleCount).forEach((icon) => {
       const item = clickControl(icon.id === activeIconId ? "ptb-icon-choice active" : "ptb-icon-choice", () => {
         button.icon = icon.id;
         settingsState.openIconPicker = "";
@@ -717,6 +841,19 @@
       grid.appendChild(item);
     });
     popover.appendChild(grid);
+    if (visibleCount < root.PTB_ICON_LIBRARY.icons.length) {
+      const more = actionButton(root.PTB_I18N.t("moreIcons"), "ptb-button compact", () => {
+        settingsState.iconVisibleCount = Math.min(root.PTB_ICON_LIBRARY.icons.length, visibleCount + iconGalleryBatchSize);
+        renderAll();
+      });
+      popover.appendChild(more);
+      popover.addEventListener("scroll", () => {
+        if (popover.scrollTop + popover.clientHeight >= popover.scrollHeight - 24) {
+          settingsState.iconVisibleCount = Math.min(root.PTB_ICON_LIBRARY.icons.length, visibleCount + iconGalleryBatchSize);
+          renderAll();
+        }
+      });
+    }
     return popover;
   }
 
@@ -770,9 +907,11 @@
       const plugin = plugins.find((item) => item.id === pluginId);
       if (plugin && typeof plugin.showPanel === "function") {
         plugin.showPanel(panelId);
+        addInternalLog("info", "Opened panel", panelId, true);
       }
     } catch (error) {
       console.warn("Tool Bar could not open panel:", error);
+      addInternalLog("error", "Tool Bar could not open panel.", error, true);
     }
   }
 
@@ -840,14 +979,17 @@
   // Run an async operation and render status or errors.
   async function runWithStatus(workingMessage, operation) {
     statusMessage = workingMessage;
+    addInternalLog("info", workingMessage, "", true);
     renderAll();
     try {
       await operation();
       if (statusMessage === workingMessage) {
         statusMessage = root.PTB_I18N.t("statusReady");
       }
+      addInternalLog("info", root.PTB_I18N.t("statusReady"), "", true);
     } catch (error) {
       statusMessage = error && error.message ? error.message : String(error);
+      addInternalLog("error", statusMessage, error, true);
     }
     renderAll();
   }
@@ -867,6 +1009,7 @@
     appendSettingsModule(content, root.PTB_I18N.t("barControls"), fillBarControls);
     appendSettingsModule(content, root.PTB_I18N.t("collections"), fillCollectionsBoard);
     appendSettingsModule(content, root.PTB_I18N.t("data"), fillImportExportSettings);
+    appendSettingsModule(content, root.PTB_I18N.t("logs"), fillLogsPanel);
   }
 
   // Render the compact settings header with version and top actions.
@@ -1596,6 +1739,40 @@
   // Fill import and export actions after their module body is already mounted.
   function fillImportExportSettings(target) {
     target.appendChild(renderImportExportSettings());
+  }
+
+  // Render internal messages and Premiere errors so development issues are visible in the plugin.
+  function renderLogsPanel() {
+    const section = el("div", "ptb-logs-panel");
+    const actions = el("div", "ptb-action-row");
+    actions.appendChild(actionButton(root.PTB_I18N.t("clearLogs"), "ptb-button compact", () => {
+      internalLogs.length = 0;
+      renderAll();
+    }));
+    section.appendChild(actions);
+    const list = el("div", "ptb-log-list");
+    if (!internalLogs.length) {
+      list.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("noLogs")));
+    }
+    internalLogs.forEach((entry) => {
+      const row = el("div", "ptb-log-entry " + entry.level);
+      const meta = el("div", "ptb-log-meta");
+      meta.appendChild(el("span", "ptb-log-time", entry.time));
+      meta.appendChild(el("span", "ptb-log-level " + entry.level, entry.level));
+      row.appendChild(meta);
+      row.appendChild(el("div", "ptb-log-message", entry.message));
+      if (entry.details) {
+        row.appendChild(el("div", "ptb-log-details", entry.details));
+      }
+      list.appendChild(row);
+    });
+    section.appendChild(list);
+    return section;
+  }
+
+  // Fill the diagnostic log module at the bottom of settings.
+  function fillLogsPanel(target) {
+    target.appendChild(renderLogsPanel());
   }
 
   // Create a standalone library button and optionally add it to a collection.

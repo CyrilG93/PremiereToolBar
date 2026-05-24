@@ -223,11 +223,12 @@ function renderSettingsSmokeTest() {
 
 const settingsRoot = renderSettingsSmokeTest();
 assert.ok(findByPredicate(settingsRoot, (node) => String(node.className).includes("ptb-settings-content")));
-assert.equal(countClass(settingsRoot, "ptb-section"), 5);
+assert.equal(countClass(settingsRoot, "ptb-section"), 6);
 assert.ok(settingsRoot.textContent.includes("Button Gallery"));
 assert.ok(settingsRoot.textContent.includes("Button Editor"));
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
+assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Preset"));

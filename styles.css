@@ -1154,6 +1154,68 @@ button {
   background: rgba(255, 116, 107, 0.08);
 }
 
+.ptb-logs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.ptb-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 190px;
+  overflow: auto;
+  border: 1px solid var(--ptb-line);
+  border-radius: 8px;
+  padding: 8px;
+  background: #181818;
+}
+
+.ptb-log-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px;
+  color: var(--ptb-text);
+}
+
+.ptb-log-meta {
+  display: flex;
+  gap: 8px;
+  color: var(--ptb-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ptb-log-entry.error .ptb-log-level {
+  color: #ff9aa2;
+}
+
+.ptb-log-entry.warn .ptb-log-level {
+  color: #ffd166;
+}
+
+.ptb-log-entry.info .ptb-log-level {
+  color: #79c8ff;
+}
+
+.ptb-log-message,
+.ptb-log-details {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.ptb-log-details {
+  color: var(--ptb-muted);
+  font-size: 11px;
+}
+
 .ptb-form-grid {
   display: flex;
   flex-wrap: wrap;

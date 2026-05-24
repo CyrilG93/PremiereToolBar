@@ -92,7 +92,7 @@ const aliases = {
 const source = `(function (root) {
   "use strict";
 
-  // Use inline SVG icons because Premiere UXP reliably applies currentColor to SVG markup.
+  // Use inline SVG icons because the UI can paint the SVG attributes directly in Premiere UXP.
   const icons = ${JSON.stringify(icons)};
 
   // Keep existing saved configurations readable after switching between icon packs.
@@ -127,7 +127,7 @@ const source = `(function (root) {
     return "./assets/SVG/" + icon.file;
   }
 
-  // Keep the old API available while SVG icons now receive color through currentColor.
+  // Keep the old API available while SVG icons receive their final color in the UI renderer.
   function getIconFilter() {
     return "none";
   }
@@ -137,7 +137,7 @@ const source = `(function (root) {
     return getIcon(id).svg;
   }
 
-  // Render a currentColor SVG wrapper for UXP-safe icon coloring.
+  // Render an SVG wrapper; UI code may overwrite the SVG paint attributes after insertion.
   function renderIcon(id, color, title) {
     const icon = getIcon(id);
     const safeTitle = title || icon.label;

@@ -21,6 +21,19 @@
     }
   }
 
+  // Send bridge diagnostics to the settings log panel when the UI logger is available.
+  function logBridge(level, message, details) {
+    const logger = root.PTB_LOGGER;
+    if (logger && typeof logger[level] === "function") {
+      logger[level](message, details);
+    }
+  }
+
+  // Return an error message that is safe to display in the in-panel logs.
+  function describeBridgeError(error) {
+    return error && error.message ? error.message : String(error);
+  }
+
   // Load the active sequence and selected timeline items.
   async function getSelectedItems() {
     const app = getPremiere();
@@ -37,6 +50,7 @@
     if (!items || !items.length) {
       throw new Error(root.PTB_I18N.t("noSelection"));
     }
+    logBridge("info", "Premiere selection loaded.", { count: items.length });
     return { app, project, sequence, items };
   }
 
@@ -55,6 +69,7 @@
     if (!actions.length) {
       throw new Error("No compatible selected clips for this button.");
     }
+    logBridge("info", "Executing Premiere transaction.", { undoName: undoName || "Tool Bar", actions: actions.length });
     return project.executeTransaction((compoundAction) => {
       // Add every prepared action to the undoable compound operation.
       actions.forEach((action) => compoundAction.addAction(action));
@@ -66,9 +81,11 @@
     try {
       if (sequence && typeof sequence.getPlayerPosition === "function" && typeof sequence.setPlayerPosition === "function") {
         sequence.setPlayerPosition(sequence.getPlayerPosition());
+        logBridge("info", "Sequence view refreshed.");
       }
     } catch (error) {
       // A repaint nudge is best-effort and should never make the button action fail.
+      logBridge("warn", "Sequence view refresh skipped.", describeBridgeError(error));
     }
   }
 
@@ -203,11 +220,17 @@
     let options = null;
     try {
       options = new app.AddTransitionOptions();
+      logBridge("info", "Created transition options with constructor.", { applyTo });
     } catch (error) {
       try {
         options = app.AddTransitionOptions();
+        logBridge("info", "Created transition options with factory call.", { applyTo });
       } catch (nestedError) {
         options = null;
+        logBridge("warn", "Premiere did not expose AddTransitionOptions.", {
+          constructorError: describeBridgeError(error),
+          factoryError: describeBridgeError(nestedError)
+        });
       }
     }
     if (!options) {
@@ -225,6 +248,12 @@
     if (typeof options.setDuration === "function" && app.TickTime && app.TickTime.createWithSeconds) {
       options.setDuration(app.TickTime.createWithSeconds(Number(button.transition.durationSeconds) || 1));
     }
+    logBridge("info", "Prepared transition options.", {
+      applyTo,
+      durationSeconds: Number(button.transition.durationSeconds) || 1,
+      hasSetApplyToStart: typeof options.setApplyToStart === "function",
+      hasSetDuration: typeof options.setDuration === "function"
+    });
     return options;
   }
 
@@ -236,17 +265,37 @@
       throw new Error("Choose a Premiere video transition first.");
     }
     const applyTargets = button.transition.applyTo === "both" ? ["start", "end"] : [button.transition.applyTo || "end"];
+    logBridge("info", "Applying video transition.", {
+      button: button.label,
+      matchName: button.transition.matchName,
+      applyTargets,
+      selectedItems: items.length
+    });
     for (const item of items) {
       if (isVideoItem(item)) {
         for (const applyTo of applyTargets) {
-          const transition = await app.TransitionFactory.createVideoTransition(button.transition.matchName);
+          let transition = null;
+          try {
+            transition = await app.TransitionFactory.createVideoTransition(button.transition.matchName);
+            logBridge("info", "Created video transition.", { matchName: button.transition.matchName, applyTo });
+          } catch (error) {
+            logBridge("error", "Video transition creation failed.", {
+              matchName: button.transition.matchName,
+              error: describeBridgeError(error)
+            });
+            throw error;
+          }
           const options = createTransitionOptions(app, button, applyTo);
           actions.push(item.createAddVideoTransitionAction(transition, options));
+          logBridge("info", "Queued video transition action.", { applyTo, hasOptions: Boolean(options), actions: actions.length });
         }
+      } else {
+        logBridge("warn", "Skipped non-video timeline item for transition.");
       }
     }
     const result = executeActions(project, actions, "Tool Bar: " + button.label);
     await refreshSequenceView(sequence);
+    logBridge("info", "Video transition command completed.", { actions: actions.length });
     return result;
   }
 
