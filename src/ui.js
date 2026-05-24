@@ -3,7 +3,7 @@
 
   // Keep render state shared across all dockable panels.
   let config = root.PTB_STORAGE.loadConfig();
-  let catalogs = { videoEffects: [], audioEffects: [], videoTransitions: [] };
+  let catalogs = { videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [] };
   let statusMessage = root.PTB_I18N.t("statusReady");
   let settingsState = {
     selectedCollectionId: config.activeCollectionId,
@@ -25,6 +25,7 @@
   const mountedPanels = new Map();
   let globalDragEndBound = false;
   let backupRestoreStarted = false;
+  let catalogLoadStarted = false;
   const iconGalleryBatchSize = 160;
   const maxInternalLogs = 160;
   const internalLogs = [];
@@ -110,6 +111,26 @@
       }
     }).catch((error) => {
       console.warn("Tool Bar config restore skipped:", error);
+    });
+  }
+
+  // Load Premiere catalogs lazily for picker fields inside settings.
+  function startCatalogLoad() {
+    if (catalogLoadStarted || !root.PTB_PREMIERE || !root.PTB_PREMIERE.loadCatalogs) {
+      return;
+    }
+    catalogLoadStarted = true;
+    root.PTB_PREMIERE.loadCatalogs().then((loadedCatalogs) => {
+      catalogs = Object.assign({ videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [] }, loadedCatalogs || {});
+      addInternalLog("info", "Premiere catalogs loaded.", {
+        videoEffects: catalogs.videoEffects.length,
+        audioEffects: catalogs.audioEffects.length,
+        videoTransitions: catalogs.videoTransitions.length,
+        audioTransitions: catalogs.audioTransitions.length
+      }, true);
+      renderAll();
+    }).catch((error) => {
+      addInternalLog("warn", "Premiere catalog loading skipped.", error);
     });
   }
 
@@ -986,6 +1007,7 @@
   // Render the full settings workspace.
   function renderSettingsPanel(rootNode) {
     startBackupRestore();
+    startCatalogLoad();
     ensureSettingsSelection();
     const shell = el("div", "ptb-settings-shell");
     shell.appendChild(renderSettingsHeader());
@@ -1159,6 +1181,7 @@
       { value: "settings", label: root.PTB_I18N.t("settings") },
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
+      { value: "audioTransition", label: root.PTB_I18N.t("audioTransition") },
       { value: "preset", label: root.PTB_I18N.t("presetAction") }
     ], (value) => {
       button.actionType = value;
@@ -1212,7 +1235,8 @@
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("settingsButtonDescription")));
       return wrap;
     }
-    if (button.actionType === "transition") {
+    if (button.actionType === "transition" || button.actionType === "audioTransition") {
+      const catalogKind = button.actionType === "audioTransition" ? "audioTransition" : "transition";
       const grid = el("div", "ptb-form-grid");
       grid.appendChild(textField(root.PTB_I18N.t("transitionMatchName"), button.transition.matchName, (value) => {
         button.transition.matchName = value;
@@ -1229,11 +1253,11 @@
         button.transition.durationSeconds = value;
       }));
       wrap.appendChild(grid);
-      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("transitionHelp")));
-      const catalogPicker = renderCatalogPicker("transition", button);
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(catalogKind === "audioTransition" ? "audioTransitionHelp" : "transitionHelp")));
+      const catalogPicker = renderCatalogPicker(catalogKind, button);
       if (catalogPicker) {
         wrap.appendChild(catalogPicker);
-        wrap.appendChild(actionButton(root.PTB_I18N.t("copyTransitionMatchNames"), "ptb-button compact", async () => copyTransitionCatalog()));
+        wrap.appendChild(actionButton(root.PTB_I18N.t(catalogKind === "audioTransition" ? "copyAudioTransitionMatchNames" : "copyTransitionMatchNames"), "ptb-button compact", async () => copyTransitionCatalog(catalogKind)));
       }
       return wrap;
     }
@@ -1290,19 +1314,22 @@
     const options = [{ value: "", label: root.PTB_I18N.t("chooseFromPremiere") }];
     const source = kind === "transition"
       ? catalogs.videoTransitions
-      : (button.mediaType === "audio" ? catalogs.audioEffects : catalogs.videoEffects);
+      : (kind === "audioTransition" ? catalogs.audioTransitions : (button.mediaType === "audio" ? catalogs.audioEffects : catalogs.videoEffects));
     if (!source.length) {
       return null;
     }
     source.forEach((item) => {
       options.push({ value: item.matchName + "||" + item.displayName, label: item.displayName + (item.matchName ? " - " + item.matchName : "") });
     });
-    wrap.appendChild(selectField(kind === "transition" ? root.PTB_I18N.t("videoTransition") : root.PTB_I18N.t("nativeEffect"), "", options, (value) => {
+    const label = kind === "transition"
+      ? root.PTB_I18N.t("videoTransition")
+      : (kind === "audioTransition" ? root.PTB_I18N.t("audioTransition") : root.PTB_I18N.t("nativeEffect"));
+    wrap.appendChild(selectField(label, "", options, (value) => {
       if (!value) {
         return;
       }
       const parts = value.split("||");
-      if (kind === "transition") {
+      if (kind === "transition" || kind === "audioTransition") {
         button.transition.matchName = parts[0];
       } else {
         button.effect.matchName = parts[0];
@@ -1956,9 +1983,10 @@
   }
 
   // Copy discovered transition match names so users can paste the exact value Premiere expects.
-  async function copyTransitionCatalog() {
+  async function copyTransitionCatalog(kind) {
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
-      const lines = catalogs.videoTransitions.map((item) => item.matchName).filter(Boolean);
+      const source = kind === "audioTransition" ? catalogs.audioTransitions : catalogs.videoTransitions;
+      const lines = source.map((item) => item.matchName).filter(Boolean);
       await root.PTB_STORAGE.copyText(lines.join("\n"));
       statusMessage = root.PTB_I18N.t("statusCopied");
     });

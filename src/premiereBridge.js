@@ -11,6 +11,11 @@
     "Channel Volume",
     "Panner"
   ];
+  const FALLBACK_AUDIO_TRANSITIONS = [
+    "Constant Gain",
+    "Constant Power",
+    "Exponential Fade"
+  ];
 
   // Return the Premiere UXP API module when the plugin is running inside Premiere.
   function getPremiere() {
@@ -34,18 +39,42 @@
     return error && error.message ? error.message : String(error);
   }
 
+  // Normalize labels before comparing match names and display names.
+  function normalizeCatalogName(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  // Return the video transition catalog when Premiere exposes it.
+  async function getVideoTransitionMatchNames(app) {
+    if (app.TransitionFactory && typeof app.TransitionFactory.getVideoTransitionMatchNames === "function") {
+      return app.TransitionFactory.getVideoTransitionMatchNames();
+    }
+    return [];
+  }
+
+  // Return the audio transition catalog when Premiere exposes it, with built-in crossfade names as a visible fallback.
+  async function getAudioTransitionMatchNames(app) {
+    if (app.TransitionFactory && typeof app.TransitionFactory.getAudioTransitionMatchNames === "function") {
+      const matchNames = await app.TransitionFactory.getAudioTransitionMatchNames();
+      if (matchNames && matchNames.length) {
+        return matchNames;
+      }
+    }
+    return FALLBACK_AUDIO_TRANSITIONS.slice();
+  }
+
   // Find catalog transition match names that resemble a user-entered display name.
-  async function findTransitionMatchNameSuggestions(app, value) {
+  async function findTransitionMatchNameSuggestions(app, value, mediaType) {
     try {
-      const expected = String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const matchNames = await app.TransitionFactory.getVideoTransitionMatchNames();
+      const expected = normalizeCatalogName(value);
+      const matchNames = mediaType === "audio" ? await getAudioTransitionMatchNames(app) : await getVideoTransitionMatchNames(app);
       const suggestions = matchNames.filter((matchName) => {
-        const normalized = String(matchName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const normalized = normalizeCatalogName(matchName);
         return normalized.includes(expected) || expected.includes(normalized);
       });
       suggestions.sort((left, right) => {
-        const normalizedLeft = String(left || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-        const normalizedRight = String(right || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const normalizedLeft = normalizeCatalogName(left);
+        const normalizedRight = normalizeCatalogName(right);
         const leftExact = normalizedLeft.endsWith(expected) ? 0 : 1;
         const rightExact = normalizedRight.endsWith(expected) ? 0 : 1;
         return leftExact - rightExact || normalizedLeft.length - normalizedRight.length;
@@ -58,14 +87,23 @@
   }
 
   // Create a transition from the stored value, then retry close catalog match names when the value was a display name.
-  async function createVideoTransitionWithFallback(app, matchName, applyTo) {
+  async function createTransitionWithFallback(app, matchName, applyTo, mediaType) {
+    const isAudio = mediaType === "audio";
+    const createMethod = isAudio ? "createAudioTransition" : "createVideoTransition";
+    if (!app.TransitionFactory || typeof app.TransitionFactory[createMethod] !== "function") {
+      const message = isAudio
+        ? "Premiere UXP does not expose audio transition creation in this build."
+        : "Premiere UXP does not expose video transition creation in this build.";
+      logBridge("error", message, { method: "TransitionFactory." + createMethod });
+      throw new Error(message);
+    }
     try {
-      const transition = await app.TransitionFactory.createVideoTransition(matchName);
-      logBridge("info", "Created video transition.", { matchName, applyTo });
+      const transition = await app.TransitionFactory[createMethod](matchName);
+      logBridge("info", "Created " + mediaType + " transition.", { matchName, applyTo });
       return transition;
     } catch (error) {
-      const suggestions = await findTransitionMatchNameSuggestions(app, matchName);
-      logBridge("warn", "Video transition creation failed; trying catalog suggestions.", {
+      const suggestions = await findTransitionMatchNameSuggestions(app, matchName, mediaType);
+      logBridge("warn", capitalize(mediaType) + " transition creation failed; trying catalog suggestions.", {
         matchName,
         error: describeBridgeError(error),
         suggestions: suggestions.length ? suggestions : "No close match names found in Premiere's transition catalog."
@@ -75,20 +113,26 @@
           continue;
         }
         try {
-          const transition = await app.TransitionFactory.createVideoTransition(suggestion);
-          logBridge("info", "Created video transition from suggested match name.", { original: matchName, matchName: suggestion, applyTo });
+          const transition = await app.TransitionFactory[createMethod](suggestion);
+          logBridge("info", "Created " + mediaType + " transition from suggested match name.", { original: matchName, matchName: suggestion, applyTo });
           return transition;
         } catch (nestedError) {
           logBridge("warn", "Suggested transition match name failed.", { matchName: suggestion, error: describeBridgeError(nestedError) });
         }
       }
-      logBridge("error", "Video transition creation failed.", {
+      logBridge("error", capitalize(mediaType) + " transition creation failed.", {
         matchName,
         error: describeBridgeError(error),
         suggestions: suggestions.length ? suggestions : "No close match names found in Premiere's transition catalog."
       });
       throw error;
     }
+  }
+
+  // Capitalize short log labels without depending on newer JavaScript helpers.
+  function capitalize(value) {
+    const text = String(value || "");
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
   }
 
   // Load the active sequence and selected timeline items.
@@ -119,6 +163,11 @@
   // Determine whether a track item can accept audio effects.
   function isAudioItem(item) {
     return Boolean(item && !isVideoItem(item) && typeof item.getComponentChain === "function");
+  }
+
+  // Determine whether a track item exposes an audio-transition action.
+  function isAudioTransitionItem(item) {
+    return Boolean(item && typeof item.createAddAudioTransitionAction === "function");
   }
 
   // Execute a list of undoable Premiere actions in one transaction.
@@ -155,7 +204,8 @@
     const videoMatchNames = await app.VideoFilterFactory.getMatchNames();
     const videoDisplayNames = await app.VideoFilterFactory.getDisplayNames();
     const audioDisplayNames = await app.AudioFilterFactory.getDisplayNames();
-    const videoTransitionMatchNames = await app.TransitionFactory.getVideoTransitionMatchNames();
+    const videoTransitionMatchNames = await getVideoTransitionMatchNames(app);
+    const audioTransitionMatchNames = await getAudioTransitionMatchNames(app);
     return {
       videoEffects: videoMatchNames.map((matchName, index) => ({
         matchName,
@@ -166,6 +216,10 @@
         displayName
       })),
       videoTransitions: videoTransitionMatchNames.map((matchName) => ({
+        matchName,
+        displayName: matchName
+      })),
+      audioTransitions: audioTransitionMatchNames.map((matchName) => ({
         matchName,
         displayName: matchName
       }))
@@ -180,6 +234,9 @@
     }
     if (normalizedButton.actionType === "transition") {
       return applyTransitionButton(normalizedButton);
+    }
+    if (normalizedButton.actionType === "audioTransition") {
+      return applyAudioTransitionButton(normalizedButton);
     }
     if (normalizedButton.actionType === "preset") {
       return applyPresetButton(normalizedButton);
@@ -314,36 +371,53 @@
     return options;
   }
 
-  // Apply a native video transition to all selected video clips.
-  async function applyTransitionButton(button) {
+  // Apply a native transition to all selected compatible clips.
+  async function applyNativeTransitionButton(button, mediaType) {
     const { app, project, sequence, items } = await getSelectedItems();
     const actions = [];
     if (!button.transition.matchName) {
-      throw new Error("Choose a Premiere video transition first.");
+      throw new Error("Choose a Premiere " + mediaType + " transition first.");
     }
     const applyTargets = button.transition.applyTo === "both" ? ["start", "end"] : [button.transition.applyTo || "end"];
-    logBridge("info", "Applying video transition.", {
+    logBridge("info", "Applying " + mediaType + " transition.", {
       button: button.label,
       matchName: button.transition.matchName,
       applyTargets,
       selectedItems: items.length
     });
+    if (mediaType === "audio" && (!app.TransitionFactory || typeof app.TransitionFactory.createAudioTransition !== "function")) {
+      const message = "Premiere UXP does not expose audio transition creation in this build.";
+      logBridge("error", message, { method: "TransitionFactory.createAudioTransition" });
+      throw new Error(message);
+    }
     for (const item of items) {
-      if (isVideoItem(item)) {
+      const compatible = mediaType === "audio" ? isAudioTransitionItem(item) : isVideoItem(item);
+      const actionMethod = mediaType === "audio" ? "createAddAudioTransitionAction" : "createAddVideoTransitionAction";
+      if (compatible) {
         for (const applyTo of applyTargets) {
-          const transition = await createVideoTransitionWithFallback(app, button.transition.matchName, applyTo);
+          const transition = await createTransitionWithFallback(app, button.transition.matchName, applyTo, mediaType);
           const options = createTransitionOptions(app, button, applyTo);
-          actions.push(item.createAddVideoTransitionAction(transition, options));
-          logBridge("info", "Queued video transition action.", { applyTo, hasOptions: Boolean(options), actions: actions.length });
+          actions.push(item[actionMethod](transition, options));
+          logBridge("info", "Queued " + mediaType + " transition action.", { applyTo, hasOptions: Boolean(options), actions: actions.length });
         }
       } else {
-        logBridge("warn", "Skipped non-video timeline item for transition.");
+        logBridge("warn", "Skipped timeline item without " + actionMethod + ".");
       }
     }
     const result = executeActions(project, actions, "Tool Bar: " + button.label);
     await refreshSequenceView(sequence);
-    logBridge("info", "Video transition command completed.", { actions: actions.length });
+    logBridge("info", capitalize(mediaType) + " transition command completed.", { actions: actions.length });
     return result;
+  }
+
+  // Apply a native video transition to all selected video clips.
+  async function applyTransitionButton(button) {
+    return applyNativeTransitionButton(button, "video");
+  }
+
+  // Apply a native audio transition when the host exposes the required UXP methods.
+  async function applyAudioTransitionButton(button) {
+    return applyNativeTransitionButton(button, "audio");
   }
 
   // Apply a captured Tool Bar preset made from exposed effects and parameter values.

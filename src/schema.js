@@ -14,7 +14,7 @@
   const CONFIG_VERSION = 2;
   const MAX_BARS = 4;
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
-  const ACTION_TYPES = ["settings", "effect", "transition", "preset"];
+  const ACTION_TYPES = ["settings", "effect", "transition", "audioTransition", "preset"];
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
 

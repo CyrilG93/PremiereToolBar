@@ -226,6 +226,7 @@ assert.ok(findByPredicate(settingsRoot, (node) => String(node.className).include
 assert.equal(countClass(settingsRoot, "ptb-section"), 6);
 assert.ok(settingsRoot.textContent.includes("Button Gallery"));
 assert.ok(settingsRoot.textContent.includes("Button Editor"));
+assert.ok(settingsRoot.textContent.includes("Audio Transition"));
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
@@ -422,6 +423,65 @@ async function applyTransitionSmokeTest() {
 }
 
 await applyTransitionSmokeTest();
+
+// Verify audio transitions use the audio-specific Premiere APIs when the host exposes them.
+async function applyAudioTransitionSmokeTest() {
+  const appliedStarts = [];
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const item = {
+        createAddAudioTransitionAction(transition, options) {
+          appliedStarts.push(options.applyToStart);
+          return { transition, options };
+        },
+        getComponentChain: async () => ({})
+      };
+      return {
+        AddTransitionOptions: function AddTransitionOptions() {
+          this.setApplyToStart = (value) => { this.applyToStart = value; return this; };
+          this.setDuration = (value) => { this.duration = value; return this; };
+        },
+        TickTime: {
+          createWithSeconds: (seconds) => ({ seconds })
+        },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        TransitionFactory: {
+          getAudioTransitionMatchNames: async () => ["Constant Gain"],
+          createAudioTransition: async (matchName) => ({ matchName })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "audioTransition",
+    transition: { matchName: "Constant Gain", applyTo: "both", durationSeconds: 0.5 }
+  }));
+  assert.deepEqual(appliedStarts, [true, false]);
+}
+
+await applyAudioTransitionSmokeTest();
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");
