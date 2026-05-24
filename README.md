@@ -97,6 +97,12 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.1.35 - 2026-05-24
+
+- Removed the oversized empty space in the preset editor.
+- Added a small gap between toolbar buttons.
+- Allowed comma decimals such as `0,5` for transition duration.
+
 ### 0.1.34 - 2026-05-24
 
 - Kept only the copyable log view in settings.
