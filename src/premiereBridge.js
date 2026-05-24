@@ -352,6 +352,110 @@
       : 2;
   }
 
+  // Return the constant Premiere uses for regular clip track items.
+  function getClipTrackItemType(app) {
+    const constants = (app && (app.Constants || app.constants)) || {};
+    return constants.TrackItemType && constants.TrackItemType.CLIP !== undefined
+      ? constants.TrackItemType.CLIP
+      : 1;
+  }
+
+  // Compare timeline points using seconds when available.
+  function nearlyEqualTime(left, right) {
+    if (left === null || right === null) {
+      return false;
+    }
+    return Math.abs(Number(left) - Number(right)) < 0.0001;
+  }
+
+  // Read a track item's start/end/track details for edit-point matching.
+  async function getTrackItemTiming(item) {
+    const startTime = await readOptionalMethod(item, "getStartTime", null);
+    const endTime = await readOptionalMethod(item, "getEndTime", null);
+    return {
+      item,
+      type: await readOptionalMethod(item, "getType", null),
+      trackIndex: await readOptionalMethod(item, "getTrackIndex", null),
+      startNumber: timeToNumber(startTime),
+      endNumber: timeToNumber(endTime)
+    };
+  }
+
+  // Return all track indices to scan when a selected transition does not expose its track index.
+  async function getTrackIndices(sequence, mediaType, preferredIndex) {
+    if (typeof preferredIndex === "number") {
+      return [preferredIndex];
+    }
+    const countGetter = mediaType === "audio" ? "getAudioTrackCount" : "getVideoTrackCount";
+    const count = sequence && typeof sequence[countGetter] === "function" ? await sequence[countGetter]() : 0;
+    const indices = [];
+    for (let index = 0; index < count; index += 1) {
+      indices.push(index);
+    }
+    return indices;
+  }
+
+  // Read clips from one Premiere track.
+  async function getTrackClips(app, sequence, mediaType, trackIndex) {
+    const trackGetter = mediaType === "audio" ? "getAudioTrack" : "getVideoTrack";
+    if (!sequence || typeof sequence[trackGetter] !== "function") {
+      return [];
+    }
+    const track = await sequence[trackGetter](trackIndex);
+    if (!track || typeof track.getTrackItems !== "function") {
+      return [];
+    }
+    return track.getTrackItems(getClipTrackItemType(app), false);
+  }
+
+  // Find the clip edge that corresponds to a selected edit point or transition item.
+  async function findClipEdgeForTransitionSelection(app, sequence, transitionInfo) {
+    const trackIndices = await getTrackIndices(sequence, "video", transitionInfo.trackIndex);
+    const editPoints = [transitionInfo.startNumber, transitionInfo.endNumber].filter((value, index, list) => value !== null && list.indexOf(value) === index);
+    for (const trackIndex of trackIndices) {
+      const clips = await getTrackClips(app, sequence, "video", trackIndex);
+      for (const point of editPoints) {
+        for (const clip of clips) {
+          const clipInfo = await getTrackItemTiming(clip);
+          if (nearlyEqualTime(clipInfo.startNumber, point)) {
+            return { item: clip, applyTo: "start", trackIndex, point };
+          }
+        }
+        for (const clip of clips) {
+          const clipInfo = await getTrackItemTiming(clip);
+          if (nearlyEqualTime(clipInfo.endNumber, point)) {
+            return { item: clip, applyTo: "end", trackIndex, point };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Detect selected edit points/transitions and map them to the adjacent clip edge where Premiere can add a transition.
+  async function resolveSelectedVideoEditPointTargets(app, sequence, items) {
+    const targets = [];
+    const seen = {};
+    const transitionType = getTransitionTrackItemType(app);
+    for (const item of items) {
+      const info = await getTrackItemTiming(item);
+      if (info.type !== transitionType) {
+        continue;
+      }
+      const target = await findClipEdgeForTransitionSelection(app, sequence, info);
+      if (!target) {
+        logBridge("warn", "Selected edit point could not be mapped to an adjacent video clip.");
+        continue;
+      }
+      const key = target.trackIndex + "|" + target.point + "|" + target.applyTo;
+      if (!seen[key]) {
+        seen[key] = true;
+        targets.push(target);
+      }
+    }
+    return targets;
+  }
+
   // Read every transition track item from all exposed tracks of one media kind.
   async function inspectAllTransitionsForMedia(app, sequence, mediaType) {
     const trackGetter = mediaType === "audio" ? "getAudioTrack" : "getVideoTrack";
@@ -664,6 +768,28 @@
       applyTargets,
       selectedItems: items.length
     });
+    if (mediaType === "video") {
+      const editPointTargets = await resolveSelectedVideoEditPointTargets(app, sequence, items);
+      if (editPointTargets.length) {
+        logBridge("info", "Applying transition to selected edit point.", { targets: editPointTargets.length });
+        for (const target of editPointTargets) {
+          const transition = await createTransitionWithFallback(app, button.transition.matchName, target.applyTo, mediaType);
+          const options = createTransitionOptions(app, button, target.applyTo);
+          actions.push(target.item.createAddVideoTransitionAction(transition, options));
+          logBridge("info", "Queued edit-point video transition action.", {
+            applyTo: target.applyTo,
+            trackIndex: target.trackIndex,
+            point: target.point,
+            hasOptions: Boolean(options),
+            actions: actions.length
+          });
+        }
+        const result = executeActions(project, actions, "Tool Bar: " + button.label);
+        await refreshSequenceView(sequence);
+        logBridge("info", "Edit-point video transition command completed.", { actions: actions.length });
+        return result;
+      }
+    }
     if (mediaType === "audio" && (!app.TransitionFactory || typeof app.TransitionFactory.createAudioTransition !== "function")) {
       const message = "Premiere UXP does not expose audio transition creation in this build.";
       logBridge("error", message, { method: "TransitionFactory.createAudioTransition" });

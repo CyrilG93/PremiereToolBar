@@ -1269,9 +1269,16 @@
     if (button.actionType === "transition" || button.actionType === "audioTransition") {
       const catalogKind = button.actionType === "audioTransition" ? "audioTransition" : "transition";
       const grid = el("div", "ptb-form-grid");
-      grid.appendChild(textField(root.PTB_I18N.t("transitionMatchName"), button.transition.matchName, (value) => {
-        button.transition.matchName = value;
-      }));
+      if (catalogKind === "audioTransition") {
+        const audioPicker = renderCatalogSelect("audioTransition", button);
+        if (audioPicker) {
+          grid.appendChild(audioPicker);
+        }
+      } else {
+        grid.appendChild(textField(root.PTB_I18N.t("transitionMatchName"), button.transition.matchName, (value) => {
+          button.transition.matchName = value;
+        }));
+      }
       grid.appendChild(selectField(root.PTB_I18N.t("transitionPosition"), button.transition.applyTo, [
         { value: "start", label: root.PTB_I18N.t("transitionStart") },
         { value: "end", label: root.PTB_I18N.t("transitionEnd") },
@@ -1285,10 +1292,12 @@
       }));
       wrap.appendChild(grid);
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(catalogKind === "audioTransition" ? "audioTransitionHelp" : "transitionHelp")));
-      const catalogPicker = renderCatalogPicker(catalogKind, button);
-      if (catalogPicker) {
-        wrap.appendChild(catalogPicker);
-        wrap.appendChild(actionButton(root.PTB_I18N.t(catalogKind === "audioTransition" ? "copyAudioTransitionMatchNames" : "copyTransitionMatchNames"), "ptb-button compact", async () => copyTransitionCatalog(catalogKind)));
+      if (catalogKind === "transition") {
+        const catalogPicker = renderCatalogPicker(catalogKind, button);
+        if (catalogPicker) {
+          wrap.appendChild(catalogPicker);
+          wrap.appendChild(actionButton(root.PTB_I18N.t("copyTransitionMatchNames"), "ptb-button compact", async () => copyTransitionCatalog(catalogKind)));
+        }
       }
       return wrap;
     }
@@ -1342,6 +1351,16 @@
   // Render a catalog picker populated from Premiere API discovery.
   function renderCatalogPicker(kind, button) {
     const wrap = el("div", "ptb-catalog-picker");
+    const select = renderCatalogSelect(kind, button);
+    if (!select) {
+      return null;
+    }
+    wrap.appendChild(select);
+    return wrap;
+  }
+
+  // Render one select populated from a Premiere catalog.
+  function renderCatalogSelect(kind, button) {
     const options = [{ value: "", label: root.PTB_I18N.t("chooseFromPremiere") }];
     const source = kind === "transition"
       ? catalogs.videoTransitions
@@ -1350,12 +1369,12 @@
       return null;
     }
     source.forEach((item) => {
-      options.push({ value: item.matchName + "||" + item.displayName, label: item.displayName + (item.matchName ? " - " + item.matchName : "") });
+      options.push({ value: item.matchName + "||" + item.displayName, label: formatCatalogLabel(item) });
     });
     const label = kind === "transition"
       ? root.PTB_I18N.t("videoTransition")
       : (kind === "audioTransition" ? root.PTB_I18N.t("audioTransition") : root.PTB_I18N.t("nativeEffect"));
-    wrap.appendChild(selectField(label, "", options, (value) => {
+    return selectField(label, "", options, (value) => {
       if (!value) {
         return;
       }
@@ -1367,8 +1386,14 @@
         button.effect.displayName = parts[1] || parts[0];
       }
       saveAndRender(root.PTB_I18N.t("statusSaved"));
-    }));
-    return wrap;
+    });
+  }
+
+  // Avoid showing identical display and match names twice in catalog rows.
+  function formatCatalogLabel(item) {
+    const displayName = item.displayName || item.matchName || "";
+    const matchName = item.matchName || "";
+    return matchName && matchName !== displayName ? displayName + " - " + matchName : displayName;
   }
 
   // Render icon and color controls for the selected button.
@@ -1796,7 +1821,6 @@
   function renderLogsPanel() {
     const section = el("div", "ptb-logs-panel");
     const actions = el("div", "ptb-action-row");
-    actions.appendChild(actionButton(root.PTB_I18N.t("inspectSelectionMatchNames"), "ptb-button compact", async () => inspectSelectionMatchNames()));
     actions.appendChild(actionButton(root.PTB_I18N.t("copyLogs"), "ptb-button compact", async () => {
       await root.PTB_STORAGE.copyText(formatLogsForCopy());
       statusMessage = root.PTB_I18N.t("statusCopied");
@@ -1812,23 +1836,6 @@
     copyText.value = formatLogsForCopy();
     section.appendChild(copyText);
     return section;
-  }
-
-  // Ask Premiere for selected clip effect and transition match names, then write them to logs.
-  async function inspectSelectionMatchNames() {
-    await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
-      if (!root.PTB_PREMIERE || typeof root.PTB_PREMIERE.inspectSelectionMatchNames !== "function") {
-        throw new Error("Selection inspection is unavailable in this context.");
-      }
-      const result = await root.PTB_PREMIERE.inspectSelectionMatchNames();
-      statusMessage = root.PTB_I18N.t("statusInspected");
-      if (result) {
-        addInternalLog("info", "Selection inspection summary.", {
-          effects: result.effects ? result.effects.length : 0,
-          transitions: result.transitions ? result.transitions.length : 0
-        }, true);
-      }
-    });
   }
 
   // Convert logs to plain text that can be selected, copied, or pasted into a bug report.

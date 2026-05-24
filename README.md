@@ -71,7 +71,6 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Create audio transition buttons for crossfades such as `Constant Gain`, `Constant Power`, and `Exponential Fade` when the running Premiere build exposes audio-transition UXP methods.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
-- Use `Inspect Selection Match Names` in `Logs` to print selected clip effects and nearby transition match names.
 - Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
 - Export all collections or one collection, then import them later.
 
@@ -98,6 +97,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.1.40 - 2026-05-24
+
+- Removed the built-in match-name analyzer button from settings.
+- Improved transition picker labels and simplified audio transition selection.
+- Added edit-point video transition handling when a selected timeline edit point can be mapped to an adjacent clip.
 
 ### 0.1.37 - 2026-05-24
 

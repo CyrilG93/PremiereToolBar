@@ -230,7 +230,6 @@ assert.ok(settingsRoot.textContent.includes("Audio Transition"));
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
-assert.ok(settingsRoot.textContent.includes("Inspect Selection Match Names"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Preset"));
@@ -424,6 +423,92 @@ async function applyTransitionSmokeTest() {
 }
 
 await applyTransitionSmokeTest();
+
+// Verify a selected edit point applies the transition at that edit regardless of the button start/end mode.
+async function applyEditPointTransitionSmokeTest() {
+  const appliedStarts = [];
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const leftClip = {
+        getType: async () => 1,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ seconds: 5, ticks: "5" }),
+        getEndTime: async () => ({ seconds: 10, ticks: "10" }),
+        createAddVideoTransitionAction(transition, options) {
+          appliedStarts.push(options.applyToStart);
+          return { transition, options, clip: "left" };
+        }
+      };
+      const rightClip = {
+        getType: async () => 1,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ seconds: 10, ticks: "10" }),
+        getEndTime: async () => ({ seconds: 15, ticks: "15" }),
+        createAddVideoTransitionAction(transition, options) {
+          appliedStarts.push(options.applyToStart);
+          return { transition, options, clip: "right" };
+        }
+      };
+      const editPoint = {
+        getType: async () => 2,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ seconds: 10, ticks: "10" }),
+        getEndTime: async () => ({ seconds: 10.5, ticks: "10.5" })
+      };
+      return {
+        Constants: {
+          TrackItemType: {
+            CLIP: 1,
+            TRANSITION: 2
+          }
+        },
+        AddTransitionOptions: function AddTransitionOptions() {
+          this.setApplyToStart = (value) => { this.applyToStart = value; return this; };
+          this.setDuration = (value) => { this.duration = value; return this; };
+        },
+        TickTime: {
+          createWithSeconds: (seconds) => ({ seconds })
+        },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [editPoint]
+              }),
+              getVideoTrack: async () => ({
+                getTrackItems: async () => [leftClip, rightClip]
+              })
+            }),
+            executeTransaction: (handler) => {
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        TransitionFactory: {
+          createVideoTransition: async (matchName) => ({ matchName })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "transition",
+    transition: { matchName: "VideoTransition", applyTo: "end", durationSeconds: 0.5 }
+  }));
+  assert.deepEqual(appliedStarts, [true]);
+}
+
+await applyEditPointTransitionSmokeTest();
 
 // Verify audio transitions use the audio-specific Premiere APIs when the host exposes them.
 async function applyAudioTransitionSmokeTest() {
