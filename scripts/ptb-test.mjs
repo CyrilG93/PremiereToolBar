@@ -510,6 +510,90 @@ async function applyEditPointTransitionSmokeTest() {
 
 await applyEditPointTransitionSmokeTest();
 
+// Verify two selected adjacent video clips receive one centered transition at their shared cut only.
+async function applyAdjacentSelectedClipsTransitionSmokeTest() {
+  const applied = [];
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const leftClip = {
+        getType: async () => 1,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ seconds: 2, ticks: "2" }),
+        getEndTime: async () => ({ seconds: 5, ticks: "5" }),
+        createAddVideoTransitionAction(transition, options) {
+          applied.push({ clip: "left", applyToStart: options.applyToStart, alignment: options.transitionAlignment });
+          return { transition, options, clip: "left" };
+        }
+      };
+      const rightClip = {
+        getType: async () => 1,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ seconds: 5, ticks: "5" }),
+        getEndTime: async () => ({ seconds: 8, ticks: "8" }),
+        createAddVideoTransitionAction(transition, options) {
+          applied.push({
+            clip: "right",
+            applyToStart: options.applyToStart,
+            forceSingleSided: options.forceSingleSided,
+            alignment: options.transitionAlignment
+          });
+          return { transition, options, clip: "right" };
+        }
+      };
+      return {
+        Constants: {
+          TrackItemType: {
+            CLIP: 1,
+            TRANSITION: 2
+          }
+        },
+        AddTransitionOptions: function AddTransitionOptions() {
+          this.setApplyToStart = (value) => { this.applyToStart = value; return this; };
+          this.setForceSingleSided = (value) => { this.forceSingleSided = value; return this; };
+          this.setTransitionAlignment = (value) => { this.transitionAlignment = value; return this; };
+          this.setDuration = (value) => { this.duration = value; return this; };
+        },
+        TickTime: {
+          createWithSeconds: (seconds) => ({ seconds })
+        },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [leftClip, rightClip]
+              })
+            }),
+            executeTransaction: (handler) => {
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        TransitionFactory: {
+          createVideoTransition: async (matchName) => ({ matchName })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "transition",
+    transition: { matchName: "VideoTransition", applyTo: "both", durationSeconds: 0.5 }
+  }));
+  assert.deepEqual(applied, [{ clip: "right", applyToStart: true, forceSingleSided: false, alignment: 0 }]);
+}
+
+await applyAdjacentSelectedClipsTransitionSmokeTest();
+
 // Verify audio transitions use the audio-specific Premiere APIs when the host exposes them.
 async function applyAudioTransitionSmokeTest() {
   const appliedStarts = [];

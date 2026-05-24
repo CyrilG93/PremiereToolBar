@@ -98,6 +98,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.1.41 - 2026-05-24
+
+- Applied video transitions only once at the shared cut when two adjacent clips are selected.
+- Kept settings scroll position stable when toolbar buttons update status or logs.
+
 ### 0.1.40 - 2026-05-24
 
 - Removed the built-in match-name analyzer button from settings.

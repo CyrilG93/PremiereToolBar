@@ -456,6 +456,47 @@
     return targets;
   }
 
+  // Detect adjacent selected video clips and convert each shared cut into one centered transition target.
+  async function resolveSelectedAdjacentVideoClipTargets(items) {
+    const clips = [];
+    const targets = [];
+    const seen = {};
+    for (const item of items) {
+      if (!isVideoItem(item)) {
+        continue;
+      }
+      const info = await getTrackItemTiming(item);
+      info.item = item;
+      clips.push(info);
+    }
+    for (let leftIndex = 0; leftIndex < clips.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < clips.length; rightIndex += 1) {
+        const first = clips[leftIndex];
+        const second = clips[rightIndex];
+        const firstTrack = first.trackIndex;
+        const secondTrack = second.trackIndex;
+        if (typeof firstTrack === "number" && typeof secondTrack === "number" && firstTrack !== secondTrack) {
+          continue;
+        }
+        let target = null;
+        if (nearlyEqualTime(first.endNumber, second.startNumber)) {
+          target = { item: second.item, applyTo: "start", trackIndex: secondTrack, point: second.startNumber };
+        } else if (nearlyEqualTime(second.endNumber, first.startNumber)) {
+          target = { item: first.item, applyTo: "start", trackIndex: firstTrack, point: first.startNumber };
+        }
+        if (!target) {
+          continue;
+        }
+        const key = (typeof target.trackIndex === "number" ? target.trackIndex : "unknown") + "|" + target.point;
+        if (!seen[key]) {
+          seen[key] = true;
+          targets.push(target);
+        }
+      }
+    }
+    return targets;
+  }
+
   // Read every transition track item from all exposed tracks of one media kind.
   async function inspectAllTransitionsForMedia(app, sequence, mediaType) {
     const trackGetter = mediaType === "audio" ? "getAudioTrack" : "getVideoTrack";
@@ -713,7 +754,7 @@
   }
 
   // Create transition options using whichever constructor shape Premiere exposes.
-  function createTransitionOptions(app, button, applyTo) {
+  function createTransitionOptions(app, button, applyTo, overrides) {
     let options = null;
     try {
       options = new app.AddTransitionOptions();
@@ -737,10 +778,16 @@
       options.setApplyToStart(applyTo === "start");
     }
     if (typeof options.setForceSingleSided === "function") {
-      options.setForceSingleSided(Boolean(button.transition.forceSingleSided));
+      const forceSingleSided = overrides && Object.prototype.hasOwnProperty.call(overrides, "forceSingleSided")
+        ? overrides.forceSingleSided
+        : button.transition.forceSingleSided;
+      options.setForceSingleSided(Boolean(forceSingleSided));
     }
     if (typeof options.setTransitionAlignment === "function") {
-      options.setTransitionAlignment(Number(button.transition.alignment) || 0);
+      const alignment = overrides && Object.prototype.hasOwnProperty.call(overrides, "alignment")
+        ? overrides.alignment
+        : button.transition.alignment;
+      options.setTransitionAlignment(Number(alignment) || 0);
     }
     if (typeof options.setDuration === "function" && app.TickTime && app.TickTime.createWithSeconds) {
       options.setDuration(app.TickTime.createWithSeconds(Number(button.transition.durationSeconds) || 1));
@@ -752,6 +799,29 @@
       hasSetDuration: typeof options.setDuration === "function"
     });
     return options;
+  }
+
+  // Queue one video transition per detected edit point, keeping the cut-centered options consistent.
+  async function queueVideoEditPointTransitionActions(app, button, targets, actions, logLabel) {
+    for (const target of targets) {
+      if (!target.item || typeof target.item.createAddVideoTransitionAction !== "function") {
+        logBridge("warn", "Skipped edit-point target without createAddVideoTransitionAction.");
+        continue;
+      }
+      const transition = await createTransitionWithFallback(app, button.transition.matchName, target.applyTo, "video");
+      const options = createTransitionOptions(app, button, target.applyTo, {
+        forceSingleSided: false,
+        alignment: 0
+      });
+      actions.push(target.item.createAddVideoTransitionAction(transition, options));
+      logBridge("info", "Queued " + logLabel + " video transition action.", {
+        applyTo: target.applyTo,
+        trackIndex: target.trackIndex,
+        point: target.point,
+        hasOptions: Boolean(options),
+        actions: actions.length
+      });
+    }
   }
 
   // Apply a native transition to all selected compatible clips.
@@ -772,21 +842,19 @@
       const editPointTargets = await resolveSelectedVideoEditPointTargets(app, sequence, items);
       if (editPointTargets.length) {
         logBridge("info", "Applying transition to selected edit point.", { targets: editPointTargets.length });
-        for (const target of editPointTargets) {
-          const transition = await createTransitionWithFallback(app, button.transition.matchName, target.applyTo, mediaType);
-          const options = createTransitionOptions(app, button, target.applyTo);
-          actions.push(target.item.createAddVideoTransitionAction(transition, options));
-          logBridge("info", "Queued edit-point video transition action.", {
-            applyTo: target.applyTo,
-            trackIndex: target.trackIndex,
-            point: target.point,
-            hasOptions: Boolean(options),
-            actions: actions.length
-          });
-        }
+        await queueVideoEditPointTransitionActions(app, button, editPointTargets, actions, "edit-point");
         const result = executeActions(project, actions, "Tool Bar: " + button.label);
         await refreshSequenceView(sequence);
         logBridge("info", "Edit-point video transition command completed.", { actions: actions.length });
+        return result;
+      }
+      const adjacentClipTargets = await resolveSelectedAdjacentVideoClipTargets(items);
+      if (adjacentClipTargets.length) {
+        logBridge("info", "Applying transition to selected adjacent clip cut.", { targets: adjacentClipTargets.length });
+        await queueVideoEditPointTransitionActions(app, button, adjacentClipTargets, actions, "adjacent-clip");
+        const result = executeActions(project, actions, "Tool Bar: " + button.label);
+        await refreshSequenceView(sequence);
+        logBridge("info", "Adjacent-clip video transition command completed.", { actions: actions.length });
         return result;
       }
     }

@@ -668,9 +668,15 @@
 
   // Refresh every currently mounted UXP panel.
   function renderAll() {
+    const scrollStates = new Map();
     mountedPanels.forEach((panelId, rootNode) => {
       if (rootNode && rootNode.ownerDocument) {
-        renderPanel(rootNode, panelId, getPanelScrollState(rootNode));
+        scrollStates.set(rootNode, getPanelScrollState(rootNode));
+      }
+    });
+    mountedPanels.forEach((panelId, rootNode) => {
+      if (rootNode && rootNode.ownerDocument) {
+        renderPanel(rootNode, panelId, scrollStates.get(rootNode));
       }
     });
   }
@@ -678,29 +684,51 @@
   // Capture panel scroll positions before rebuilding UXP DOM nodes.
   function getPanelScrollState(rootNode) {
     const shell = rootNode && rootNode.querySelector ? rootNode.querySelector(".ptb-settings-shell") : null;
+    const doc = rootNode && rootNode.ownerDocument ? rootNode.ownerDocument : document;
+    const docEl = doc && doc.documentElement ? doc.documentElement : null;
+    const body = doc && doc.body ? doc.body : null;
     return {
       rootTop: rootNode && typeof rootNode.scrollTop === "number" ? rootNode.scrollTop : 0,
-      shellTop: shell && typeof shell.scrollTop === "number" ? shell.scrollTop : 0
+      rootLeft: rootNode && typeof rootNode.scrollLeft === "number" ? rootNode.scrollLeft : 0,
+      shellTop: shell && typeof shell.scrollTop === "number" ? shell.scrollTop : 0,
+      shellLeft: shell && typeof shell.scrollLeft === "number" ? shell.scrollLeft : 0,
+      documentTop: docEl && typeof docEl.scrollTop === "number" ? docEl.scrollTop : 0,
+      documentLeft: docEl && typeof docEl.scrollLeft === "number" ? docEl.scrollLeft : 0,
+      bodyTop: body && typeof body.scrollTop === "number" ? body.scrollTop : 0,
+      bodyLeft: body && typeof body.scrollLeft === "number" ? body.scrollLeft : 0
     };
   }
 
-  // Restore scroll after rendering logs so diagnostics do not jump to the top.
+  // Restore every known scroll container so toolbar clicks never pull settings back to the top.
   function restorePanelScrollState(rootNode, scrollState) {
     if (!scrollState) {
       return;
     }
     const restore = () => {
       const shell = rootNode && rootNode.querySelector ? rootNode.querySelector(".ptb-settings-shell") : null;
+      const doc = rootNode && rootNode.ownerDocument ? rootNode.ownerDocument : document;
+      const docEl = doc && doc.documentElement ? doc.documentElement : null;
+      const body = doc && doc.body ? doc.body : null;
       if (rootNode && typeof rootNode.scrollTop === "number") {
         rootNode.scrollTop = scrollState.rootTop || 0;
+        rootNode.scrollLeft = scrollState.rootLeft || 0;
       }
       if (shell && typeof shell.scrollTop === "number") {
         shell.scrollTop = scrollState.shellTop || 0;
+        shell.scrollLeft = scrollState.shellLeft || 0;
+      }
+      if (docEl && typeof docEl.scrollTop === "number") {
+        docEl.scrollTop = scrollState.documentTop || 0;
+        docEl.scrollLeft = scrollState.documentLeft || 0;
+      }
+      if (body && typeof body.scrollTop === "number") {
+        body.scrollTop = scrollState.bodyTop || 0;
+        body.scrollLeft = scrollState.bodyLeft || 0;
       }
     };
     restore();
     if (typeof setTimeout === "function") {
-      setTimeout(restore, 0);
+      [0, 50, 180].forEach((delay) => setTimeout(restore, delay));
     }
   }
 
@@ -2054,13 +2082,13 @@
     rootNode.ptbContext = context;
     document.body.ptbContext = context;
     mountedPanels.set(rootNode, panelId);
-    renderPanel(rootNode, panelId);
+    renderPanel(rootNode, panelId, getPanelScrollState(rootNode));
     if (typeof setTimeout === "function") {
       // Premiere can report a panel root before layout is stable; staged redraws fix the first UXP reflow.
       [0, 50, 180, 500].forEach((delay) => {
         setTimeout(() => {
           if (mountedPanels.get(rootNode) === panelId && rootNode.ownerDocument) {
-            renderPanel(rootNode, panelId);
+            renderPanel(rootNode, panelId, getPanelScrollState(rootNode));
           }
         }, delay);
       });
