@@ -143,7 +143,7 @@
       .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;max-height:190px;margin:0;overflow:auto}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
       .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-4px 0 0 #9fe3c1}.ptb-collection-member.drop-after{box-shadow:4px 0 0 #9fe3c1}.ptb-collection-member-list.drop-tail{box-shadow:inset -4px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
-      .ptb-logs-panel{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px}.ptb-log-copy-text{width:100%;min-height:82px;resize:vertical;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;color:var(--ptb-text);background:#101010;font-family:Consolas,monospace;font-size:11px;line-height:1.35;white-space:pre;overflow:auto}.ptb-log-list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-log-entry{display:flex;flex-direction:column;gap:4px;min-width:0;border-bottom:1px solid rgba(255,255,255,.08);padding:6px;color:var(--ptb-text);line-height:1.35}.ptb-log-meta{display:flex;gap:8px;color:var(--ptb-muted);font-size:10px;font-weight:800;text-transform:uppercase}.ptb-log-entry.error .ptb-log-level{color:#ff9aa2}.ptb-log-entry.warn .ptb-log-level{color:#ffd166}.ptb-log-entry.info .ptb-log-level{color:#79c8ff}.ptb-log-message,.ptb-log-details{overflow-wrap:anywhere;line-height:1.35}.ptb-log-details{color:var(--ptb-muted);font-size:11px}
+      .ptb-logs-panel{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px}.ptb-log-copy-text{width:100%;min-height:118px;resize:vertical;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;color:var(--ptb-text);background:#101010;font-family:Consolas,monospace;font-size:11px;line-height:1.35;white-space:pre;overflow:auto}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
       if (document.head) {
@@ -311,31 +311,7 @@
       setStyles(node, { display: "flex", flexDirection: "column", gap: "8px", minWidth: "0", padding: "12px" });
     }
     if (tokens.includes("ptb-log-copy-text")) {
-      setStyles(node, { width: "100%", minHeight: "82px", resize: "vertical", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", color: "var(--ptb-text)", background: "#101010", fontFamily: "Consolas, monospace", fontSize: "11px", lineHeight: "1.35", whiteSpace: "pre", overflow: "auto" });
-    }
-    if (tokens.includes("ptb-log-list")) {
-      setStyles(node, { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "190px", overflow: "auto", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", background: "#181818" });
-    }
-    if (tokens.includes("ptb-log-entry")) {
-      setStyles(node, { display: "flex", flexDirection: "column", gap: "4px", minWidth: "0", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "6px", color: "var(--ptb-text)", lineHeight: "1.35" });
-    }
-    if (tokens.includes("ptb-log-meta")) {
-      setStyles(node, { display: "flex", gap: "8px", color: "var(--ptb-muted)", fontSize: "10px", fontWeight: "800", textTransform: "uppercase" });
-    }
-    if (tokens.includes("ptb-log-level") && tokens.includes("error")) {
-      setStyles(node, { color: "#ff9aa2" });
-    }
-    if (tokens.includes("ptb-log-level") && tokens.includes("warn")) {
-      setStyles(node, { color: "#ffd166" });
-    }
-    if (tokens.includes("ptb-log-level") && tokens.includes("info")) {
-      setStyles(node, { color: "#79c8ff" });
-    }
-    if (tokens.includes("ptb-log-message") || tokens.includes("ptb-log-details")) {
-      setStyles(node, { overflowWrap: "anywhere", lineHeight: "1.35" });
-    }
-    if (tokens.includes("ptb-log-details")) {
-      setStyles(node, { color: "var(--ptb-muted)", fontSize: "11px" });
+      setStyles(node, { width: "100%", minHeight: "118px", resize: "vertical", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", color: "var(--ptb-text)", background: "#101010", fontFamily: "Consolas, monospace", fontSize: "11px", lineHeight: "1.35", whiteSpace: "pre", overflow: "auto" });
     }
     if (tokens.includes("ptb-form-grid")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "10px", minWidth: "0" });
@@ -1764,23 +1740,6 @@
     copyText.readOnly = true;
     copyText.value = formatLogsForCopy();
     section.appendChild(copyText);
-    const list = el("div", "ptb-log-list");
-    if (!internalLogs.length) {
-      list.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("noLogs")));
-    }
-    internalLogs.forEach((entry) => {
-      const row = el("div", "ptb-log-entry " + entry.level);
-      const meta = el("div", "ptb-log-meta");
-      meta.appendChild(el("span", "ptb-log-time", entry.time));
-      meta.appendChild(el("span", "ptb-log-level " + entry.level, entry.level));
-      row.appendChild(meta);
-      row.appendChild(el("div", "ptb-log-message", entry.message));
-      if (entry.details) {
-        row.appendChild(el("div", "ptb-log-details", entry.details));
-      }
-      list.appendChild(row);
-    });
-    section.appendChild(list);
     return section;
   }
 
@@ -2001,8 +1960,14 @@
     mountedPanels.set(rootNode, panelId);
     renderPanel(rootNode, panelId);
     if (typeof setTimeout === "function") {
-      // Premiere can report a panel root before layout is stable; redraw once after it settles.
-      setTimeout(() => renderPanel(rootNode, panelId), 0);
+      // Premiere can report a panel root before layout is stable; staged redraws fix the first UXP reflow.
+      [0, 50, 180, 500].forEach((delay) => {
+        setTimeout(() => {
+          if (mountedPanels.get(rootNode) === panelId && rootNode.ownerDocument) {
+            renderPanel(rootNode, panelId);
+          }
+        }, delay);
+      });
     }
   }
 

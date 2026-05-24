@@ -97,6 +97,13 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.1.34 - 2026-05-24
+
+- Kept only the copyable log view in settings.
+- Added staged redraws when opening settings to avoid the occasional broken first layout.
+- Retried video transitions with close Premiere match-name suggestions, such as `AE.ADBE Dip To White`.
+- Improved empty captured-preset errors so they no longer look like clip-selection failures.
+
 ### 0.1.33 - 2026-05-24
 
 - Made logs read from oldest to newest and added a selectable text copy area.

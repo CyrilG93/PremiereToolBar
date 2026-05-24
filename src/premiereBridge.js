@@ -39,13 +39,55 @@
     try {
       const expected = String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
       const matchNames = await app.TransitionFactory.getVideoTransitionMatchNames();
-      return matchNames.filter((matchName) => {
+      const suggestions = matchNames.filter((matchName) => {
         const normalized = String(matchName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
         return normalized.includes(expected) || expected.includes(normalized);
-      }).slice(0, 12);
+      });
+      suggestions.sort((left, right) => {
+        const normalizedLeft = String(left || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const normalizedRight = String(right || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const leftExact = normalizedLeft.endsWith(expected) ? 0 : 1;
+        const rightExact = normalizedRight.endsWith(expected) ? 0 : 1;
+        return leftExact - rightExact || normalizedLeft.length - normalizedRight.length;
+      });
+      return suggestions.slice(0, 12);
     } catch (error) {
       logBridge("warn", "Could not read transition match name catalog.", describeBridgeError(error));
       return [];
+    }
+  }
+
+  // Create a transition from the stored value, then retry close catalog match names when the value was a display name.
+  async function createVideoTransitionWithFallback(app, matchName, applyTo) {
+    try {
+      const transition = await app.TransitionFactory.createVideoTransition(matchName);
+      logBridge("info", "Created video transition.", { matchName, applyTo });
+      return transition;
+    } catch (error) {
+      const suggestions = await findTransitionMatchNameSuggestions(app, matchName);
+      logBridge("warn", "Video transition creation failed; trying catalog suggestions.", {
+        matchName,
+        error: describeBridgeError(error),
+        suggestions: suggestions.length ? suggestions : "No close match names found in Premiere's transition catalog."
+      });
+      for (const suggestion of suggestions) {
+        if (suggestion === matchName) {
+          continue;
+        }
+        try {
+          const transition = await app.TransitionFactory.createVideoTransition(suggestion);
+          logBridge("info", "Created video transition from suggested match name.", { original: matchName, matchName: suggestion, applyTo });
+          return transition;
+        } catch (nestedError) {
+          logBridge("warn", "Suggested transition match name failed.", { matchName: suggestion, error: describeBridgeError(nestedError) });
+        }
+      }
+      logBridge("error", "Video transition creation failed.", {
+        matchName,
+        error: describeBridgeError(error),
+        suggestions: suggestions.length ? suggestions : "No close match names found in Premiere's transition catalog."
+      });
+      throw error;
     }
   }
 
@@ -289,19 +331,7 @@
     for (const item of items) {
       if (isVideoItem(item)) {
         for (const applyTo of applyTargets) {
-          let transition = null;
-          try {
-            transition = await app.TransitionFactory.createVideoTransition(button.transition.matchName);
-            logBridge("info", "Created video transition.", { matchName: button.transition.matchName, applyTo });
-          } catch (error) {
-            const suggestions = await findTransitionMatchNameSuggestions(app, button.transition.matchName);
-            logBridge("error", "Video transition creation failed.", {
-              matchName: button.transition.matchName,
-              error: describeBridgeError(error),
-              suggestions: suggestions.length ? suggestions : "No close match names found in Premiere's transition catalog."
-            });
-            throw error;
-          }
+          const transition = await createVideoTransitionWithFallback(app, button.transition.matchName, applyTo);
           const options = createTransitionOptions(app, button, applyTo);
           actions.push(item.createAddVideoTransitionAction(transition, options));
           logBridge("info", "Queued video transition action.", { applyTo, hasOptions: Boolean(options), actions: actions.length });
@@ -321,6 +351,9 @@
     const { app, project, sequence, items } = await getSelectedItems();
     const stack = root.PTB_SCHEMA.normalizeStack(button.stack);
     const actions = [];
+    if (!stack.components.length) {
+      throw new Error(root.PTB_I18N.t("noPresetCaptured"));
+    }
     for (const item of items) {
       let appendOffset = 0;
       for (const componentSnapshot of stack.components) {
