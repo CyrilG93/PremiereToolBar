@@ -670,9 +670,38 @@
   function renderAll() {
     mountedPanels.forEach((panelId, rootNode) => {
       if (rootNode && rootNode.ownerDocument) {
-        renderPanel(rootNode, panelId);
+        renderPanel(rootNode, panelId, getPanelScrollState(rootNode));
       }
     });
+  }
+
+  // Capture panel scroll positions before rebuilding UXP DOM nodes.
+  function getPanelScrollState(rootNode) {
+    const shell = rootNode && rootNode.querySelector ? rootNode.querySelector(".ptb-settings-shell") : null;
+    return {
+      rootTop: rootNode && typeof rootNode.scrollTop === "number" ? rootNode.scrollTop : 0,
+      shellTop: shell && typeof shell.scrollTop === "number" ? shell.scrollTop : 0
+    };
+  }
+
+  // Restore scroll after rendering logs so diagnostics do not jump to the top.
+  function restorePanelScrollState(rootNode, scrollState) {
+    if (!scrollState) {
+      return;
+    }
+    const restore = () => {
+      const shell = rootNode && rootNode.querySelector ? rootNode.querySelector(".ptb-settings-shell") : null;
+      if (rootNode && typeof rootNode.scrollTop === "number") {
+        rootNode.scrollTop = scrollState.rootTop || 0;
+      }
+      if (shell && typeof shell.scrollTop === "number") {
+        shell.scrollTop = scrollState.shellTop || 0;
+      }
+    };
+    restore();
+    if (typeof setTimeout === "function") {
+      setTimeout(restore, 0);
+    }
   }
 
   // Keep every dockable bar on the same compact horizontal layout.
@@ -926,18 +955,20 @@
   }
 
   // Render either a compact toolbar or the settings UI.
-  function renderPanel(rootNode, panelId) {
+  function renderPanel(rootNode, panelId, scrollState) {
     rootNode.innerHTML = "";
     ensureHeadStyles();
     try {
       if (panelId === "ptb-settings") {
         renderSettingsPanel(rootNode);
+        restorePanelScrollState(rootNode, scrollState);
         return;
       }
       renderBarPanel(rootNode, panelId);
     } catch (error) {
       rootNode.appendChild(renderErrorPanel(error));
     }
+    restorePanelScrollState(rootNode, scrollState);
   }
 
   // Render one compact dockable toolbar panel.

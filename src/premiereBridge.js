@@ -167,6 +167,94 @@
     return fallback;
   }
 
+  // Read a plain property from UXP objects when methods are unavailable or return empty values.
+  function readOptionalProperty(target, propertyName, fallback) {
+    try {
+      if (target && target[propertyName] !== undefined) {
+        return target[propertyName];
+      }
+    } catch (error) {
+      logBridge("warn", "Could not read property " + propertyName + ".", describeBridgeError(error));
+    }
+    return fallback;
+  }
+
+  // Prefer method values, then fallback to object properties with the same semantic meaning.
+  async function readMethodOrProperty(target, methodName, propertyName, fallback) {
+    const methodValue = await readOptionalMethod(target, methodName, undefined);
+    if (methodValue !== undefined && methodValue !== null && methodValue !== "") {
+      return methodValue;
+    }
+    return readOptionalProperty(target, propertyName, fallback);
+  }
+
+  // Return a compact list of callable names exposed by an opaque UXP object.
+  function listObjectMethods(target) {
+    const methods = [];
+    try {
+      let current = target;
+      let depth = 0;
+      while (current && depth < 4) {
+        Object.getOwnPropertyNames(current).forEach((name) => {
+          try {
+            if (typeof target[name] === "function" && !methods.includes(name)) {
+              methods.push(name);
+            }
+          } catch (error) {
+            // Some UXP proxies throw when a property is touched; skip those names.
+          }
+        });
+        current = Object.getPrototypeOf(current);
+        depth += 1;
+      }
+    } catch (error) {
+      return ["<method listing failed: " + describeBridgeError(error) + ">"];
+    }
+    return methods.sort().slice(0, 80);
+  }
+
+  // Return visible property keys and primitive values from an opaque UXP object.
+  function inspectObjectShape(target) {
+    const shape = {
+      constructorName: "",
+      ownKeys: [],
+      enumerableKeys: [],
+      methods: [],
+      primitiveProperties: {}
+    };
+    if (!target) {
+      return shape;
+    }
+    try {
+      shape.constructorName = target.constructor && target.constructor.name ? target.constructor.name : "";
+    } catch (error) {
+      shape.constructorName = "<unavailable>";
+    }
+    try {
+      shape.ownKeys = Object.getOwnPropertyNames(target).slice(0, 80);
+    } catch (error) {
+      shape.ownKeys = ["<own keys failed: " + describeBridgeError(error) + ">"];
+    }
+    try {
+      shape.enumerableKeys = Object.keys(target).slice(0, 80);
+    } catch (error) {
+      shape.enumerableKeys = ["<enumerable keys failed: " + describeBridgeError(error) + ">"];
+    }
+    shape.methods = listObjectMethods(target);
+    const propertyNames = shape.ownKeys.concat(shape.enumerableKeys).filter((name, index, list) => name && list.indexOf(name) === index);
+    propertyNames.forEach((name) => {
+      try {
+        const value = target[name];
+        if (value === null || ["string", "number", "boolean"].includes(typeof value)) {
+          shape.primitiveProperties[name] = value;
+        }
+      } catch (error) {
+        shape.primitiveProperties[name] = "<read failed>";
+      }
+    });
+    return shape;
+  }
+
   // Convert Premiere TickTime-like objects into compact diagnostic data.
   function describeTickTime(time) {
     if (!time) {
@@ -190,18 +278,19 @@
 
   // Read the fields common to clips and transition track items.
   async function inspectTrackItemIdentity(item, index, mediaType, role) {
-    const startTime = await readOptionalMethod(item, "getStartTime", null);
-    const endTime = await readOptionalMethod(item, "getEndTime", null);
+    const startTime = await readMethodOrProperty(item, "getStartTime", "startTime", null);
+    const endTime = await readMethodOrProperty(item, "getEndTime", "endTime", null);
     return {
       index,
       role,
       mediaType,
-      name: await readOptionalMethod(item, "getName", ""),
-      matchName: await readOptionalMethod(item, "getMatchName", ""),
-      type: await readOptionalMethod(item, "getType", null),
-      trackIndex: await readOptionalMethod(item, "getTrackIndex", null),
+      name: await readMethodOrProperty(item, "getName", "name", ""),
+      matchName: await readMethodOrProperty(item, "getMatchName", "matchName", ""),
+      type: await readMethodOrProperty(item, "getType", "type", null),
+      trackIndex: await readMethodOrProperty(item, "getTrackIndex", "trackIndex", null),
       start: describeTickTime(startTime),
       end: describeTickTime(endTime),
+      objectShape: role === "trackTransition" ? inspectObjectShape(item) : undefined,
       _startNumber: timeToNumber(startTime),
       _endNumber: timeToNumber(endTime)
     };

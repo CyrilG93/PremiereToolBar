@@ -103,6 +103,8 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 - Added `Inspect Selection Match Names` to log selected clip effect match names and nearby transition match names.
 - Expanded transition diagnostics to scan all exposed video and audio tracks when no nearby transition is found.
+- Added raw object-shape diagnostics for transition objects that do not expose normal match-name methods.
+- Kept the settings scroll position stable when logs refresh after an inspection.
 
 ### 0.1.36 - 2026-05-24
 
