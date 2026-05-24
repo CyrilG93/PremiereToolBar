@@ -96,6 +96,12 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.1.29 - 2026-05-24
+
+- Improved icon recoloring by tinting the loaded PNG element through canvas.
+- Changed effect insertion to target Premiere's reverse component-chain order.
+- Increased the preferred Tool Bar Settings panel size for floating and docked openings.
+
 ### 0.1.28 - 2026-05-23
 
 - Added the same automatic update backup flow to the macOS installer.

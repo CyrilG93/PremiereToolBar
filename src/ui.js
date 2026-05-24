@@ -457,10 +457,9 @@
     return /^#[0-9a-f]{6}$/i.test(button && button.iconColor || "") ? button.iconColor : "#f0f0f0";
   }
 
-  // Recolor a PNG through canvas because Premiere UXP can ignore CSS filters on img tags.
-  function tintIconWithCanvas(img, source, color) {
-    const imageCtor = root.Image || (root.window && root.window.Image);
-    if (!imageCtor || !document || typeof document.createElement !== "function") {
+  // Recolor a loaded PNG through canvas because Premiere UXP can ignore CSS filters on img tags.
+  function tintLoadedIconWithCanvas(img, source, color) {
+    if (!document || typeof document.createElement !== "function") {
       return;
     }
     const cacheKey = source + "|" + color.toLowerCase();
@@ -468,39 +467,35 @@
       img.src = tintedIconCache[cacheKey];
       return;
     }
-    const image = new imageCtor();
-    image.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        const width = image.naturalWidth || image.width || 22;
-        const height = image.naturalHeight || image.height || 22;
-        canvas.width = width;
-        canvas.height = height;
-        if (typeof canvas.getContext !== "function") {
-          return;
-        }
-        const context = canvas.getContext("2d");
-        context.drawImage(image, 0, 0, width, height);
-        const pixels = context.getImageData(0, 0, width, height);
-        const red = parseInt(color.slice(1, 3), 16);
-        const green = parseInt(color.slice(3, 5), 16);
-        const blue = parseInt(color.slice(5, 7), 16);
-        for (let index = 0; index < pixels.data.length; index += 4) {
-          if (pixels.data[index + 3] > 0) {
-            pixels.data[index] = red;
-            pixels.data[index + 1] = green;
-            pixels.data[index + 2] = blue;
-          }
-        }
-        context.putImageData(pixels, 0, 0);
-        const tintedSource = canvas.toDataURL("image/png");
-        tintedIconCache[cacheKey] = tintedSource;
-        img.src = tintedSource;
-      } catch (error) {
-        // Keep the original icon visible when the host blocks canvas pixel access.
+    try {
+      const canvas = document.createElement("canvas");
+      const width = img.naturalWidth || img.width || 100;
+      const height = img.naturalHeight || img.height || 100;
+      canvas.width = width;
+      canvas.height = height;
+      if (typeof canvas.getContext !== "function") {
+        return;
       }
-    };
-    image.src = source;
+      const context = canvas.getContext("2d");
+      context.drawImage(img, 0, 0, width, height);
+      const pixels = context.getImageData(0, 0, width, height);
+      const red = parseInt(color.slice(1, 3), 16);
+      const green = parseInt(color.slice(3, 5), 16);
+      const blue = parseInt(color.slice(5, 7), 16);
+      for (let index = 0; index < pixels.data.length; index += 4) {
+        if (pixels.data[index + 3] > 0) {
+          pixels.data[index] = red;
+          pixels.data[index + 1] = green;
+          pixels.data[index + 2] = blue;
+        }
+      }
+      context.putImageData(pixels, 0, 0);
+      const tintedSource = canvas.toDataURL("image/png");
+      tintedIconCache[cacheKey] = tintedSource;
+      img.src = tintedSource;
+    } catch (error) {
+      // Keep the original icon visible when the host blocks canvas pixel access.
+    }
   }
 
   // Create an icon image with CSS and canvas tinting fallbacks.
@@ -508,12 +503,15 @@
     const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f0f0f0";
     const source = root.PTB_ICON_LIBRARY.getIconSrc(iconId);
     const img = el("img", "ptb-image-icon");
-    img.src = source;
     img.alt = title || "";
     img.title = title || "";
     const filter = root.PTB_ICON_LIBRARY.getIconFilter(safeColor);
-    setStyles(img, { filter, webkitFilter: filter, opacity: "1", background: "transparent" });
-    tintIconWithCanvas(img, source, safeColor);
+    setStyles(img, { color: safeColor, filter, webkitFilter: filter, opacity: "1", background: "transparent" });
+    img.addEventListener("load", () => tintLoadedIconWithCanvas(img, source, safeColor));
+    img.src = source;
+    if (img.complete) {
+      tintLoadedIconWithCanvas(img, source, safeColor);
+    }
     return img;
   }
 
@@ -877,6 +875,7 @@
     toolButton.title = getButtonName(button);
     toolButton.style.background = button.accentColor || "#2b3037";
     toolButton.style.backgroundColor = button.accentColor || "#2b3037";
+    toolButton.style.color = button.iconColor || "#f0f0f0";
     toolButton.style.borderColor = button.iconColor || "rgba(255,255,255,0.12)";
     toolButton.appendChild(renderButtonFaceElement(button));
     return toolButton;

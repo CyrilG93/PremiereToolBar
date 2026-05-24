@@ -301,7 +301,7 @@ async function capturePresetSmokeTest() {
 
 await capturePresetSmokeTest();
 
-// Verify effect buttons use Premiere's native append action for the bottom of the component chain.
+// Verify effect buttons target Premiere's reverse UI order so they appear at the bottom.
 async function applyEffectOrderSmokeTest() {
   let appended = false;
   let insertedIndex = -1;
@@ -353,8 +353,8 @@ async function applyEffectOrderSmokeTest() {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
   await context.PTB_PREMIERE.applyButton(schema.createButton({ actionType: "effect", effect: { matchName: "AE.ADBE Mosaic", displayName: "Mosaic" } }));
-  assert.equal(appended, true);
-  assert.equal(insertedIndex, -1);
+  assert.equal(appended, false);
+  assert.equal(insertedIndex, 0);
 }
 
 await applyEffectOrderSmokeTest();

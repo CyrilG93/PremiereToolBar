@@ -121,13 +121,13 @@
     return executeActions(project, actions, "Tool Bar: " + button.label);
   }
 
-  // Prefer Premiere's native append action so new effects land after existing user effects.
+  // Insert at index 0 because Premiere displays the component chain in reverse UI order.
   function createNaturalAppendComponentAction(chain, component, offset) {
+    if (chain && typeof chain.createInsertComponentAction === "function" && typeof chain.getComponentCount === "function") {
+      return chain.createInsertComponentAction(component, Number(offset) || 0);
+    }
     if (chain && typeof chain.createAppendComponentAction === "function") {
       return chain.createAppendComponentAction(component);
-    }
-    if (chain && typeof chain.createInsertComponentAction === "function" && typeof chain.getComponentCount === "function") {
-      return chain.createInsertComponentAction(component, chain.getComponentCount() + (Number(offset) || 0));
     }
     throw new Error("Selected clip does not expose a Premiere component append action.");
   }
