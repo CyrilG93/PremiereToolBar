@@ -898,11 +898,6 @@ button {
   font-weight: 900;
 }
 
-.ptb-icon-button,
-.ptb-icon-choice {
-  background: #f6f7f8;
-}
-
 .ptb-popover {
   display: flex;
   flex-direction: column;
@@ -921,7 +916,9 @@ button {
 
 .ptb-icon-popover {
   width: 100%;
+  max-height: 190px;
   margin: 0;
+  overflow: auto;
 }
 
 .ptb-color-grid,
@@ -948,7 +945,6 @@ button {
 .ptb-icon-choice {
   width: 42px;
   height: 42px;
-  background: #f6f7f8;
 }
 
 .ptb-color-choice.active,

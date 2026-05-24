@@ -359,5 +359,68 @@ async function applyEffectOrderSmokeTest() {
 
 await applyEffectOrderSmokeTest();
 
+// Verify transitions can target both clip edges and nudge the timeline refresh.
+async function applyTransitionSmokeTest() {
+  const appliedStarts = [];
+  let playerPositionSet = false;
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const item = {
+        createAddVideoTransitionAction(transition, options) {
+          appliedStarts.push(options.applyToStart);
+          return { transition, options };
+        }
+      };
+      return {
+        AddTransitionOptions: function AddTransitionOptions() {
+          this.setApplyToStart = (value) => { this.applyToStart = value; return this; };
+          this.setForceSingleSided = (value) => { this.forceSingleSided = value; return this; };
+          this.setTransitionAlignment = (value) => { this.transitionAlignment = value; return this; };
+          this.setDuration = (value) => { this.duration = value; return this; };
+        },
+        TickTime: {
+          createWithSeconds: (seconds) => ({ seconds })
+        },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getPlayerPosition: () => ({ ticks: "0" }),
+              setPlayerPosition: () => { playerPositionSet = true; },
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        TransitionFactory: {
+          createVideoTransition: async (matchName) => ({ matchName })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "transition",
+    transition: { matchName: "VideoTransition", applyTo: "both", durationSeconds: 0.5 }
+  }));
+  assert.deepEqual(appliedStarts, [true, false]);
+  assert.equal(playerPositionSet, true);
+}
+
+await applyTransitionSmokeTest();
+
 // Report success for CI and local verification.
 console.log("ptb:test passed");

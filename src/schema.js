@@ -67,7 +67,7 @@
       },
       transition: {
         matchName: safeString(input.transition && input.transition.matchName, input.transitionMatchName || ""),
-        applyTo: input.transition && input.transition.applyTo === "start" ? "start" : "end",
+        applyTo: input.transition && ["start", "end", "both"].includes(input.transition.applyTo) ? input.transition.applyTo : "end",
         durationSeconds: safeNumber(input.transition && input.transition.durationSeconds, 1, 0.01, 30),
         forceSingleSided: Boolean(input.transition && input.transition.forceSingleSided),
         alignment: safeNumber(input.transition && input.transition.alignment, 0, -2, 2)

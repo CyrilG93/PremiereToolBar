@@ -61,6 +61,17 @@
     }, undoName || "Tool Bar");
   }
 
+  // Nudge the timeline viewer so Premiere paints async UXP changes without waiting for user movement.
+  async function refreshSequenceView(sequence) {
+    try {
+      if (sequence && typeof sequence.getPlayerPosition === "function" && typeof sequence.setPlayerPosition === "function") {
+        sequence.setPlayerPosition(sequence.getPlayerPosition());
+      }
+    } catch (error) {
+      // A repaint nudge is best-effort and should never make the button action fail.
+    }
+  }
+
   // Load available Premiere effect and transition names for the settings UI.
   async function loadCatalogs() {
     const app = getPremiere();
@@ -104,7 +115,7 @@
 
   // Apply a native audio or video effect to all compatible selected clips.
   async function applyEffectButton(button) {
-    const { app, project, items } = await getSelectedItems();
+    const { app, project, sequence, items } = await getSelectedItems();
     const actions = [];
     for (const item of items) {
       if (button.mediaType === "video" && isVideoItem(item)) {
@@ -118,7 +129,9 @@
         actions.push(createNaturalAppendComponentAction(chain, component));
       }
     }
-    return executeActions(project, actions, "Tool Bar: " + button.label);
+    const result = executeActions(project, actions, "Tool Bar: " + button.label);
+    await refreshSequenceView(sequence);
+    return result;
   }
 
   // Insert at index 0 because Premiere displays the component chain in reverse UI order.
@@ -186,7 +199,7 @@
   }
 
   // Create transition options using whichever constructor shape Premiere exposes.
-  function createTransitionOptions(app, button) {
+  function createTransitionOptions(app, button, applyTo) {
     let options = null;
     try {
       options = new app.AddTransitionOptions();
@@ -201,7 +214,7 @@
       return null;
     }
     if (typeof options.setApplyToStart === "function") {
-      options.setApplyToStart(button.transition.applyTo === "start");
+      options.setApplyToStart(applyTo === "start");
     }
     if (typeof options.setForceSingleSided === "function") {
       options.setForceSingleSided(Boolean(button.transition.forceSingleSided));
@@ -217,21 +230,29 @@
 
   // Apply a native video transition to all selected video clips.
   async function applyTransitionButton(button) {
-    const { app, project, items } = await getSelectedItems();
+    const { app, project, sequence, items } = await getSelectedItems();
     const actions = [];
+    if (!button.transition.matchName) {
+      throw new Error("Choose a Premiere video transition first.");
+    }
+    const applyTargets = button.transition.applyTo === "both" ? ["start", "end"] : [button.transition.applyTo || "end"];
     for (const item of items) {
       if (isVideoItem(item)) {
-        const transition = app.TransitionFactory.createVideoTransition(button.transition.matchName);
-        const options = createTransitionOptions(app, button);
-        actions.push(item.createAddVideoTransitionAction(transition, options || undefined));
+        for (const applyTo of applyTargets) {
+          const transition = await app.TransitionFactory.createVideoTransition(button.transition.matchName);
+          const options = createTransitionOptions(app, button, applyTo);
+          actions.push(item.createAddVideoTransitionAction(transition, options));
+        }
       }
     }
-    return executeActions(project, actions, "Tool Bar: " + button.label);
+    const result = executeActions(project, actions, "Tool Bar: " + button.label);
+    await refreshSequenceView(sequence);
+    return result;
   }
 
   // Apply a captured Tool Bar preset made from exposed effects and parameter values.
   async function applyPresetButton(button) {
-    const { app, project, items } = await getSelectedItems();
+    const { app, project, sequence, items } = await getSelectedItems();
     const stack = root.PTB_SCHEMA.normalizeStack(button.stack);
     const actions = [];
     for (const item of items) {
@@ -253,7 +274,9 @@
         }
       }
     }
-    return executeActions(project, actions, "Tool Bar: " + button.label);
+    const result = executeActions(project, actions, "Tool Bar: " + button.label);
+    await refreshSequenceView(sequence);
+    return result;
   }
 
   // Convert a serialized value back into a Premiere-compatible parameter value.

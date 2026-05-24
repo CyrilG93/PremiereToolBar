@@ -76,7 +76,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 
 Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. It also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. The preset name is stored in the button settings. Some third-party effects or protected parameters may not expose all values to UXP.
+Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Native video transitions can be applied by match name. Some third-party effects or protected parameters may not expose all values to UXP.
 
 ## Development
 
@@ -95,6 +95,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG` so `Icon Color` can recolor icons through `currentColor`.
 
 ## Changelog
+
+### 0.1.31 - 2026-05-24
+
+- Loaded the expanded SVG icon pack and kept the icon picker scrollable.
+- Removed icon-color borders from toolbar and collection buttons.
+- Added clip start plus end transition placement and a timeline repaint nudge after applying actions.
 
 ### 0.1.30 - 2026-05-24
 

@@ -76,7 +76,7 @@
       .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
       .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:flex;flex-direction:column;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text strong{font-weight:900}.ptb-button-card-text small{color:var(--ptb-muted)}
       .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
-      .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-icon-button,.ptb-icon-choice{background:#f6f7f8}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;margin:0}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px;background:#f6f7f8}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
+      .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;max-height:190px;margin:0;overflow:auto}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
       .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-4px 0 0 #9fe3c1}.ptb-collection-member.drop-after{box-shadow:4px 0 0 #9fe3c1}.ptb-collection-member-list.drop-tail{box-shadow:inset -4px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
@@ -273,13 +273,13 @@
       setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "42px", height: "42px", border: "1px solid var(--ptb-line)", borderRadius: "7px", padding: "0", background: "transparent", cursor: "pointer" });
     }
     if (tokens.includes("ptb-icon-button")) {
-      setStyles(node, { background: "#f6f7f8", backgroundColor: "#f6f7f8" });
+      setStyles(node, { background: "var(--ptb-panel-soft)", backgroundColor: "var(--ptb-panel-soft)" });
     }
     if (tokens.includes("ptb-popover")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "8px", width: "190px", marginTop: "2px", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", background: "#181818" });
     }
     if (tokens.includes("ptb-icon-popover")) {
-      setStyles(node, { width: "100%", margin: "0" });
+      setStyles(node, { width: "100%", maxHeight: "190px", margin: "0", overflow: "auto" });
     }
     if (tokens.includes("ptb-color-grid") || tokens.includes("ptb-icon-grid")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "5px" });
@@ -288,7 +288,7 @@
       setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", border: "1px solid var(--ptb-line)", borderRadius: "6px", padding: "0", background: "transparent", cursor: "pointer" });
     }
     if (tokens.includes("ptb-icon-choice")) {
-      setStyles(node, { width: "42px", height: "42px", background: "#f6f7f8", backgroundColor: "#f6f7f8" });
+      setStyles(node, { width: "42px", height: "42px", background: "var(--ptb-panel-soft)", backgroundColor: "var(--ptb-panel-soft)" });
     }
     if (tokens.includes("ptb-color-input")) {
       setStyles(node, { width: "92px", maxWidth: "92px" });
@@ -687,9 +687,9 @@
       renderAll();
     });
     preview.title = root.PTB_I18N.t("icon");
-    preview.style.background = "#f6f7f8";
-    preview.style.backgroundColor = "#f6f7f8";
-    preview.style.borderColor = button.iconColor || "var(--ptb-line)";
+    preview.style.background = button.accentColor || "#2b3037";
+    preview.style.backgroundColor = button.accentColor || "#2b3037";
+    preview.style.borderColor = "var(--ptb-line)";
     preview.appendChild(createIconImage(button.icon, button.iconColor, getButtonName(button)));
     row.appendChild(preview);
     wrap.appendChild(row);
@@ -711,6 +711,8 @@
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       item.title = icon.label;
+      item.style.background = button.accentColor || "#2b3037";
+      item.style.backgroundColor = button.accentColor || "#2b3037";
       item.appendChild(createIconImage(icon.id, button.iconColor, icon.label));
       grid.appendChild(item);
     });
@@ -830,7 +832,7 @@
     toolButton.style.background = button.accentColor || "#2b3037";
     toolButton.style.backgroundColor = button.accentColor || "#2b3037";
     toolButton.style.color = button.iconColor || "#f0f0f0";
-    toolButton.style.borderColor = button.iconColor || "rgba(255,255,255,0.12)";
+    toolButton.style.borderColor = "rgba(255,255,255,0.12)";
     toolButton.appendChild(renderButtonFaceElement(button));
     return toolButton;
   }
@@ -997,7 +999,7 @@
     const icon = el("span", "ptb-card-icon");
     icon.style.background = button.accentColor || "#2b3037";
     icon.style.backgroundColor = button.accentColor || "#2b3037";
-    icon.style.border = "1px solid " + (button.iconColor || "rgba(255,255,255,0.12)");
+    icon.style.border = "1px solid rgba(255,255,255,0.12)";
     icon.appendChild(renderButtonFaceElement(button));
     return icon;
   }
@@ -1085,7 +1087,8 @@
       }));
       grid.appendChild(selectField(root.PTB_I18N.t("transitionPosition"), button.transition.applyTo, [
         { value: "start", label: root.PTB_I18N.t("transitionStart") },
-        { value: "end", label: root.PTB_I18N.t("transitionEnd") }
+        { value: "end", label: root.PTB_I18N.t("transitionEnd") },
+        { value: "both", label: root.PTB_I18N.t("transitionBoth") }
       ], (value) => {
         button.transition.applyTo = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));

@@ -61,6 +61,7 @@
     transitionPosition: "Apply To",
     transitionStart: "Clip Start",
     transitionEnd: "Clip End",
+    transitionBoth: "Clip Start + End",
     transitionDuration: "Duration Seconds",
     icon: "Icon",
     iconColor: "Icon Color",
