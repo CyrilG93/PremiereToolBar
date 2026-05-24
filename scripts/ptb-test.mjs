@@ -545,8 +545,13 @@ async function inspectSelectionMatchNamesSmokeTest() {
               getSelection: async () => ({
                 getTrackItems: async () => [clipItem]
               }),
+              getVideoTrackCount: async () => 1,
+              getAudioTrackCount: async () => 0,
               getVideoTrack: async () => ({
                 getTrackItems: async () => [transitionItem]
+              }),
+              getAudioTrack: async () => ({
+                getTrackItems: async () => []
               })
             })
           })
@@ -560,6 +565,7 @@ async function inspectSelectionMatchNamesSmokeTest() {
   const result = await context.PTB_PREMIERE.inspectSelectionMatchNames();
   assert.equal(result.effects[0].matchName, "AE.ADBE Gaussian Blur 2");
   assert.equal(result.transitions[0].matchName, "AE.ADBE Dip To Black");
+  assert.equal(result.transitionScan.video.transitionCount, 1);
   assert.ok(logs.some((entry) => entry.message === "Selection match-name inspection."));
 }
 

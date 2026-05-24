@@ -257,48 +257,92 @@
 
   // Return the constant Premiere uses for transition track items, falling back to the documented numeric value.
   function getTransitionTrackItemType(app) {
-    return app && app.Constants && app.Constants.TrackItemType && app.Constants.TrackItemType.TRANSITION !== undefined
-      ? app.Constants.TrackItemType.TRANSITION
+    const constants = (app && (app.Constants || app.constants)) || {};
+    return constants.TrackItemType && constants.TrackItemType.TRANSITION !== undefined
+      ? constants.TrackItemType.TRANSITION
       : 2;
   }
 
-  // Inspect transition track items on the same selected tracks and keep the nearby ones.
-  async function inspectNearbyTransitions(app, sequence, selectedInfos) {
-    const transitions = [];
-    const seen = {};
+  // Read every transition track item from all exposed tracks of one media kind.
+  async function inspectAllTransitionsForMedia(app, sequence, mediaType) {
+    const trackGetter = mediaType === "audio" ? "getAudioTrack" : "getVideoTrack";
+    const countGetter = mediaType === "audio" ? "getAudioTrackCount" : "getVideoTrackCount";
+    const output = { mediaType, trackCount: null, scannedTracks: 0, transitions: [], errors: [] };
+    if (!sequence || typeof sequence[trackGetter] !== "function" || typeof sequence[countGetter] !== "function") {
+      output.errors.push("Sequence does not expose " + trackGetter + " / " + countGetter + ".");
+      return output;
+    }
     const transitionType = getTransitionTrackItemType(app);
-    for (const selectedInfo of selectedInfos) {
-      if (selectedInfo.trackIndex === null || selectedInfo.mediaType === "unknown") {
-        continue;
+    output.transitionType = transitionType;
+    output.trackCount = await readOptionalMethod(sequence, countGetter, 0);
+    for (let trackIndex = 0; trackIndex < output.trackCount; trackIndex += 1) {
+      try {
+        const track = await sequence[trackGetter](trackIndex);
+        output.scannedTracks += 1;
+        const trackTransitions = track && typeof track.getTrackItems === "function"
+          ? await track.getTrackItems(transitionType, false)
+          : [];
+        for (let transitionIndex = 0; transitionIndex < trackTransitions.length; transitionIndex += 1) {
+          const transitionInfo = await inspectTrackItemIdentity(trackTransitions[transitionIndex], transitionIndex, mediaType, "trackTransition");
+          transitionInfo.scannedTrackIndex = trackIndex;
+          output.transitions.push(transitionInfo);
+        }
+      } catch (error) {
+        output.errors.push({ trackIndex, error: describeBridgeError(error) });
       }
-      const trackGetter = selectedInfo.mediaType === "audio" ? "getAudioTrack" : "getVideoTrack";
-      if (!sequence || typeof sequence[trackGetter] !== "function") {
-        continue;
-      }
-      const track = await sequence[trackGetter](selectedInfo.trackIndex);
-      const trackTransitions = track && typeof track.getTrackItems === "function"
-        ? await track.getTrackItems(transitionType, false)
-        : [];
-      for (let transitionIndex = 0; transitionIndex < trackTransitions.length; transitionIndex += 1) {
-        const transitionInfo = await inspectTrackItemIdentity(trackTransitions[transitionIndex], transitionIndex, selectedInfo.mediaType, "trackTransition");
+    }
+    return output;
+  }
+
+  // Inspect all sequence transitions, then keep the ones near selected clips.
+  async function inspectNearbyTransitions(app, sequence, selectedInfos) {
+    const seen = {};
+    const scan = {
+      video: await inspectAllTransitionsForMedia(app, sequence, "video"),
+      audio: await inspectAllTransitionsForMedia(app, sequence, "audio")
+    };
+    const nearby = [];
+    selectedInfos.forEach((selectedInfo) => {
+      const source = scan[selectedInfo.mediaType] && scan[selectedInfo.mediaType].transitions ? scan[selectedInfo.mediaType].transitions : [];
+      source.forEach((transitionInfo) => {
         transitionInfo.nearSelectedItem = selectedInfo.index;
         if (!itemsOverlapOrTouch(selectedInfo, transitionInfo)) {
-          continue;
+          return;
         }
         const key = [
           transitionInfo.mediaType,
-          transitionInfo.trackIndex,
+          transitionInfo.scannedTrackIndex,
           transitionInfo.start.ticks || transitionInfo.start.seconds,
           transitionInfo.end.ticks || transitionInfo.end.seconds,
           transitionInfo.matchName || transitionInfo.name
         ].join("|");
         if (!seen[key]) {
           seen[key] = true;
-          transitions.push(publicTrackItemInfo(transitionInfo));
+          nearby.push(publicTrackItemInfo(transitionInfo));
+        }
+      });
+    });
+    return {
+      nearby,
+      scan: {
+        video: {
+          trackCount: scan.video.trackCount,
+          scannedTracks: scan.video.scannedTracks,
+          transitionType: scan.video.transitionType,
+          transitionCount: scan.video.transitions.length,
+          transitions: scan.video.transitions.slice(0, 80).map(publicTrackItemInfo),
+          errors: scan.video.errors
+        },
+        audio: {
+          trackCount: scan.audio.trackCount,
+          scannedTracks: scan.audio.scannedTracks,
+          transitionType: scan.audio.transitionType,
+          transitionCount: scan.audio.transitions.length,
+          transitions: scan.audio.transitions.slice(0, 80).map(publicTrackItemInfo),
+          errors: scan.audio.errors
         }
       }
-    }
-    return transitions;
+    };
   }
 
   // Determine whether a track item is a video clip by checking video-only APIs.
@@ -791,17 +835,19 @@
         components.push.apply(components, await inspectComponentChain(item, itemInfo));
       }
     }
-    const transitions = await inspectNearbyTransitions(app, sequence, selectedItems);
+    const transitionInspection = await inspectNearbyTransitions(app, sequence, selectedItems);
     const payload = {
       selectedItems: selectedItems.map(publicTrackItemInfo),
       effects: components,
-      transitions
+      transitions: transitionInspection.nearby,
+      transitionScan: transitionInspection.scan
     };
     logBridge("info", "Selection match-name inspection.", payload);
     if (!components.length) {
       logBridge("warn", "No effect components found on the selected item(s).");
     }
-    if (!transitions.length) {
+    logBridge("info", "Sequence transition scan.", transitionInspection.scan);
+    if (!transitionInspection.nearby.length) {
       logBridge("warn", "No nearby transition track items found for the selected item(s).");
     }
     return payload;
