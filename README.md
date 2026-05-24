@@ -67,7 +67,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Choose whether a button shows an icon, a three-letter text shortcut, or both.
 - Assign an icon, icon color, and button color with popover pickers.
 - Type either the Premiere effect name or the effect match name in one field.
-- Assign video transition match names from Premiere.
+- Assign video transition match names from Premiere and copy the discovered transition match-name catalog when needed.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
 - Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
@@ -77,7 +77,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 
 Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. It also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Native video transitions can be applied by match name. Some third-party effects or protected parameters may not expose all values to UXP.
+Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Native video transitions can be applied by transition match name. Some third-party effects, transition presets, or protected parameters may not expose all values to UXP.
 
 ## Development
 
@@ -96,6 +96,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.1.33 - 2026-05-24
+
+- Made logs read from oldest to newest and added a selectable text copy area.
+- Added `Copy Logs` for easier debugging reports.
+- Added transition match-name copy support and closer error suggestions when a transition cannot be created.
 
 ### 0.1.32 - 2026-05-24
 

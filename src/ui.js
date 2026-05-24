@@ -59,9 +59,9 @@
       details: formatLogDetails(details),
       time: new Date().toLocaleTimeString()
     };
-    internalLogs.unshift(entry);
+    internalLogs.push(entry);
     if (internalLogs.length > maxInternalLogs) {
-      internalLogs.length = maxInternalLogs;
+      internalLogs.shift();
     }
     try {
       const method = entry.level === "error" ? "error" : (entry.level === "warn" ? "warn" : "log");
@@ -143,7 +143,7 @@
       .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;max-height:190px;margin:0;overflow:auto}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
       .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-4px 0 0 #9fe3c1}.ptb-collection-member.drop-after{box-shadow:4px 0 0 #9fe3c1}.ptb-collection-member-list.drop-tail{box-shadow:inset -4px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
-      .ptb-logs-panel{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px}.ptb-log-list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-log-entry{display:flex;flex-direction:column;gap:4px;min-width:0;border-bottom:1px solid rgba(255,255,255,.08);padding:6px;color:var(--ptb-text)}.ptb-log-meta{display:flex;gap:8px;color:var(--ptb-muted);font-size:10px;font-weight:800;text-transform:uppercase}.ptb-log-entry.error .ptb-log-level{color:#ff9aa2}.ptb-log-entry.warn .ptb-log-level{color:#ffd166}.ptb-log-entry.info .ptb-log-level{color:#79c8ff}.ptb-log-message,.ptb-log-details{overflow-wrap:anywhere;line-height:1.35}.ptb-log-details{color:var(--ptb-muted);font-size:11px}
+      .ptb-logs-panel{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px}.ptb-log-copy-text{width:100%;min-height:82px;resize:vertical;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;color:var(--ptb-text);background:#101010;font-family:Consolas,monospace;font-size:11px;line-height:1.35;white-space:pre;overflow:auto}.ptb-log-list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-log-entry{display:flex;flex-direction:column;gap:4px;min-width:0;border-bottom:1px solid rgba(255,255,255,.08);padding:6px;color:var(--ptb-text);line-height:1.35}.ptb-log-meta{display:flex;gap:8px;color:var(--ptb-muted);font-size:10px;font-weight:800;text-transform:uppercase}.ptb-log-entry.error .ptb-log-level{color:#ff9aa2}.ptb-log-entry.warn .ptb-log-level{color:#ffd166}.ptb-log-entry.info .ptb-log-level{color:#79c8ff}.ptb-log-message,.ptb-log-details{overflow-wrap:anywhere;line-height:1.35}.ptb-log-details{color:var(--ptb-muted);font-size:11px}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
       if (document.head) {
@@ -310,11 +310,14 @@
     if (tokens.includes("ptb-logs-panel")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "8px", minWidth: "0", padding: "12px" });
     }
+    if (tokens.includes("ptb-log-copy-text")) {
+      setStyles(node, { width: "100%", minHeight: "82px", resize: "vertical", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", color: "var(--ptb-text)", background: "#101010", fontFamily: "Consolas, monospace", fontSize: "11px", lineHeight: "1.35", whiteSpace: "pre", overflow: "auto" });
+    }
     if (tokens.includes("ptb-log-list")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "190px", overflow: "auto", border: "1px solid var(--ptb-line)", borderRadius: "8px", padding: "8px", background: "#181818" });
     }
     if (tokens.includes("ptb-log-entry")) {
-      setStyles(node, { display: "flex", flexDirection: "column", gap: "4px", minWidth: "0", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "6px", color: "var(--ptb-text)" });
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "4px", minWidth: "0", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "6px", color: "var(--ptb-text)", lineHeight: "1.35" });
     }
     if (tokens.includes("ptb-log-meta")) {
       setStyles(node, { display: "flex", gap: "8px", color: "var(--ptb-muted)", fontSize: "10px", fontWeight: "800", textTransform: "uppercase" });
@@ -1240,9 +1243,11 @@
         button.transition.durationSeconds = value;
       }));
       wrap.appendChild(grid);
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("transitionHelp")));
       const catalogPicker = renderCatalogPicker("transition", button);
       if (catalogPicker) {
         wrap.appendChild(catalogPicker);
+        wrap.appendChild(actionButton(root.PTB_I18N.t("copyTransitionMatchNames"), "ptb-button compact", async () => copyTransitionCatalog()));
       }
       return wrap;
     }
@@ -1745,11 +1750,20 @@
   function renderLogsPanel() {
     const section = el("div", "ptb-logs-panel");
     const actions = el("div", "ptb-action-row");
+    actions.appendChild(actionButton(root.PTB_I18N.t("copyLogs"), "ptb-button compact", async () => {
+      await root.PTB_STORAGE.copyText(formatLogsForCopy());
+      statusMessage = root.PTB_I18N.t("statusCopied");
+      renderAll();
+    }));
     actions.appendChild(actionButton(root.PTB_I18N.t("clearLogs"), "ptb-button compact", () => {
       internalLogs.length = 0;
       renderAll();
     }));
     section.appendChild(actions);
+    const copyText = el("textarea", "ptb-log-copy-text");
+    copyText.readOnly = true;
+    copyText.value = formatLogsForCopy();
+    section.appendChild(copyText);
     const list = el("div", "ptb-log-list");
     if (!internalLogs.length) {
       list.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("noLogs")));
@@ -1768,6 +1782,17 @@
     });
     section.appendChild(list);
     return section;
+  }
+
+  // Convert logs to plain text that can be selected, copied, or pasted into a bug report.
+  function formatLogsForCopy() {
+    if (!internalLogs.length) {
+      return root.PTB_I18N.t("noLogs");
+    }
+    return internalLogs.map((entry) => {
+      const detail = entry.details ? " | " + entry.details : "";
+      return "[" + entry.time + "] " + entry.level.toUpperCase() + " - " + entry.message + detail;
+    }).join("\n");
   }
 
   // Fill the diagnostic log module at the bottom of settings.
@@ -1955,6 +1980,15 @@
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
       const json = root.PTB_SCHEMA.exportToJson(config, settingsState.selectedCollectionId);
       await root.PTB_STORAGE.copyText(json);
+      statusMessage = root.PTB_I18N.t("statusCopied");
+    });
+  }
+
+  // Copy discovered transition match names so users can paste the exact value Premiere expects.
+  async function copyTransitionCatalog() {
+    await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
+      const lines = catalogs.videoTransitions.map((item) => item.matchName).filter(Boolean);
+      await root.PTB_STORAGE.copyText(lines.join("\n"));
       statusMessage = root.PTB_I18N.t("statusCopied");
     });
   }

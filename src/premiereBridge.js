@@ -34,6 +34,21 @@
     return error && error.message ? error.message : String(error);
   }
 
+  // Find catalog transition match names that resemble a user-entered display name.
+  async function findTransitionMatchNameSuggestions(app, value) {
+    try {
+      const expected = String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matchNames = await app.TransitionFactory.getVideoTransitionMatchNames();
+      return matchNames.filter((matchName) => {
+        const normalized = String(matchName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        return normalized.includes(expected) || expected.includes(normalized);
+      }).slice(0, 12);
+    } catch (error) {
+      logBridge("warn", "Could not read transition match name catalog.", describeBridgeError(error));
+      return [];
+    }
+  }
+
   // Load the active sequence and selected timeline items.
   async function getSelectedItems() {
     const app = getPremiere();
@@ -279,9 +294,11 @@
             transition = await app.TransitionFactory.createVideoTransition(button.transition.matchName);
             logBridge("info", "Created video transition.", { matchName: button.transition.matchName, applyTo });
           } catch (error) {
+            const suggestions = await findTransitionMatchNameSuggestions(app, button.transition.matchName);
             logBridge("error", "Video transition creation failed.", {
               matchName: button.transition.matchName,
-              error: describeBridgeError(error)
+              error: describeBridgeError(error),
+              suggestions: suggestions.length ? suggestions : "No close match names found in Premiere's transition catalog."
             });
             throw error;
           }

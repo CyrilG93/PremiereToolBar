@@ -1162,6 +1162,22 @@ button {
   padding: 12px;
 }
 
+.ptb-log-copy-text {
+  width: 100%;
+  min-height: 82px;
+  resize: vertical;
+  border: 1px solid var(--ptb-line);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--ptb-text);
+  background: #101010;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre;
+  overflow: auto;
+}
+
 .ptb-log-list {
   display: flex;
   flex-direction: column;
@@ -1182,6 +1198,7 @@ button {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 6px;
   color: var(--ptb-text);
+  line-height: 1.35;
 }
 
 .ptb-log-meta {
