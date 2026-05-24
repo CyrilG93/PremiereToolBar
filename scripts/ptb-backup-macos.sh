@@ -33,22 +33,26 @@ ptb_backup_sources() {
 # // Copy current configs to a stable user-level backup folder.
 ptb_backup_config() {
   /bin/mkdir -p "${PTB_BACKUP_DIR}"
-  local PTB_TIMESTAMP
-  PTB_TIMESTAMP="$(/bin/date +%Y%m%d-%H%M%S)"
-  local PTB_INDEX=0
+  local PTB_SAFE_VERSION
+  PTB_SAFE_VERSION="$(printf '%s' "${PTB_VERSION}" | /usr/bin/sed 's/[^0-9A-Za-z._-]/_/g')"
+  local PTB_VERSION_BACKUP="${PTB_BACKUP_DIR}/ToolBar-config-before-${PTB_SAFE_VERSION}.json"
+  local PTB_PRIMARY_BACKUP_WRITTEN=0
+  # // Keep one backup file per version by replacing older files for that same version.
+  /usr/bin/find "${PTB_BACKUP_DIR}" -maxdepth 1 -type f -name "ToolBar-config-before-${PTB_SAFE_VERSION}*.json" -delete
   : > "${PTB_LOCATIONS_FILE}"
   while IFS= read -r PTB_SOURCE; do
     if ! ptb_is_json_backup "${PTB_SOURCE}"; then
       continue
     fi
-    PTB_INDEX=$((PTB_INDEX + 1))
-    local PTB_TARGET="${PTB_BACKUP_DIR}/ToolBar-config-before-${PTB_VERSION}-${PTB_TIMESTAMP}-${PTB_INDEX}.json"
-    /bin/cp "${PTB_SOURCE}" "${PTB_TARGET}"
-    /bin/cp "${PTB_SOURCE}" "${PTB_LATEST_BACKUP}"
-    printf '%s\t%s\t%s\n' "${PTB_SOURCE}" "${PTB_TARGET}" "${PTB_VERSION}" >> "${PTB_LOCATIONS_FILE}"
+    if [ "${PTB_PRIMARY_BACKUP_WRITTEN}" -eq 0 ]; then
+      /bin/cp "${PTB_SOURCE}" "${PTB_VERSION_BACKUP}"
+      /bin/cp "${PTB_SOURCE}" "${PTB_LATEST_BACKUP}"
+      PTB_PRIMARY_BACKUP_WRITTEN=1
+    fi
+    printf '%s\t%s\t%s\n' "${PTB_SOURCE}" "${PTB_VERSION_BACKUP}" "${PTB_VERSION}" >> "${PTB_LOCATIONS_FILE}"
   done < <(ptb_backup_sources)
-  if [ "${PTB_INDEX}" -gt 0 ]; then
-    echo "Saved Tool Bar button backup to ${PTB_LATEST_BACKUP}"
+  if [ "${PTB_PRIMARY_BACKUP_WRITTEN}" -gt 0 ]; then
+    echo "Saved Tool Bar button backup to ${PTB_VERSION_BACKUP}"
   else
     echo "No existing Tool Bar button backup was found yet."
   fi

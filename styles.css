@@ -119,6 +119,13 @@ button {
   pointer-events: none;
 }
 
+.ptb-svg-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
 .ptb-bar-label {
   max-width: 110px;
   min-width: 44px;

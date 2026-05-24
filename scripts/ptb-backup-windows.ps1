@@ -49,27 +49,32 @@ function Test-PtbJsonBackup {
 # // Copy the current UXP mirror into a user-level folder that plugin reinstalls should not remove.
 function Backup-PtbConfig {
   New-Item -ItemType Directory -Force -Path $ptbSafeBackupRoot | Out-Null
-  $ptbTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-  $ptbIndex = 0
+  $ptbSafeVersion = $Version -replace "[^0-9A-Za-z._-]", "_"
+  $ptbVersionBackupFile = Join-Path $ptbSafeBackupRoot ("ToolBar-config-before-{0}.json" -f $ptbSafeVersion)
   $ptbRecords = @()
+  $ptbPrimaryBackupWritten = $false
+  # // Keep one backup file per version by replacing older files for that same version.
+  Get-ChildItem -LiteralPath $ptbSafeBackupRoot -Filter ("ToolBar-config-before-{0}*.json" -f $ptbSafeVersion) -ErrorAction SilentlyContinue |
+    Remove-Item -Force
   foreach ($ptbSource in Get-PtbBackupSources) {
     if (-not (Test-PtbJsonBackup -Path $ptbSource.FullName)) {
       continue
     }
-    $ptbIndex += 1
-    $ptbTarget = Join-Path $ptbSafeBackupRoot ("ToolBar-config-before-{0}-{1}-{2}.json" -f $Version, $ptbTimestamp, $ptbIndex)
-    Copy-Item -LiteralPath $ptbSource.FullName -Destination $ptbTarget -Force
-    Copy-Item -LiteralPath $ptbSource.FullName -Destination $ptbLatestBackupFile -Force
+    if (-not $ptbPrimaryBackupWritten) {
+      Copy-Item -LiteralPath $ptbSource.FullName -Destination $ptbVersionBackupFile -Force
+      Copy-Item -LiteralPath $ptbSource.FullName -Destination $ptbLatestBackupFile -Force
+      $ptbPrimaryBackupWritten = $true
+    }
     $ptbRecords += [pscustomobject]@{
       source = $ptbSource.FullName
-      backup = $ptbTarget
+      backup = $ptbVersionBackupFile
       version = $Version
       createdAt = (Get-Date).ToString("s")
     }
   }
-  if ($ptbRecords.Count -gt 0) {
+  if ($ptbPrimaryBackupWritten) {
     $ptbRecords | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ptbLocationsFile -Encoding UTF8
-    Write-Host ("Saved Tool Bar button backup to {0}" -f $ptbLatestBackupFile)
+    Write-Host ("Saved Tool Bar button backup to {0}" -f $ptbVersionBackupFile)
     return
   }
   Write-Host "No existing Tool Bar button backup was found yet."

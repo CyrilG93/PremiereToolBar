@@ -18,8 +18,14 @@ fi
 
 # // Stage only the files required by the UXP plugin runtime.
 PTB_BUILD_DIR="${PTB_ROOT}/.ptb-installer-build"
-PTB_STAGE_DIR="${PTB_BUILD_DIR}/package-${PTB_VERSION}-$(date +%Y%m%d%H%M%S)"
+PTB_STAGE_DIR="${PTB_BUILD_DIR}/package-${PTB_VERSION}"
 PTB_CCX="${PTB_BUILD_DIR}/ToolBar-${PTB_VERSION}.ccx"
+mkdir -p "${PTB_BUILD_DIR}"
+# // Reuse one staging folder and clean old package folders inside the build directory only.
+case "${PTB_STAGE_DIR}" in
+  "${PTB_BUILD_DIR}"/package-*) find "${PTB_BUILD_DIR}" -maxdepth 1 -type d -name "package-*" -exec rm -rf {} + ;;
+  *) echo "Unsafe Tool Bar staging path."; exit 1 ;;
+esac
 mkdir -p "${PTB_STAGE_DIR}"
 cp "${PTB_ROOT}/manifest.json" "${PTB_STAGE_DIR}/manifest.json"
 cp "${PTB_ROOT}/index.html" "${PTB_STAGE_DIR}/index.html"

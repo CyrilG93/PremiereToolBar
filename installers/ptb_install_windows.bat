@@ -48,11 +48,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%PTB_ROOT%\scripts\ptb-back
 
 REM // Stage only the files required by the UXP plugin runtime.
 set "PTB_BUILD_DIR=%PTB_ROOT%\.ptb-installer-build"
-set "PTB_STAGE_DIR=%PTB_BUILD_DIR%\package-%PTB_VERSION%-%RANDOM%"
+set "PTB_STAGE_DIR=%PTB_BUILD_DIR%\package-%PTB_VERSION%"
 set "PTB_CCX=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%.ccx"
-set "PTB_ZIP=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%-%RANDOM%.zip"
+set "PTB_ZIP=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%.zip"
 set "PTB_UPIA_LOG=%PTB_BUILD_DIR%\upia-install-%PTB_VERSION%-%RANDOM%.log"
 mkdir "%PTB_BUILD_DIR%" >nul 2>nul
+REM // Reuse one staging folder and clean old package folders inside the build directory only.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$build=(Resolve-Path -LiteralPath '%PTB_BUILD_DIR%').Path; Get-ChildItem -LiteralPath $build -Directory -Filter 'package-*' | ForEach-Object { $resolved=$_.FullName; if ($resolved.StartsWith($build, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force } else { throw 'Unsafe Tool Bar staging path.' } }"
+if errorlevel 1 (
+  echo Unable to prepare the Tool Bar staging folder.
+  set "PTB_EXIT_CODE=1"
+  goto PTB_FINISH
+)
 mkdir "%PTB_STAGE_DIR%" >nul 2>nul
 copy /Y "%PTB_ROOT%\manifest.json" "%PTB_STAGE_DIR%\manifest.json" >nul
 copy /Y "%PTB_ROOT%\index.html" "%PTB_STAGE_DIR%\index.html" >nul

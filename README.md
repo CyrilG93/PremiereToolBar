@@ -92,9 +92,15 @@ npm run ptb:verify
 
 ## Icon Notes
 
-The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses transparent PNG files from `assets/Icons`, which is the safest format found so far for this UXP panel.
+The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG` so `Icon Color` can recolor icons through `currentColor`.
 
 ## Changelog
+
+### 0.1.30 - 2026-05-24
+
+- Switched the icon test pack to inline SVG icons for more reliable coloring.
+- Kept one automatic backup file per version instead of creating a new timestamped copy every run.
+- Cleaned old package staging folders before creating a new installer package.
 
 ### 0.1.29 - 2026-05-24
 
