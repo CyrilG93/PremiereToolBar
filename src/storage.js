@@ -210,6 +210,23 @@
     return file.read();
   }
 
+  // Import any text file selected by the user, such as an experimental .prfpset XML preset.
+  async function importTextFile(types) {
+    const localFileSystem = getLocalFileSystem();
+    if (!localFileSystem) {
+      throw new Error("UXP local file system is unavailable.");
+    }
+    const file = await localFileSystem.getFileForOpening({ types: types || ["txt"] });
+    if (!file) {
+      return null;
+    }
+    const content = await file.read();
+    return {
+      name: file.name || "Imported file",
+      text: typeof content === "string" ? content : (root.TextDecoder ? new root.TextDecoder("utf-8").decode(content) : String(content))
+    };
+  }
+
   // Copy JSON to the system clipboard when UXP exposes clipboard support.
   async function copyText(text) {
     if (root.navigator && root.navigator.clipboard && root.navigator.clipboard.writeText) {
@@ -226,6 +243,7 @@
     restoreConfigBackup,
     exportJsonFile,
     importJsonFile,
+    importTextFile,
     copyText
   };
 }(typeof window !== "undefined" ? window : globalThis));

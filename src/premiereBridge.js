@@ -278,6 +278,23 @@
     return Number.isFinite(ticks) ? ticks : null;
   }
 
+  // Return public timing fields for a clip so captured keyframes can be replayed on another clip.
+  async function getItemTimingSnapshot(item) {
+    const startTime = await readOptionalMethod(item, "getStartTime", null);
+    const endTime = await readOptionalMethod(item, "getEndTime", null);
+    const startSeconds = timeToNumber(startTime);
+    const endSeconds = timeToNumber(endTime);
+    return {
+      start: describeTickTime(startTime),
+      end: describeTickTime(endTime),
+      startSeconds,
+      endSeconds,
+      durationSeconds: typeof startSeconds === "number" && typeof endSeconds === "number"
+        ? Math.max(0, endSeconds - startSeconds)
+        : null
+    };
+  }
+
   // Read the fields common to clips and transition track items.
   async function inspectTrackItemIdentity(item, index, mediaType, role) {
     const startTime = await readMethodOrProperty(item, "getStartTime", "startTime", null);
@@ -904,32 +921,57 @@
   async function applyPresetButton(button) {
     const { app, project, sequence, items } = await getSelectedItems();
     const stack = root.PTB_SCHEMA.normalizeStack(button.stack);
-    const actions = [];
+    const appendActions = [];
+    const pendingParamTargets = [];
     if (!stack.components.length) {
       throw new Error(root.PTB_I18N.t("noPresetCaptured"));
     }
     for (const item of items) {
       let appendOffset = 0;
+      const targetTiming = await getItemTimingSnapshot(item);
       for (const componentSnapshot of stack.components) {
         if (componentSnapshot.mediaType === "video" && isVideoItem(item)) {
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
           const chain = await item.getComponentChain();
-          actions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
+          appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
           appendOffset += 1;
-          actions.push.apply(actions, await createParamActions(app, component, componentSnapshot.params));
+          pendingParamTargets.push({ component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
         }
         if (componentSnapshot.mediaType === "audio" && isAudioItem(item)) {
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
           const chain = await item.getComponentChain();
-          actions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
+          appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
           appendOffset += 1;
-          actions.push.apply(actions, await createParamActions(app, component, componentSnapshot.params));
+          pendingParamTargets.push({ component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
         }
       }
     }
-    const result = executeActions(project, actions, "Tool Bar: " + button.label);
+    const result = executeActions(project, appendActions, "Tool Bar: " + button.label + " components");
     await refreshSequenceView(sequence);
+    await waitForHostPaint();
+    const paramActions = [];
+    for (const target of pendingParamTargets) {
+      paramActions.push.apply(paramActions, await createParamActions(app, target.component, target.params, target));
+    }
+    if (paramActions.length) {
+      executeActions(project, paramActions, "Tool Bar: " + button.label + " preset values");
+    } else {
+      logBridge("warn", "Preset applied without parameter actions.", { components: pendingParamTargets.length });
+    }
+    await refreshSequenceView(sequence);
+    logBridge("info", "Preset command completed.", { components: pendingParamTargets.length, parameterActions: paramActions.length });
     return result;
+  }
+
+  // Give Premiere a short chance to attach newly-created components before setting their params.
+  function waitForHostPaint() {
+    return new Promise((resolve) => {
+      if (typeof setTimeout === "function") {
+        setTimeout(resolve, 35);
+      } else {
+        resolve();
+      }
+    });
   }
 
   // Convert a serialized value back into a Premiere-compatible parameter value.
@@ -956,7 +998,11 @@
   }
 
   // Create a TickTime object from a stored keyframe position.
-  function reviveTime(app, keyframeSnapshot) {
+  function reviveTime(app, keyframeSnapshot, timingContext) {
+    const adjustedSeconds = getAdjustedKeyframeSeconds(keyframeSnapshot, timingContext);
+    if (adjustedSeconds !== null && app.TickTime && app.TickTime.createWithSeconds) {
+      return app.TickTime.createWithSeconds(adjustedSeconds);
+    }
     if (app.TickTime && app.TickTime.createWithTicks && keyframeSnapshot.ticks) {
       return app.TickTime.createWithTicks(String(keyframeSnapshot.ticks));
     }
@@ -966,8 +1012,44 @@
     return null;
   }
 
+  // Calculate where an imported/captured keyframe should land on the selected target clip.
+  function getAdjustedKeyframeSeconds(keyframeSnapshot, timingContext) {
+    if (!timingContext || timingContext.timingMode === "absolute") {
+      return null;
+    }
+    const stack = timingContext.stack || {};
+    const target = timingContext.targetTiming || {};
+    const sourceStart = typeof stack.sourceStartSeconds === "number" ? stack.sourceStartSeconds : null;
+    const sourceEnd = typeof stack.sourceEndSeconds === "number" ? stack.sourceEndSeconds : null;
+    const sourceDuration = typeof stack.sourceDurationSeconds === "number" && stack.sourceDurationSeconds > 0
+      ? stack.sourceDurationSeconds
+      : (typeof sourceStart === "number" && typeof sourceEnd === "number" ? Math.max(0, sourceEnd - sourceStart) : null);
+    const targetStart = typeof target.startSeconds === "number" ? target.startSeconds : null;
+    const targetEnd = typeof target.endSeconds === "number" ? target.endSeconds : null;
+    const targetDuration = typeof target.durationSeconds === "number" && target.durationSeconds > 0 ? target.durationSeconds : null;
+    const rawSeconds = typeof keyframeSnapshot.seconds === "number" ? keyframeSnapshot.seconds : null;
+    let relativeSeconds = typeof keyframeSnapshot.relativeSeconds === "number" ? keyframeSnapshot.relativeSeconds : null;
+    if (relativeSeconds === null && rawSeconds !== null) {
+      const looksAbsolute = sourceStart !== null && sourceEnd !== null && rawSeconds >= sourceStart - 0.5 && rawSeconds <= sourceEnd + 0.5;
+      relativeSeconds = looksAbsolute ? rawSeconds - sourceStart : rawSeconds;
+    }
+    if (relativeSeconds === null) {
+      return null;
+    }
+    if (timingContext.timingMode === "anchorOut" && targetEnd !== null && sourceDuration !== null) {
+      return targetEnd - Math.max(0, sourceDuration - relativeSeconds);
+    }
+    if (timingContext.timingMode === "scale" && targetStart !== null && sourceDuration && targetDuration) {
+      return targetStart + (relativeSeconds / sourceDuration) * targetDuration;
+    }
+    if (targetStart !== null) {
+      return targetStart + relativeSeconds;
+    }
+    return relativeSeconds;
+  }
+
   // Create parameter set/keyframe actions for a newly-created component.
-  async function createParamActions(app, component, paramSnapshots) {
+  async function createParamActions(app, component, paramSnapshots, timingContext) {
     const actions = [];
     const paramCount = typeof component.getParamCount === "function" ? component.getParamCount() : 0;
     for (const snapshot of paramSnapshots) {
@@ -982,7 +1064,7 @@
         actions.push(param.createSetTimeVaryingAction(true));
         for (const keyframeSnapshot of snapshot.keyframes) {
           const keyframe = param.createKeyframe(reviveValue(app, keyframeSnapshot.value));
-          const position = reviveTime(app, keyframeSnapshot);
+          const position = reviveTime(app, keyframeSnapshot, timingContext);
           if (position) {
             keyframe.position = position;
           }
@@ -990,6 +1072,9 @@
             await keyframe.setTemporalInterpolationMode(keyframeSnapshot.temporalInterpolation);
           }
           actions.push(param.createAddKeyframeAction(keyframe));
+          if (position && keyframeSnapshot.temporalInterpolation !== null && typeof param.createSetInterpolationAtKeyframeAction === "function") {
+            actions.push(param.createSetInterpolationAtKeyframeAction(position, keyframeSnapshot.temporalInterpolation, true));
+          }
         }
       } else {
         const keyframe = param.createKeyframe(reviveValue(app, snapshot.startValue));
@@ -1029,7 +1114,7 @@
   }
 
   // Serialize a keyframe into JSON-safe data.
-  async function serializeKeyframe(param, time) {
+  async function serializeKeyframe(param, time, sourceTiming) {
     const keyframe = await param.getKeyframePtr(time);
     let value = keyframe && keyframe.value;
     if (typeof param.getValueAtTime === "function") {
@@ -1043,16 +1128,21 @@
       ? await keyframe.getTemporalInterpolationMode()
       : null;
     const position = (keyframe && keyframe.position) || time;
+    const seconds = position && typeof position.seconds === "number" ? position.seconds : 0;
+    const sourceStart = sourceTiming && typeof sourceTiming.startSeconds === "number" ? sourceTiming.startSeconds : null;
+    const sourceEnd = sourceTiming && typeof sourceTiming.endSeconds === "number" ? sourceTiming.endSeconds : null;
+    const looksAbsolute = sourceStart !== null && sourceEnd !== null && seconds >= sourceStart - 0.5 && seconds <= sourceEnd + 0.5;
     return {
       ticks: position && position.ticks ? String(position.ticks) : "0",
-      seconds: position && typeof position.seconds === "number" ? position.seconds : 0,
+      seconds,
+      relativeSeconds: looksAbsolute ? seconds - sourceStart : seconds,
       temporalInterpolation,
       value: serializeValue(value)
     };
   }
 
   // Capture one component parameter for the internal stack preset.
-  async function captureParam(param, index) {
+  async function captureParam(param, index, sourceTiming) {
     const startKeyframe = await param.getStartValue();
     const timeVarying = typeof param.isTimeVarying === "function" ? param.isTimeVarying() : false;
     const keyframeTimes = timeVarying && typeof param.getKeyframeListAsTickTimes === "function"
@@ -1060,7 +1150,7 @@
       : [];
     const keyframes = [];
     for (const time of keyframeTimes) {
-      keyframes.push(await serializeKeyframe(param, time));
+      keyframes.push(await serializeKeyframe(param, time, sourceTiming));
     }
     return {
       index,
@@ -1080,6 +1170,7 @@
     const item = items[0];
     const mediaType = isVideoItem(item) ? "video" : "audio";
     const itemName = typeof item.getName === "function" ? await item.getName() : "";
+    const sourceTiming = await getItemTimingSnapshot(item);
     const chain = await item.getComponentChain();
     const componentCount = typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
     const components = [];
@@ -1094,7 +1185,7 @@
       const params = [];
       for (let paramIndex = 0; paramIndex < paramCount; paramIndex += 1) {
         try {
-          params.push(await captureParam(component.getParam(paramIndex), paramIndex));
+          params.push(await captureParam(component.getParam(paramIndex), paramIndex, sourceTiming));
         } catch (error) {
           console.warn("Tool Bar skipped unsupported parameter:", error);
         }
@@ -1107,6 +1198,9 @@
     return root.PTB_SCHEMA.normalizeStack({
       sourceName: itemName,
       capturedAt: new Date().toISOString(),
+      sourceStartSeconds: sourceTiming.startSeconds,
+      sourceEndSeconds: sourceTiming.endSeconds,
+      sourceDurationSeconds: sourceTiming.durationSeconds,
       components
     });
   }

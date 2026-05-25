@@ -1553,6 +1553,15 @@
       });
       setStyles(presetNameField, { flex: "0 1 auto" });
       wrap.appendChild(presetNameField);
+      wrap.appendChild(selectField(root.PTB_I18N.t("presetTiming"), button.preset.keyframeTiming || "anchorIn", [
+        { value: "anchorIn", label: root.PTB_I18N.t("presetTimingAnchorIn") },
+        { value: "anchorOut", label: root.PTB_I18N.t("presetTimingAnchorOut") },
+        { value: "scale", label: root.PTB_I18N.t("presetTimingScale") },
+        { value: "absolute", label: root.PTB_I18N.t("presetTimingAbsolute") }
+      ], (value) => {
+        button.preset.keyframeTiming = value;
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("presetHelp")));
       wrap.appendChild(el("p", "ptb-muted", summary));
       wrap.appendChild(actionButton(root.PTB_I18N.t("capturePreset"), "ptb-button primary", async () => {
@@ -1567,6 +1576,11 @@
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         });
       }));
+      if (root.PTB_PRESET_IMPORT && root.PTB_STORAGE.importTextFile) {
+        wrap.appendChild(actionButton(root.PTB_I18N.t("importPresetFile"), "ptb-button compact", async () => {
+          await importPresetFileIntoButton(button);
+        }));
+      }
       return wrap;
     }
     const grid = el("div", "ptb-form-grid");
@@ -1597,6 +1611,28 @@
     }
     wrap.appendChild(select);
     return wrap;
+  }
+
+  // Import a .prfpset XML file into the selected Tool Bar preset button for best-effort testing.
+  async function importPresetFileIntoButton(button) {
+    await runWithStatus(root.PTB_I18N.t("statusImportingPreset"), async () => {
+      const file = await root.PTB_STORAGE.importTextFile(["prfpset", "xml"]);
+      if (!file) {
+        return;
+      }
+      const result = root.PTB_PRESET_IMPORT.parsePrfpsetText(file.text, file.name);
+      if (!result.stack.components.length) {
+        throw new Error(root.PTB_I18N.t("presetImportNoEffects"));
+      }
+      button.actionType = "preset";
+      button.preset.name = result.stack.sourceName || file.name;
+      button.stack = result.stack;
+      if (button.preset.name) {
+        setButtonName(button, button.preset.name);
+      }
+      addInternalLog("info", "Imported .prfpset as Tool Bar preset.", result.summary, true);
+      saveAndRender(root.PTB_I18N.t("statusImported"));
+    });
   }
 
   // Render one select populated from a Premiere catalog.

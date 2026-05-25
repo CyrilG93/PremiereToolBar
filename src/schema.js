@@ -17,6 +17,7 @@
   const ACTION_TYPES = ["settings", "effect", "transition", "audioTransition", "preset"];
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
+  const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -73,7 +74,11 @@
         alignment: safeNumber(input.transition && input.transition.alignment, 0, -2, 2)
       },
       preset: {
-        name: safeString(input.preset && input.preset.name, safeString(input.presetName, ""))
+        name: safeString(input.preset && input.preset.name, safeString(input.presetName, "")),
+        // Store how captured/imported keyframes should be placed on the target clip.
+        keyframeTiming: PRESET_TIMING_MODES.includes(input.preset && input.preset.keyframeTiming)
+          ? input.preset.keyframeTiming
+          : "anchorIn"
       },
       stack: normalizeStack(input.stack)
     };
@@ -98,6 +103,11 @@
     return {
       sourceName: safeString(input.sourceName, ""),
       capturedAt: safeString(input.capturedAt, ""),
+      // Keep source timing so replay can anchor or scale keyframes like Premiere presets.
+      sourceStartSeconds: typeof input.sourceStartSeconds === "number" ? input.sourceStartSeconds : null,
+      sourceEndSeconds: typeof input.sourceEndSeconds === "number" ? input.sourceEndSeconds : null,
+      sourceDurationSeconds: typeof input.sourceDurationSeconds === "number" ? input.sourceDurationSeconds : null,
+      importSource: safeString(input.importSource, ""),
       components: components.map(normalizeComponentSnapshot).filter(Boolean)
     };
   }
@@ -130,6 +140,8 @@
     return {
       index: safeNumber(param.index, 0, 0, 500),
       displayName: safeString(param.displayName, "Param"),
+      // Parameter ids can be read from .prfpset XML, but Premiere UXP cannot map them back yet.
+      parameterId: safeString(param.parameterId, ""),
       timeVarying: Boolean(param.timeVarying),
       startValue: normalizeValueSnapshot(param.startValue),
       startTemporalInterpolation: typeof param.startTemporalInterpolation === "number" ? param.startTemporalInterpolation : null,
@@ -165,6 +177,8 @@
     return {
       ticks: safeString(keyframe.ticks, "0"),
       seconds: safeNumber(keyframe.seconds, 0, -86400, 86400),
+      // Relative seconds are preferred for applying a preset to a different timeline position.
+      relativeSeconds: typeof keyframe.relativeSeconds === "number" ? keyframe.relativeSeconds : null,
       temporalInterpolation: typeof keyframe.temporalInterpolation === "number" ? keyframe.temporalInterpolation : null,
       value: normalizeValueSnapshot(keyframe.value)
     };

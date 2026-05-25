@@ -399,6 +399,96 @@ function findAllByPredicate(node, predicate, output = []) {
 
 await capturePresetSmokeTest();
 
+// Verify preset replay anchors captured keyframes to the selected target clip.
+async function applyPresetTimingSmokeTest() {
+  const keyframeSeconds = [];
+  let transactionCount = 0;
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const param = {
+        createSetTimeVaryingAction: () => ({ type: "timeVarying" }),
+        createKeyframe: (value) => ({ value }),
+        createAddKeyframeAction(keyframe) {
+          keyframeSeconds.push(keyframe.position.seconds);
+          return { type: "keyframe", keyframe };
+        },
+        createSetValueAction: (keyframe) => ({ type: "value", keyframe })
+      };
+      const component = {
+        getParamCount: () => 1,
+        getParam: () => param
+      };
+      const item = {
+        createAddVideoTransitionAction() {},
+        getStartTime: async () => ({ seconds: 10, ticks: "10" }),
+        getEndTime: async () => ({ seconds: 20, ticks: "20" }),
+        getComponentChain: async () => ({
+          getComponentCount: () => 0,
+          createInsertComponentAction: () => ({ type: "insert" })
+        })
+      };
+      return {
+        TickTime: {
+          createWithSeconds: (seconds) => ({ seconds })
+        },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              transactionCount += 1;
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        VideoFilterFactory: {
+          createComponent: async () => component
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    label: "Preset Test",
+    actionType: "preset",
+    preset: { keyframeTiming: "anchorIn" },
+    stack: {
+      sourceStartSeconds: 0,
+      sourceEndSeconds: 4,
+      sourceDurationSeconds: 4,
+      components: [{
+        mediaType: "video",
+        matchName: "AE.ADBE Mosaic",
+        displayName: "Mosaic",
+        params: [{
+          index: 0,
+          displayName: "Amount",
+          timeVarying: true,
+          startValue: { kind: "primitive", value: 0 },
+          keyframes: [{ seconds: 2, relativeSeconds: 2, value: { kind: "primitive", value: 50 } }]
+        }]
+      }]
+    }
+  }));
+  assert.equal(transactionCount, 2);
+  assert.deepEqual(keyframeSeconds, [12]);
+}
+
+await applyPresetTimingSmokeTest();
+
 // Verify effect buttons target Premiere's reverse UI order so they appear at the bottom.
 async function applyEffectOrderSmokeTest() {
   let appended = false;
