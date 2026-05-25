@@ -451,8 +451,9 @@ await capturePresetSmokeTest();
 
 // Verify preset replay anchors captured keyframes to the selected target clip.
 async function applyPresetTimingSmokeTest() {
-  const keyframeSeconds = [];
+  const runs = [];
   let transactionCount = 0;
+  let keyframeSeconds = [];
   const context = {
     console,
     window: null,
@@ -516,30 +517,44 @@ async function applyPresetTimingSmokeTest() {
   context.window = context;
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
-  await context.PTB_PREMIERE.applyButton(schema.createButton({
-    label: "Preset Test",
-    actionType: "preset",
-    preset: { keyframeTiming: "anchorIn" },
-    stack: {
-      sourceStartSeconds: 0,
-      sourceEndSeconds: 4,
-      sourceDurationSeconds: 4,
-      components: [{
-        mediaType: "video",
-        matchName: "AE.ADBE Mosaic",
-        displayName: "Mosaic",
-        params: [{
-          index: 0,
-          displayName: "Amount",
-          timeVarying: true,
-          startValue: { kind: "primitive", value: 0 },
-          keyframes: [{ seconds: 2, relativeSeconds: 2, value: { kind: "primitive", value: 50 } }]
+  async function applyTimingMode(mode, sourceDuration, keyframes) {
+    keyframeSeconds = [];
+    await context.PTB_PREMIERE.applyButton(schema.createButton({
+      label: "Preset Test",
+      actionType: "preset",
+      preset: { keyframeTiming: mode },
+      stack: {
+        sourceStartSeconds: 0,
+        sourceEndSeconds: sourceDuration,
+        sourceDurationSeconds: sourceDuration,
+        components: [{
+          mediaType: "video",
+          matchName: "AE.ADBE Mosaic",
+          displayName: "Mosaic",
+          params: [{
+            index: 0,
+            displayName: "Amount",
+            timeVarying: true,
+            startValue: { kind: "primitive", value: 0 },
+            keyframes
+          }]
         }]
-      }]
-    }
-  }));
-  assert.equal(transactionCount, 2);
-  assert.deepEqual(keyframeSeconds, [12]);
+      }
+    }));
+    runs.push({ mode, keyframeSeconds: keyframeSeconds.slice() });
+  }
+  await applyTimingMode("anchorIn", 4, [{ seconds: 2, relativeSeconds: 2, value: { kind: "primitive", value: 50 } }]);
+  await applyTimingMode("anchorIn", 20, [
+    { seconds: 0, relativeSeconds: 0, value: { kind: "primitive", value: 10 } },
+    { seconds: 20, relativeSeconds: 20, value: { kind: "primitive", value: 20 } }
+  ]);
+  await applyTimingMode("anchorOut", 4, [{ seconds: 2, relativeSeconds: 2, value: { kind: "primitive", value: 50 } }]);
+  await applyTimingMode("absolute", 4, [{ seconds: 2, relativeSeconds: 2, ticks: "914452519680000", value: { kind: "primitive", value: 50 } }]);
+  assert.equal(transactionCount, 8);
+  assert.deepEqual(runs[0].keyframeSeconds, [12]);
+  assert.deepEqual(runs[1].keyframeSeconds, [10, 20]);
+  assert.deepEqual(runs[2].keyframeSeconds, [18]);
+  assert.deepEqual(runs[3].keyframeSeconds, [10]);
 }
 
 await applyPresetTimingSmokeTest();

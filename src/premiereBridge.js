@@ -1039,7 +1039,7 @@
     if (adjustedSeconds !== null && app.TickTime && app.TickTime.createWithSeconds) {
       return app.TickTime.createWithSeconds(adjustedSeconds);
     }
-    if (app.TickTime && app.TickTime.createWithTicks && keyframeSnapshot.ticks) {
+    if (!timingContext && app.TickTime && app.TickTime.createWithTicks && keyframeSnapshot.ticks) {
       return app.TickTime.createWithTicks(String(keyframeSnapshot.ticks));
     }
     if (app.TickTime && app.TickTime.createWithSeconds) {
@@ -1050,7 +1050,7 @@
 
   // Calculate where an imported/captured keyframe should land on the selected target clip.
   function getAdjustedKeyframeSeconds(keyframeSnapshot, timingContext) {
-    if (!timingContext || timingContext.timingMode === "absolute") {
+    if (!timingContext) {
       return null;
     }
     const stack = timingContext.stack || {};
@@ -1072,16 +1072,35 @@
     if (relativeSeconds === null) {
       return null;
     }
-    if (timingContext.timingMode === "anchorOut" && targetEnd !== null && sourceDuration !== null) {
-      return targetEnd - Math.max(0, sourceDuration - relativeSeconds);
+    let outputSeconds = null;
+    const shouldAutoFit = sourceDuration && targetDuration && sourceDuration > targetDuration;
+    if (timingContext.timingMode === "absolute") {
+      outputSeconds = rawSeconds !== null ? rawSeconds : relativeSeconds;
+    } else if ((timingContext.timingMode === "scale" || shouldAutoFit) && targetStart !== null && sourceDuration && targetDuration) {
+      outputSeconds = targetStart + (relativeSeconds / sourceDuration) * targetDuration;
+    } else if (timingContext.timingMode === "anchorOut" && targetEnd !== null && sourceDuration !== null) {
+      outputSeconds = targetEnd - Math.max(0, sourceDuration - relativeSeconds);
+    } else if (targetStart !== null) {
+      outputSeconds = targetStart + relativeSeconds;
+    } else {
+      outputSeconds = relativeSeconds;
     }
-    if (timingContext.timingMode === "scale" && targetStart !== null && sourceDuration && targetDuration) {
-      return targetStart + (relativeSeconds / sourceDuration) * targetDuration;
+    return clampPresetKeyframeSeconds(outputSeconds, targetStart, targetEnd);
+  }
+
+  // Keep generated keyframes inside the selected clip so Premiere does not silently drop them.
+  function clampPresetKeyframeSeconds(seconds, targetStart, targetEnd) {
+    if (seconds === null || !Number.isFinite(Number(seconds))) {
+      return null;
     }
-    if (targetStart !== null) {
-      return targetStart + relativeSeconds;
+    let output = Number(seconds);
+    if (typeof targetStart === "number") {
+      output = Math.max(targetStart, output);
     }
-    return relativeSeconds;
+    if (typeof targetEnd === "number") {
+      output = Math.min(targetEnd, output);
+    }
+    return output;
   }
 
   // Create parameter set/keyframe actions for a newly-created component.
