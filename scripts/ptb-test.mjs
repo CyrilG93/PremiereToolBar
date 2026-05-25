@@ -548,13 +548,16 @@ async function applyPresetTimingSmokeTest() {
     { seconds: 0, relativeSeconds: 0, value: { kind: "primitive", value: 10 } },
     { seconds: 20, relativeSeconds: 20, value: { kind: "primitive", value: 20 } }
   ]);
-  await applyTimingMode("anchorOut", 4, [{ seconds: 2, relativeSeconds: 2, value: { kind: "primitive", value: 50 } }]);
+  await applyTimingMode("anchorOut", 4, [
+    { seconds: 0, relativeSeconds: 0, value: { kind: "primitive", value: 10 } },
+    { seconds: 2, relativeSeconds: 2, value: { kind: "primitive", value: 50 } }
+  ]);
   await applyTimingMode("absolute", 4, [{ seconds: 2, relativeSeconds: 2, ticks: "914452519680000", value: { kind: "primitive", value: 50 } }]);
   assert.equal(transactionCount, 8);
   assert.deepEqual(runs[0].keyframeSeconds, [12]);
   assert.deepEqual(runs[1].keyframeSeconds, [10, 20]);
-  assert.deepEqual(runs[2].keyframeSeconds, [18]);
-  assert.deepEqual(runs[3].keyframeSeconds, [10]);
+  assert.deepEqual(runs[2].keyframeSeconds, [18, 20]);
+  assert.deepEqual(runs[3].keyframeSeconds, [12]);
 }
 
 await applyPresetTimingSmokeTest();

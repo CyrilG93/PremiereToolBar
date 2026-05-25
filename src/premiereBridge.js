@@ -1057,9 +1057,11 @@
     const target = timingContext.targetTiming || {};
     const sourceStart = typeof stack.sourceStartSeconds === "number" ? stack.sourceStartSeconds : null;
     const sourceEnd = typeof stack.sourceEndSeconds === "number" ? stack.sourceEndSeconds : null;
-    const sourceDuration = typeof stack.sourceDurationSeconds === "number" && stack.sourceDurationSeconds > 0
+    const sourceDuration = typeof timingContext.paramDurationSeconds === "number" && timingContext.paramDurationSeconds > 0
+      ? timingContext.paramDurationSeconds
+      : (typeof stack.sourceDurationSeconds === "number" && stack.sourceDurationSeconds > 0
       ? stack.sourceDurationSeconds
-      : (typeof sourceStart === "number" && typeof sourceEnd === "number" ? Math.max(0, sourceEnd - sourceStart) : null);
+      : (typeof sourceStart === "number" && typeof sourceEnd === "number" ? Math.max(0, sourceEnd - sourceStart) : null));
     const targetStart = typeof target.startSeconds === "number" ? target.startSeconds : null;
     const targetEnd = typeof target.endSeconds === "number" ? target.endSeconds : null;
     const targetDuration = typeof target.durationSeconds === "number" && target.durationSeconds > 0 ? target.durationSeconds : null;
@@ -1073,10 +1075,9 @@
       return null;
     }
     let outputSeconds = null;
-    const shouldAutoFit = sourceDuration && targetDuration && sourceDuration > targetDuration;
     if (timingContext.timingMode === "absolute") {
-      outputSeconds = rawSeconds !== null ? rawSeconds : relativeSeconds;
-    } else if ((timingContext.timingMode === "scale" || shouldAutoFit) && targetStart !== null && sourceDuration && targetDuration) {
+      outputSeconds = targetStart !== null ? targetStart + relativeSeconds : (rawSeconds !== null ? rawSeconds : relativeSeconds);
+    } else if (timingContext.timingMode === "scale" && targetStart !== null && sourceDuration && targetDuration) {
       outputSeconds = targetStart + (relativeSeconds / sourceDuration) * targetDuration;
     } else if (timingContext.timingMode === "anchorOut" && targetEnd !== null && sourceDuration !== null) {
       outputSeconds = targetEnd - Math.max(0, sourceDuration - relativeSeconds);
@@ -1117,22 +1118,49 @@
           continue;
         }
         if (snapshot.timeVarying && snapshot.keyframes.length) {
+          const paramTimingContext = Object.assign({}, timingContext || {}, {
+            paramDurationSeconds: getParamKeyframeDuration(snapshot)
+          });
           actions.push(param.createSetTimeVaryingAction(true));
           for (const keyframeSnapshot of snapshot.keyframes) {
             if (!isSupportedPresetValue(keyframeSnapshot.value)) {
               continue;
             }
-            const keyframe = param.createKeyframe(reviveValue(app, keyframeSnapshot.value));
-            const position = reviveTime(app, keyframeSnapshot, timingContext);
-            if (position) {
-              keyframe.position = position;
-            }
-            if (keyframeSnapshot.temporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
-              await keyframe.setTemporalInterpolationMode(keyframeSnapshot.temporalInterpolation);
-            }
-            actions.push(param.createAddKeyframeAction(keyframe));
-            if (position && keyframeSnapshot.temporalInterpolation !== null && typeof param.createSetInterpolationAtKeyframeAction === "function") {
-              actions.push(param.createSetInterpolationAtKeyframeAction(position, keyframeSnapshot.temporalInterpolation, true));
+            try {
+              const keyframe = param.createKeyframe(reviveValue(app, keyframeSnapshot.value));
+              const position = reviveTime(app, keyframeSnapshot, paramTimingContext);
+              if (position) {
+                keyframe.position = position;
+              }
+              if (keyframeSnapshot.temporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
+                try {
+                  await keyframe.setTemporalInterpolationMode(keyframeSnapshot.temporalInterpolation);
+                } catch (error) {
+                  logBridge("warn", "Skipped captured keyframe interpolation.", {
+                    index: snapshot.index,
+                    name: snapshot.displayName,
+                    error: describeBridgeError(error)
+                  });
+                }
+              }
+              actions.push(param.createAddKeyframeAction(keyframe));
+              if (position && keyframeSnapshot.temporalInterpolation !== null && typeof param.createSetInterpolationAtKeyframeAction === "function") {
+                try {
+                  actions.push(param.createSetInterpolationAtKeyframeAction(position, keyframeSnapshot.temporalInterpolation, true));
+                } catch (error) {
+                  logBridge("warn", "Skipped captured interpolation action.", {
+                    index: snapshot.index,
+                    name: snapshot.displayName,
+                    error: describeBridgeError(error)
+                  });
+                }
+              }
+            } catch (error) {
+              logBridge("warn", "Skipped one preset keyframe.", {
+                index: snapshot.index,
+                name: snapshot.displayName,
+                error: describeBridgeError(error)
+              });
             }
           }
         } else {
@@ -1154,6 +1182,20 @@
       }
     }
     return actions;
+  }
+
+  // Return the source offset of the last keyframe for anchor-out and scale placement.
+  function getParamKeyframeDuration(snapshot) {
+    const values = (snapshot && Array.isArray(snapshot.keyframes) ? snapshot.keyframes : []).map((keyframe) => {
+      if (typeof keyframe.relativeSeconds === "number") {
+        return keyframe.relativeSeconds;
+      }
+      return typeof keyframe.seconds === "number" ? keyframe.seconds : null;
+    }).filter((value) => typeof value === "number" && Number.isFinite(value));
+    if (!values.length) {
+      return null;
+    }
+    return Math.max.apply(null, values);
   }
 
   // Keep unsupported/empty parameter payloads from aborting a whole preset.

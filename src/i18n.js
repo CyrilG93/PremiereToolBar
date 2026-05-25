@@ -64,7 +64,7 @@
     presetTimingAnchorIn: "Anchor To Clip In",
     presetTimingAnchorOut: "Anchor To Clip Out",
     presetTimingScale: "Scale To Clip Duration",
-    presetTimingAbsolute: "Keep Original Times",
+    presetTimingAbsolute: "Keep Preset Offset",
     mediaType: "Media Type",
     video: "Video",
     audio: "Audio",
