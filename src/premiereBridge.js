@@ -1092,35 +1092,66 @@
       if (snapshot.index >= paramCount) {
         continue;
       }
-      const param = component.getParam(snapshot.index);
-      if (!param) {
-        continue;
-      }
-      if (snapshot.timeVarying && snapshot.keyframes.length) {
-        actions.push(param.createSetTimeVaryingAction(true));
-        for (const keyframeSnapshot of snapshot.keyframes) {
-          const keyframe = param.createKeyframe(reviveValue(app, keyframeSnapshot.value));
-          const position = reviveTime(app, keyframeSnapshot, timingContext);
-          if (position) {
-            keyframe.position = position;
-          }
-          if (keyframeSnapshot.temporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
-            await keyframe.setTemporalInterpolationMode(keyframeSnapshot.temporalInterpolation);
-          }
-          actions.push(param.createAddKeyframeAction(keyframe));
-          if (position && keyframeSnapshot.temporalInterpolation !== null && typeof param.createSetInterpolationAtKeyframeAction === "function") {
-            actions.push(param.createSetInterpolationAtKeyframeAction(position, keyframeSnapshot.temporalInterpolation, true));
-          }
+      try {
+        const param = component.getParam(snapshot.index);
+        if (!param) {
+          continue;
         }
-      } else {
-        const keyframe = param.createKeyframe(reviveValue(app, snapshot.startValue));
-        if (snapshot.startTemporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
-          await keyframe.setTemporalInterpolationMode(snapshot.startTemporalInterpolation);
+        if (snapshot.timeVarying && snapshot.keyframes.length) {
+          actions.push(param.createSetTimeVaryingAction(true));
+          for (const keyframeSnapshot of snapshot.keyframes) {
+            if (!isSupportedPresetValue(keyframeSnapshot.value)) {
+              continue;
+            }
+            const keyframe = param.createKeyframe(reviveValue(app, keyframeSnapshot.value));
+            const position = reviveTime(app, keyframeSnapshot, timingContext);
+            if (position) {
+              keyframe.position = position;
+            }
+            if (keyframeSnapshot.temporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
+              await keyframe.setTemporalInterpolationMode(keyframeSnapshot.temporalInterpolation);
+            }
+            actions.push(param.createAddKeyframeAction(keyframe));
+            if (position && keyframeSnapshot.temporalInterpolation !== null && typeof param.createSetInterpolationAtKeyframeAction === "function") {
+              actions.push(param.createSetInterpolationAtKeyframeAction(position, keyframeSnapshot.temporalInterpolation, true));
+            }
+          }
+        } else {
+          if (!isSupportedPresetValue(snapshot.startValue)) {
+            continue;
+          }
+          const keyframe = param.createKeyframe(reviveValue(app, snapshot.startValue));
+          if (snapshot.startTemporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
+            await keyframe.setTemporalInterpolationMode(snapshot.startTemporalInterpolation);
+          }
+          actions.push(param.createSetValueAction(keyframe, true));
         }
-        actions.push(param.createSetValueAction(keyframe, true));
+      } catch (error) {
+        logBridge("warn", "Skipped preset parameter action.", {
+          index: snapshot.index,
+          name: snapshot.displayName,
+          error: describeBridgeError(error)
+        });
       }
     }
     return actions;
+  }
+
+  // Keep unsupported/empty parameter payloads from aborting a whole preset.
+  function isSupportedPresetValue(snapshot) {
+    if (!snapshot || typeof snapshot !== "object") {
+      return false;
+    }
+    if (snapshot.kind === "point") {
+      return Number.isFinite(Number(snapshot.x)) && Number.isFinite(Number(snapshot.y));
+    }
+    if (snapshot.kind === "color") {
+      return ["red", "green", "blue"].every((key) => Number.isFinite(Number(snapshot[key])));
+    }
+    if (snapshot.kind === "primitive") {
+      return typeof snapshot.value === "number" || typeof snapshot.value === "boolean";
+    }
+    return false;
   }
 
   // Unwrap UXP keyframe/value containers while supporting multiple host shapes.

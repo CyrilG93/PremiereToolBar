@@ -95,9 +95,17 @@ function prfpsetImporterSmokeTest() {
         <AnchorOutPoint>915438101760000</AnchorOutPoint>
       </FilterPreset>
       <VideoFilterComponent ObjectID="10">
-        <Component><DisplayName>Transform</DisplayName><Params><Param Index="3" ObjectRef="14"/></Params></Component>
+        <Component><DisplayName>Transform</DisplayName><Params><Param Index="0" ObjectRef="11"/><Param Index="3" ObjectRef="14"/></Params></Component>
         <MatchName>AE.ADBE Geometry2</MatchName>
       </VideoFilterComponent>
+      <VideoComponentParam ObjectID="11">
+        <Keyframes></Keyframes>
+        <IsTimeVarying>false</IsTimeVarying>
+        <StartKeyframe>-91445760000000000,100.,0,0,0,0,0,0</StartKeyframe>
+        <CurrentValue>0.</CurrentValue>
+        <ParameterID>1</ParameterID>
+        <Name>Static Default</Name>
+      </VideoComponentParam>
       <VideoComponentParam ObjectID="14">
         <Keyframes>914452519680000,100.,0,0;915438101760000,105.,0,0;</Keyframes>
         <IsTimeVarying>true</IsTimeVarying>
@@ -109,8 +117,9 @@ function prfpsetImporterSmokeTest() {
   const result = context.PTB_PRESET_IMPORT.parsePrfpsetText(samplePreset, "Zoom5.prfpset");
   assert.equal(result.stack.sourceName, "ZOOM 5%");
   assert.equal(result.stack.components[0].matchName, "AE.ADBE Geometry2");
-  assert.equal(result.stack.components[0].params[0].keyframes.length, 2);
-  assert.equal(result.stack.components[0].params[0].keyframes[1].value.value, 105);
+  assert.equal(result.stack.components[0].params[0].startValue.value, 100);
+  assert.equal(result.stack.components[0].params[1].keyframes.length, 2);
+  assert.equal(result.stack.components[0].params[1].keyframes[1].value.value, 105);
   assert.ok(result.stack.sourceDurationSeconds > 3.8);
 }
 

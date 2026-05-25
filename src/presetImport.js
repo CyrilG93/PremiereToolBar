@@ -134,6 +134,15 @@
     });
   }
 
+  // Parse Premiere's compact start keyframe payload and keep only its value slot.
+  function parseStartKeyframeValue(text, fallbackText) {
+    const parts = String(text || "").split(",");
+    if (parts.length >= 2) {
+      return parseValue(parts[1]);
+    }
+    return parseValue(fallbackText);
+  }
+
   // Find any match names embedded in one node's attributes or text.
   function extractMatchNames(node) {
     const haystacks = [shortText(node)];
@@ -381,12 +390,13 @@
       const paramBlock = findObjectBlock(xmlText, paramRef.objectRef);
       const keyframes = parseCompactKeyframes(readTagText(paramBlock, "Keyframes"), anchorTicks);
       const currentValue = readTagText(paramBlock, "CurrentValue");
+      const startValue = parseStartKeyframeValue(readTagText(paramBlock, "StartKeyframe"), currentValue);
       return {
         index: paramRef.index,
         displayName: readTagText(paramBlock, "Name") || "Param " + (paramRef.index + 1),
         parameterId: readTagText(paramBlock, "ParameterID"),
         timeVarying: /^true$/i.test(readTagText(paramBlock, "IsTimeVarying")) || keyframes.length > 0,
-        startValue: keyframes[0] ? keyframes[0].value : parseValue(currentValue),
+        startValue: keyframes[0] ? keyframes[0].value : startValue,
         startTemporalInterpolation: null,
         keyframes
       };
