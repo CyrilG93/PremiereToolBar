@@ -97,6 +97,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.1.43 - 2026-05-25
+
+- Improved collection drag and drop so buttons can be reordered at the beginning, middle, or end.
+- Made the insertion preview clearer while dragging inside a collection.
+
 ### 0.1.42 - 2026-05-25
 
 - Centered detected edit-point video transitions on the shared cut between adjacent clips.

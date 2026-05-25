@@ -122,6 +122,16 @@ class FakeElement {
     this["on" + type] = handler;
   }
 
+  // Provide stable fake geometry so drag insertion tests can choose before/after slots.
+  getBoundingClientRect() {
+    const index = Number(this.dataset.collectionIndex) || 0;
+    const left = index * 160;
+    const top = 0;
+    const width = 150;
+    const height = 44;
+    return { left, top, width, height, right: left + width, bottom: top + height };
+  }
+
   set textContent(value) {
     this._textContent = String(value);
     this.children = [];
@@ -151,6 +161,13 @@ function createFakeDocument() {
     },
     getElementById(id) {
       return findByPredicate(document.documentElement, (node) => node.id === id) || null;
+    },
+    querySelectorAll(selector) {
+      const wanted = String(selector || "").split(",").map((item) => item.trim().replace(/^\./, "")).filter(Boolean);
+      return findAllByPredicate(document.documentElement, (node) => {
+        const tokens = node.className ? String(node.className).split(/\s+/) : [];
+        return wanted.some((className) => tokens.includes(className));
+      });
     }
   };
   document.documentElement = new FakeElement("html", document);
@@ -189,8 +206,9 @@ function countClass(node, className) {
 }
 
 // Execute the browser UI scripts against the fake DOM.
-function renderSettingsSmokeTest() {
+function renderSettingsHarness(initialConfig) {
   const document = createFakeDocument();
+  let savedConfig = null;
   const context = {
     console,
     document,
@@ -198,8 +216,11 @@ function renderSettingsSmokeTest() {
     window: null,
     PTB_SCHEMA: schema,
     PTB_STORAGE: {
-      loadConfig: () => schema.createDefaultConfig(),
-      saveConfig: (config) => schema.normalizeConfig(config),
+      loadConfig: () => schema.normalizeConfig(initialConfig || schema.createDefaultConfig()),
+      saveConfig: (config) => {
+        savedConfig = schema.normalizeConfig(config);
+        return savedConfig;
+      },
       restoreConfigBackup: async () => null,
       exportJsonFile: async () => {},
       importJsonFile: async () => "",
@@ -218,6 +239,12 @@ function renderSettingsSmokeTest() {
   const rootNode = document.createElement("div");
   document.body.appendChild(rootNode);
   context.PTB_UI.mountPanel(rootNode, "ptb-settings", {});
+  return { context, document, rootNode, getSavedConfig: () => savedConfig };
+}
+
+// Return only the root for tests that only inspect rendered text.
+function renderSettingsSmokeTest() {
+  const { rootNode } = renderSettingsHarness();
   return rootNode;
 }
 
@@ -234,6 +261,30 @@ assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
+
+// Verify collection drag/drop can reorder to the beginning and preview gaps between cards.
+function collectionReorderSmokeTest() {
+  const harness = renderSettingsHarness();
+  const lists = findAllByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-collection-member-list"));
+  const list = lists.find((node) => (node.children || []).filter((child) => String(child.className || "").includes("ptb-collection-member")).length >= 3);
+  const members = (list.children || []).filter((node) => String(node.className || "").includes("ptb-collection-member"));
+  const originalThirdId = schema.createDefaultConfig().collections[0].buttonIds[2];
+  members[2].onmousedown({ target: members[2] });
+  members[0].onmousemove({ target: members[0], clientX: 0, clientY: 20, stopPropagation() { this.stopped = true; } });
+  list.onmousemove({ target: members[0], clientX: 0, clientY: 20 });
+  assert.ok(String(members[0].className).includes("drop-before"));
+  members[0].onmouseup({ target: members[0], stopPropagation() {} });
+  assert.equal(harness.getSavedConfig().collections[0].buttonIds[0], originalThirdId);
+
+  const secondHarness = renderSettingsHarness();
+  const secondList = findAllByPredicate(secondHarness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-collection-member-list"))[0];
+  const secondMembers = (secondList.children || []).filter((node) => String(node.className || "").includes("ptb-collection-member"));
+  secondMembers[2].onmousedown({ target: secondMembers[2] });
+  secondList.onmousemove({ target: secondList, clientX: 155, clientY: 20 });
+  assert.ok(String(secondMembers[0].className).includes("drop-after"));
+}
+
+collectionReorderSmokeTest();
 
 // Verify preset capture preserves time-varying keyframes exposed by the Premiere API.
 async function capturePresetSmokeTest() {
@@ -299,6 +350,20 @@ async function capturePresetSmokeTest() {
   assert.equal(stack.components[0].params[0].keyframes.length, 2);
   assert.equal(stack.components[0].params[0].keyframes[0].value.value, 25);
   assert.equal(stack.components[0].params[0].keyframes[1].ticks, "508032000000");
+}
+
+// Traverse a fake DOM tree and return every matching node.
+function findAllByPredicate(node, predicate, output = []) {
+  if (!node) {
+    return output;
+  }
+  if (predicate(node)) {
+    output.push(node);
+  }
+  for (const child of node.children || []) {
+    findAllByPredicate(child, predicate, output);
+  }
+  return output;
 }
 
 await capturePresetSmokeTest();

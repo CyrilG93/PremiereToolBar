@@ -164,7 +164,7 @@
       .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-fieldset>.ptb-field{flex:0 1 auto}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
       .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;max-height:190px;margin:0;overflow:auto}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
-      .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-4px 0 0 #9fe3c1}.ptb-collection-member.drop-after{box-shadow:4px 0 0 #9fe3c1}.ptb-collection-member-list.drop-tail{box-shadow:inset -4px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
+      .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member.drop-after{box-shadow:5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member-list.drop-tail{box-shadow:inset -5px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
       .ptb-logs-panel{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px}.ptb-log-copy-text{width:100%;min-height:118px;resize:vertical;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;color:var(--ptb-text);background:#101010;font-family:Consolas,monospace;font-size:11px;line-height:1.35;white-space:pre;overflow:auto}
       @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
@@ -420,13 +420,13 @@
       setStyles(node, { position: "relative", width: "150px", minWidth: "150px", padding: "7px" });
     }
     if (tokens.includes("drop-before")) {
-      setStyles(node, { boxShadow: "-4px 0 0 #9fe3c1" });
+      setStyles(node, { boxShadow: "-5px 0 0 #9fe3c1, 0 0 0 1px rgba(159, 227, 193, 0.45)" });
     }
     if (tokens.includes("drop-after")) {
-      setStyles(node, { boxShadow: "4px 0 0 #9fe3c1" });
+      setStyles(node, { boxShadow: "5px 0 0 #9fe3c1, 0 0 0 1px rgba(159, 227, 193, 0.45)" });
     }
     if (tokens.includes("drop-tail")) {
-      setStyles(node, { boxShadow: "inset -4px 0 0 #9fe3c1" });
+      setStyles(node, { boxShadow: "inset -5px 0 0 #9fe3c1" });
     }
     if (tokens.includes("ptb-icon-action")) {
       setStyles(node, Object.assign({}, sharedButton, { minWidth: "26px", minHeight: "24px", padding: "3px 6px", fontSize: "10px" }));
@@ -1472,30 +1472,30 @@
   // Render one collection with name editing, bar assignment, and drop handling.
   function renderCollectionDropCard(collection) {
     const card = el("div", collection.id === settingsState.selectedCollectionId ? "ptb-collection-drop-card active" : "ptb-collection-drop-card");
+    const list = el("div", "ptb-collection-member-list");
+    const setCardTailTarget = (event) => {
+      if (hasPendingDrag() && isDirectDropSurface(event, card)) {
+        setDropTarget(collection.id, collection.buttonIds.length, list, "tail");
+      }
+    };
     card.addEventListener("click", (event) => {
       if (!isInteractiveTarget(event.target, card)) {
         selectCollection(collection.id);
       }
     });
     card.addEventListener("mouseup", (event) => {
-      if (!isInteractiveTarget(event.target, card)) {
+      if (!isInteractiveTarget(event.target, card) && isDirectDropSurface(event, card)) {
         applyPendingDragToCollection(collection);
       }
     });
-    card.addEventListener("mouseenter", () => {
-      if (hasPendingDrag()) {
-        setDropTarget(collection.id, collection.buttonIds.length, card);
-      }
-    });
-    card.addEventListener("mousemove", () => {
-      if (hasPendingDrag()) {
-        setDropTarget(collection.id, collection.buttonIds.length, card);
-      }
-    });
+    card.addEventListener("mouseenter", setCardTailTarget);
+    card.addEventListener("mousemove", setCardTailTarget);
     card.addEventListener("dragover", (event) => {
       event.preventDefault();
-      card.classList.add("drag-over");
-      setDropTarget(collection.id, collection.buttonIds.length, card);
+      if (isDirectDropSurface(event, card)) {
+        card.classList.add("drag-over");
+        setDropTarget(collection.id, collection.buttonIds.length, list, "tail");
+      }
     });
     card.addEventListener("dragleave", () => {
       card.classList.remove("drag-over");
@@ -1505,29 +1505,34 @@
     card.addEventListener("drop", (event) => {
       event.preventDefault();
       card.classList.remove("drag-over");
-      applyDropEvent(collection, collection.buttonIds.length, event);
+      if (isDirectDropSurface(event, card)) {
+        applyDropEvent(collection, collection.buttonIds.length, event);
+      }
     });
     card.appendChild(renderCollectionHeader(collection));
-    const list = el("div", "ptb-collection-member-list");
-    const setTailTarget = () => {
-      if (hasPendingDrag()) {
-        setDropTarget(collection.id, collection.buttonIds.length, list);
+    const setListTarget = (event) => {
+      if (hasPendingDrag() && isDirectDropSurface(event, list)) {
+        const target = getListInsertion(event, list, collection.buttonIds.length);
+        setDropTarget(collection.id, target.index, target.node || list, target.position);
       }
     };
-    list.addEventListener("mouseenter", setTailTarget);
-    list.addEventListener("mousemove", setTailTarget);
+    list.addEventListener("mouseenter", setListTarget);
+    list.addEventListener("mousemove", setListTarget);
     list.addEventListener("dragover", (event) => {
       event.preventDefault();
-      setDropTarget(collection.id, collection.buttonIds.length, list);
+      setListTarget(event);
     });
     list.addEventListener("mouseup", (event) => {
-      if (!isInteractiveTarget(event.target, list)) {
-        applyPendingDragToCollection(collection, collection.buttonIds.length);
+      if (!isInteractiveTarget(event.target, list) && isDirectDropSurface(event, list)) {
+        const preview = settingsState.dropTarget || {};
+        applyPendingDragToCollection(collection, preview.collectionId === collection.id && preview.index >= 0 ? preview.index : collection.buttonIds.length);
       }
     });
     list.addEventListener("drop", (event) => {
       event.preventDefault();
-      applyDropEvent(collection, collection.buttonIds.length, event);
+      if (isDirectDropSurface(event, list)) {
+        applyDropEvent(collection, collection.buttonIds.length, event);
+      }
     });
     const buttons = getCollectionButtons(collection.id);
     if (!buttons.length) {
@@ -1547,6 +1552,30 @@
     while (node && node !== boundary) {
       const tagName = node.tagName ? node.tagName.toLowerCase() : "";
       if (["button", "input", "select", "textarea", "option"].includes(tagName)) {
+        return true;
+      }
+      node = node.parentNode;
+    }
+    return false;
+  }
+
+  // Return true only when a bubbled event still belongs to the surface itself or its empty hint.
+  function isDirectDropSurface(event, surface) {
+    if (!event || !surface) {
+      return true;
+    }
+    if (event.target === surface) {
+      return true;
+    }
+    return isWithinClass(event.target, surface, "ptb-drop-hint");
+  }
+
+  // Walk up to a boundary and detect whether the event came from a specific UI class.
+  function isWithinClass(target, boundary, className) {
+    let node = target;
+    while (node && node !== boundary) {
+      const tokens = node.className ? String(node.className).split(/\s+/) : [];
+      if (tokens.includes(className)) {
         return true;
       }
       node = node.parentNode;
@@ -1641,15 +1670,22 @@
 
   // Remember where the dragged button will be inserted and update the visual guide.
   function setDropTarget(collectionId, index, node, position) {
-    settingsState.dropTarget = { collectionId: collectionId || "", index: typeof index === "number" ? index : -1 };
+    settingsState.dropTarget = {
+      collectionId: collectionId || "",
+      index: typeof index === "number" ? index : -1,
+      position: position || "before"
+    };
     clearDropMarkers();
     if (node && node.classList) {
-      if (node.className && String(node.className).includes("ptb-collection-member-list")) {
+      if (position === "tail" || (node.className && String(node.className).includes("ptb-collection-member-list"))) {
         node.classList.add("drop-tail");
+        node.style.boxShadow = "inset -5px 0 0 #9fe3c1";
       } else if (position === "after") {
         node.classList.add("drop-after");
+        node.style.boxShadow = "5px 0 0 #9fe3c1, 0 0 0 1px rgba(159, 227, 193, 0.45)";
       } else {
         node.classList.add("drop-before");
+        node.style.boxShadow = "-5px 0 0 #9fe3c1, 0 0 0 1px rgba(159, 227, 193, 0.45)";
       }
     }
   }
@@ -1664,8 +1700,41 @@
         node.classList.remove("drop-before");
         node.classList.remove("drop-after");
         node.classList.remove("drop-tail");
+        node.style.boxShadow = "";
       }
     });
+  }
+
+  // Pick the closest before/after slot in a wrapped collection list, including gaps between cards.
+  function getListInsertion(event, list, fallbackIndex) {
+    if (!event || !list || typeof event.clientX !== "number") {
+      return { index: fallbackIndex, node: list, position: "tail" };
+    }
+    const members = Array.from(list.children || []).filter((node) => {
+      return node.className && String(node.className).split(/\s+/).includes("ptb-collection-member");
+    });
+    let best = null;
+    members.forEach((node) => {
+      if (typeof node.getBoundingClientRect !== "function") {
+        return;
+      }
+      const rect = node.getBoundingClientRect();
+      const index = Number(node.dataset.collectionIndex);
+      if (!Number.isFinite(index)) {
+        return;
+      }
+      const pointerY = typeof event.clientY === "number" ? event.clientY : rect.top + rect.height / 2;
+      [
+        { index, node, position: "before", x: rect.left, y: rect.top + rect.height / 2 },
+        { index: index + 1, node, position: "after", x: rect.right, y: rect.top + rect.height / 2 }
+      ].forEach((candidate) => {
+        const distance = Math.abs(event.clientX - candidate.x) + Math.abs(pointerY - candidate.y);
+        if (!best || distance < best.distance) {
+          best = Object.assign({ distance }, candidate);
+        }
+      });
+    });
+    return best || { index: fallbackIndex, node: list, position: "tail" };
   }
 
   // Choose before/after by pointer position so collection reordering previews the real insertion point.
@@ -1766,6 +1835,7 @@
   function renderCollectionMember(collection, button, index) {
     const row = el("div", button.id === settingsState.selectedButtonId ? "ptb-collection-member active" : "ptb-collection-member");
     row.title = getButtonName(button) + " - right click to remove";
+    row.dataset.collectionIndex = String(index);
     row.draggable = true;
     row.setAttribute("draggable", "true");
     row.addEventListener("click", () => selectButton(button.id, collection.id));
@@ -1778,12 +1848,18 @@
     });
     row.addEventListener("mouseenter", (event) => {
       if (hasPendingDrag()) {
+        if (event.stopPropagation) {
+          event.stopPropagation();
+        }
         const target = getPointerInsertion(event, row, index);
         setDropTarget(collection.id, target.index, row, target.position);
       }
     });
     row.addEventListener("mousemove", (event) => {
       if (hasPendingDrag()) {
+        if (event.stopPropagation) {
+          event.stopPropagation();
+        }
         const target = getPointerInsertion(event, row, index);
         setDropTarget(collection.id, target.index, row, target.position);
       }
@@ -1800,6 +1876,9 @@
     });
     row.addEventListener("dragover", (event) => {
       event.preventDefault();
+      if (event.stopPropagation) {
+        event.stopPropagation();
+      }
       row.classList.add("drag-over");
       const target = getPointerInsertion(event, row, index);
       setDropTarget(collection.id, target.index, row, target.position);
@@ -1811,6 +1890,9 @@
     });
     row.addEventListener("drop", (event) => {
       event.preventDefault();
+      if (event.stopPropagation) {
+        event.stopPropagation();
+      }
       row.classList.remove("drag-over");
       row.classList.remove("drop-before");
       row.classList.remove("drop-after");
