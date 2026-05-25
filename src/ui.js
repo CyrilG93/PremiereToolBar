@@ -926,19 +926,64 @@
     return isTransparentColor(value) ? "transparent" : normalizeColor(value, fallback);
   }
 
-  // Apply a visual background, including a checkerboard hint for transparent previews.
+  // Remove the transparent marker before repainting a color control.
+  function clearTransparentMarker(node) {
+    const marker = node && node.querySelector ? node.querySelector(".ptb-transparent-marker") : null;
+    if (marker && marker.parentNode) {
+      marker.parentNode.removeChild(marker);
+    }
+  }
+
+  // Resolve the bundled stop icon used to mark the transparent color choice.
+  function getTransparentMarkerIconId() {
+    const icons = root.PTB_ICON_LIBRARY && root.PTB_ICON_LIBRARY.icons ? root.PTB_ICON_LIBRARY.icons : [];
+    if (icons.some((icon) => icon.id === "Stop")) {
+      return "Stop";
+    }
+    if (icons.some((icon) => icon.id === "stop")) {
+      return "stop";
+    }
+    return "sign-stop";
+  }
+
+  // Add the stop icon so transparent is readable without a broken checkerboard.
+  function appendTransparentMarker(node) {
+    const marker = createIconImage(getTransparentMarkerIconId(), "#d7dee8", root.PTB_I18N.t("transparent"));
+    marker.classList.add("ptb-transparent-marker");
+    setStyles(marker, { width: "20px", height: "20px" });
+    node.appendChild(marker);
+  }
+
+  // Apply a color-control preview, using an icon marker only for the transparent choice.
   function applyColorPreviewBackground(node, value) {
+    clearTransparentMarker(node);
     if (isTransparentColor(value)) {
       node.classList.add("transparent");
-      node.style.background = "linear-gradient(45deg, #555 25%, transparent 25%), linear-gradient(-45deg, #555 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #555 75%), linear-gradient(-45deg, transparent 75%, #555 75%)";
-      node.style.backgroundColor = "#1f1f1f";
-      node.style.backgroundPosition = "0 0, 0 8px, 8px -8px, -8px 0";
-      node.style.backgroundSize = "16px 16px";
+      node.style.background = "#242424";
+      node.style.backgroundColor = "#242424";
+      node.style.backgroundPosition = "";
+      node.style.backgroundSize = "";
+      appendTransparentMarker(node);
       return;
     }
     node.classList.remove("transparent");
     node.style.background = value;
     node.style.backgroundColor = value;
+    node.style.backgroundPosition = "";
+    node.style.backgroundSize = "";
+  }
+
+  // Apply the real button background without adding any transparency marker in settings cards.
+  function applyButtonBackground(node, value) {
+    clearTransparentMarker(node);
+    const transparent = isTransparentColor(value);
+    if (transparent) {
+      node.classList.add("transparent");
+    } else {
+      node.classList.remove("transparent");
+    }
+    node.style.background = transparent ? "transparent" : value;
+    node.style.backgroundColor = transparent ? "transparent" : value;
     node.style.backgroundPosition = "";
     node.style.backgroundSize = "";
   }
@@ -1023,7 +1068,7 @@
       renderAll();
     });
     preview.title = root.PTB_I18N.t("icon");
-    applyColorPreviewBackground(preview, normalizeButtonBackground(button.accentColor, "#2b3037"));
+    applyButtonBackground(preview, normalizeButtonBackground(button.accentColor, "#2b3037"));
     preview.style.borderColor = "var(--ptb-line)";
     preview.appendChild(createIconImage(button.icon, button.iconColor, getButtonName(button)));
     row.appendChild(preview);
@@ -1046,7 +1091,7 @@
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       item.title = icon.label;
-      applyColorPreviewBackground(item, normalizeButtonBackground(button.accentColor, "#2b3037"));
+      applyButtonBackground(item, normalizeButtonBackground(button.accentColor, "#2b3037"));
       item.appendChild(createIconImage(icon.id, button.iconColor, icon.label));
       grid.appendChild(item);
     });
@@ -1367,7 +1412,7 @@
   function renderButtonSwatch(button) {
     const icon = el("span", "ptb-card-icon");
     const background = normalizeButtonBackground(button.accentColor, "#2b3037");
-    applyColorPreviewBackground(icon, background);
+    applyButtonBackground(icon, background);
     icon.style.border = isTransparentColor(background) ? "1px solid transparent" : "1px solid rgba(255,255,255,0.12)";
     icon.appendChild(renderButtonFaceElement(button));
     return icon;
