@@ -286,6 +286,36 @@ function collectionReorderSmokeTest() {
 
 collectionReorderSmokeTest();
 
+// Verify video effect buttons show the stable match name while audio effects keep display-name lookup.
+function effectLookupDisplaySmokeTest() {
+  const videoConfig = schema.createDefaultConfig();
+  videoConfig.activeButtonId = "btn-transform";
+  const videoHarness = renderSettingsHarness(videoConfig);
+  const videoInputs = findAllByPredicate(videoHarness.rootNode, (node) => node.tagName === "INPUT");
+  assert.ok(videoInputs.some((input) => input.value === "AE.ADBE Transform"));
+
+  const audioButton = schema.createButton({
+    id: "btn-audio-test",
+    label: "Audio FX",
+    actionType: "effect",
+    mediaType: "audio",
+    effect: { displayName: "Parametric Equalizer", matchName: "" }
+  });
+  const audioConfig = schema.normalizeConfig({
+    schemaVersion: 2,
+    activeCollectionId: "collection-audio-test",
+    activeButtonId: "btn-audio-test",
+    buttons: [audioButton],
+    collections: [{ id: "collection-audio-test", name: "Audio", buttonIds: ["btn-audio-test"] }],
+    bars: []
+  });
+  const audioHarness = renderSettingsHarness(audioConfig);
+  const audioInputs = findAllByPredicate(audioHarness.rootNode, (node) => node.tagName === "INPUT");
+  assert.ok(audioInputs.some((input) => input.value === "Parametric Equalizer"));
+}
+
+effectLookupDisplaySmokeTest();
+
 // Verify preset capture preserves time-varying keyframes exposed by the Premiere API.
 async function capturePresetSmokeTest() {
   const context = {

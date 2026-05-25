@@ -534,7 +534,13 @@
 
   // Read the unified effect identifier field shown in the editor.
   function getEffectLookupValue(button) {
-    return button && button.effect ? (button.effect.displayName || button.effect.matchName || "") : "";
+    if (!button || !button.effect) {
+      return "";
+    }
+    if (button.mediaType !== "audio" && button.effect.matchName) {
+      return button.effect.matchName;
+    }
+    return button.effect.displayName || button.effect.matchName || "";
   }
 
   // Store a manual effect entry as both display lookup and direct match-name candidate.

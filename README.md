@@ -66,7 +66,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Set each bar to horizontal or vertical from the compact bar controls.
 - Choose whether a button shows an icon, a three-letter text shortcut, or both.
 - Assign an icon, icon color, and button color with popover pickers.
-- Type either the Premiere effect name or the effect match name in one field.
+- Type either the Premiere effect name or the effect match name in one field. Video effect catalog choices fill the stable match name when Premiere exposes one.
 - Assign video transition match names from Premiere and copy the discovered transition match-name catalog when needed.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
@@ -75,7 +75,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 
 ## Important API Notes
 
-Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. Audio transition creation is not currently documented by Adobe and did not apply reliably in current tests, so Tool Bar keeps that code disabled for now. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
+Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. Video effects expose stable match names, while audio effects currently expose display names for creation in the documented UXP API. Audio transition creation is not currently documented by Adobe and did not apply reliably in current tests, so Tool Bar keeps that code disabled for now. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
 
 Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Native video transitions can be applied by transition match name. Some third-party effects, transition presets, or protected parameters may not expose all values to UXP.
 
@@ -96,6 +96,11 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.1.44 - 2026-05-25
+
+- Made video effect catalog selections fill the stable Premiere match name in the editor.
+- Clarified that audio effects use display names because Premiere UXP does not expose audio effect match names in the documented factory API.
 
 ### 0.1.43 - 2026-05-25
 
