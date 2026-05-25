@@ -933,16 +933,20 @@
         if (componentSnapshot.mediaType === "video" && isVideoItem(item)) {
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
           const chain = await item.getComponentChain();
+          const earlyTarget = { component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming };
+          const earlyParamActions = await createParamActions(app, component, componentSnapshot.params, earlyTarget);
           appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
+          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming, earlyParamActions });
           appendOffset += 1;
-          pendingParamTargets.push({ component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
         }
         if (componentSnapshot.mediaType === "audio" && isAudioItem(item)) {
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
           const chain = await item.getComponentChain();
+          const earlyTarget = { component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming };
+          const earlyParamActions = await createParamActions(app, component, componentSnapshot.params, earlyTarget);
           appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
+          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming, earlyParamActions });
           appendOffset += 1;
-          pendingParamTargets.push({ component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
         }
       }
     }
@@ -951,7 +955,18 @@
     await waitForHostPaint();
     const paramActions = [];
     for (const target of pendingParamTargets) {
-      paramActions.push.apply(paramActions, await createParamActions(app, target.component, target.params, target));
+      const resolvedComponent = resolveInsertedComponent(target.chain, target.insertIndex) || target.component;
+      const lateActions = await createParamActions(app, resolvedComponent, target.params, target);
+      const usableActions = lateActions.length ? lateActions : (target.earlyParamActions || []);
+      if (!usableActions.length) {
+        logBridge("warn", "Preset component has no parameter actions.", {
+          storedParams: target.params.length,
+          insertIndex: target.insertIndex,
+          resolvedParamCount: getComponentParamCount(resolvedComponent),
+          earlyParamActions: target.earlyParamActions ? target.earlyParamActions.length : 0
+        });
+      }
+      paramActions.push.apply(paramActions, usableActions);
     }
     if (paramActions.length) {
       executeActions(project, paramActions, "Tool Bar: " + button.label + " preset values");
@@ -961,6 +976,27 @@
     await refreshSequenceView(sequence);
     logBridge("info", "Preset command completed.", { components: pendingParamTargets.length, parameterActions: paramActions.length });
     return result;
+  }
+
+  // Return a component from the destination chain after Premiere has inserted it.
+  function resolveInsertedComponent(chain, index) {
+    try {
+      if (chain && typeof chain.getComponentAtIndex === "function") {
+        return chain.getComponentAtIndex(Number(index) || 0);
+      }
+    } catch (error) {
+      logBridge("warn", "Could not resolve inserted component.", describeBridgeError(error));
+    }
+    return null;
+  }
+
+  // Read a component parameter count without letting opaque UXP proxies break the workflow.
+  function getComponentParamCount(component) {
+    try {
+      return component && typeof component.getParamCount === "function" ? component.getParamCount() : 0;
+    } catch (error) {
+      return 0;
+    }
   }
 
   // Give Premiere a short chance to attach newly-created components before setting their params.
@@ -1051,7 +1087,7 @@
   // Create parameter set/keyframe actions for a newly-created component.
   async function createParamActions(app, component, paramSnapshots, timingContext) {
     const actions = [];
-    const paramCount = typeof component.getParamCount === "function" ? component.getParamCount() : 0;
+    const paramCount = getComponentParamCount(component);
     for (const snapshot of paramSnapshots) {
       if (snapshot.index >= paramCount) {
         continue;
@@ -1195,6 +1231,11 @@
     if (!components.length) {
       throw new Error(root.PTB_I18N.t("noStackCaptured"));
     }
+    logBridge("info", "Captured Tool Bar preset.", {
+      components: components.length,
+      params: components.reduce((count, component) => count + component.params.length, 0),
+      keyframes: components.reduce((count, component) => count + component.params.reduce((total, param) => total + param.keyframes.length, 0), 0)
+    });
     return root.PTB_SCHEMA.normalizeStack({
       sourceName: itemName,
       capturedAt: new Date().toISOString(),

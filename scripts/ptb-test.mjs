@@ -75,6 +75,47 @@ const migratedButton = schema.createButton({
 assert.equal(migratedButton.label, "Gaussian Blur");
 assert.equal(migratedButton.effect.matchName, "AE.ADBE Gaussian Blur 2");
 
+// Verify the .prfpset importer can parse Premiere XML without DOMParser in UXP.
+function prfpsetImporterSmokeTest() {
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/presetImport.js"), "utf8"), context, { filename: "src/presetImport.js" });
+  const samplePreset = `<?xml version="1.0" encoding="UTF-8"?>
+    <PremiereData Version="3">
+      <TreeItem ObjectID="7"><TreeItemBase><Name>ZOOM 5%</Name></TreeItemBase></TreeItem>
+      <FilterPreset ObjectID="9">
+        <FilterMatchName>AE.ADBE Geometry2</FilterMatchName>
+        <Component ObjectRef="10"/>
+        <AnchorInPoint>914452519680000</AnchorInPoint>
+        <AnchorOutPoint>915438101760000</AnchorOutPoint>
+      </FilterPreset>
+      <VideoFilterComponent ObjectID="10">
+        <Component><DisplayName>Transform</DisplayName><Params><Param Index="3" ObjectRef="14"/></Params></Component>
+        <MatchName>AE.ADBE Geometry2</MatchName>
+      </VideoFilterComponent>
+      <VideoComponentParam ObjectID="14">
+        <Keyframes>914452519680000,100.,0,0;915438101760000,105.,0,0;</Keyframes>
+        <IsTimeVarying>true</IsTimeVarying>
+        <CurrentValue>105.</CurrentValue>
+        <ParameterID>3</ParameterID>
+        <Name>Scale Height</Name>
+      </VideoComponentParam>
+    </PremiereData>`;
+  const result = context.PTB_PRESET_IMPORT.parsePrfpsetText(samplePreset, "Zoom5.prfpset");
+  assert.equal(result.stack.sourceName, "ZOOM 5%");
+  assert.equal(result.stack.components[0].matchName, "AE.ADBE Geometry2");
+  assert.equal(result.stack.components[0].params[0].keyframes.length, 2);
+  assert.equal(result.stack.components[0].params[0].keyframes[1].value.value, 105);
+  assert.ok(result.stack.sourceDurationSeconds > 3.8);
+}
+
+prfpsetImporterSmokeTest();
+
 // Minimal DOM element used to smoke-test UXP panel rendering in Node.
 class FakeElement {
   constructor(tagName, ownerDocument) {
@@ -416,7 +457,6 @@ async function applyPresetTimingSmokeTest() {
         createSetTimeVaryingAction: () => ({ type: "timeVarying" }),
         createKeyframe: (value) => ({ value }),
         createAddKeyframeAction(keyframe) {
-          keyframeSeconds.push(keyframe.position.seconds);
           return { type: "keyframe", keyframe };
         },
         createSetValueAction: (keyframe) => ({ type: "value", keyframe })
@@ -447,7 +487,13 @@ async function applyPresetTimingSmokeTest() {
             }),
             executeTransaction: (handler) => {
               transactionCount += 1;
-              handler({ addAction() {} });
+              handler({
+                addAction(action) {
+                  if (action && action.type === "keyframe") {
+                    keyframeSeconds.push(action.keyframe.position.seconds);
+                  }
+                }
+              });
               return true;
             }
           })
