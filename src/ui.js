@@ -13,7 +13,6 @@
     dragActive: false,
     openColorPicker: "",
     openIconPicker: "",
-    iconVisibleCount: 160,
     collapsed: {
       buttonGallery: false,
       buttonEditor: false,
@@ -28,7 +27,6 @@
   let catalogLoadStarted = false;
   let updateCheckStarted = false;
   let updateState = { available: false, checking: false, latestVersion: "", downloadUrl: "", error: "" };
-  const iconGalleryBatchSize = 160;
   const maxInternalLogs = 160;
   const audioTransitionsEnabled = false;
   const githubRepo = "CyrilG93/PremiereToolBar";
@@ -918,6 +916,33 @@
     return /^#[0-9a-f]{6}$/i.test(value || "") ? value : fallback;
   }
 
+  // Treat the saved transparent value as a real button background mode.
+  function isTransparentColor(value) {
+    return String(value || "").trim().toLowerCase() === "transparent";
+  }
+
+  // Normalize button backgrounds while preserving the transparent option.
+  function normalizeButtonBackground(value, fallback) {
+    return isTransparentColor(value) ? "transparent" : normalizeColor(value, fallback);
+  }
+
+  // Apply a visual background, including a checkerboard hint for transparent previews.
+  function applyColorPreviewBackground(node, value) {
+    if (isTransparentColor(value)) {
+      node.classList.add("transparent");
+      node.style.background = "linear-gradient(45deg, #555 25%, transparent 25%), linear-gradient(-45deg, #555 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #555 75%), linear-gradient(-45deg, transparent 75%, #555 75%)";
+      node.style.backgroundColor = "#1f1f1f";
+      node.style.backgroundPosition = "0 0, 0 8px, 8px -8px, -8px 0";
+      node.style.backgroundSize = "16px 16px";
+      return;
+    }
+    node.classList.remove("transparent");
+    node.style.background = value;
+    node.style.backgroundColor = value;
+    node.style.backgroundPosition = "";
+    node.style.backgroundSize = "";
+  }
+
   // Parse decimal inputs with either comma or dot separators for localized Premiere panels.
   function parseDecimalInput(value, fallback) {
     const normalized = String(value || "").replace(",", ".").trim();
@@ -926,8 +951,9 @@
   }
 
   // Create a compact custom color picker because native type=color is unreliable in Premiere UXP.
-  function colorPicker(id, label, value, onChange) {
-    const current = normalizeColor(value, "#8fd6ff");
+  function colorPicker(id, label, value, onChange, options) {
+    const settings = options || {};
+    const current = settings.allowTransparent ? normalizeButtonBackground(value, "#8fd6ff") : normalizeColor(value, "#8fd6ff");
     const wrap = el("div", "ptb-picker");
     wrap.appendChild(el("span", "ptb-field-label", label));
     const row = el("div", "ptb-color-row");
@@ -937,14 +963,15 @@
       renderAll();
     });
     preview.title = label;
-    preview.style.background = current;
+    applyColorPreviewBackground(preview, current);
     row.appendChild(preview);
     const input = el("input", "ptb-input ptb-color-input");
     input.value = current;
     input.addEventListener("input", () => {
-      if (/^#[0-9a-f]{6}$/i.test(input.value)) {
-        const next = input.value;
-        preview.style.background = next;
+      const typedValue = input.value.trim();
+      if (/^#[0-9a-f]{6}$/i.test(typedValue) || (settings.allowTransparent && isTransparentColor(typedValue))) {
+        const next = isTransparentColor(typedValue) ? "transparent" : typedValue;
+        applyColorPreviewBackground(preview, next);
         onChange(next);
         statusMessage = root.PTB_I18N.t("statusSaved");
       }
@@ -955,6 +982,16 @@
     if (settingsState.openColorPicker === pickerKey) {
       const popover = el("div", "ptb-popover");
       const grid = el("div", "ptb-color-grid");
+      if (settings.allowTransparent) {
+        const transparent = clickControl(isTransparentColor(current) ? "ptb-color-choice ptb-transparent-choice active" : "ptb-color-choice ptb-transparent-choice", () => {
+          onChange("transparent");
+          settingsState.openColorPicker = "";
+          saveAndRender(root.PTB_I18N.t("statusSaved"));
+        });
+        transparent.title = root.PTB_I18N.t("transparent");
+        applyColorPreviewBackground(transparent, "transparent");
+        grid.appendChild(transparent);
+      }
       colorPalette.forEach((color) => {
         const swatch = clickControl(color.toLowerCase() === current.toLowerCase() ? "ptb-color-choice active" : "ptb-color-choice", () => {
           onChange(color);
@@ -962,7 +999,7 @@
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         });
         swatch.title = color;
-        swatch.style.background = color;
+        applyColorPreviewBackground(swatch, color);
         grid.appendChild(swatch);
       });
       popover.appendChild(grid);
@@ -982,13 +1019,11 @@
         settingsState.openIconPicker = "";
       } else {
         settingsState.openIconPicker = pickerKey;
-        settingsState.iconVisibleCount = iconGalleryBatchSize;
       }
       renderAll();
     });
     preview.title = root.PTB_I18N.t("icon");
-    preview.style.background = button.accentColor || "#2b3037";
-    preview.style.backgroundColor = button.accentColor || "#2b3037";
+    applyColorPreviewBackground(preview, normalizeButtonBackground(button.accentColor, "#2b3037"));
     preview.style.borderColor = "var(--ptb-line)";
     preview.appendChild(createIconImage(button.icon, button.iconColor, getButtonName(button)));
     row.appendChild(preview);
@@ -1004,33 +1039,18 @@
     const popover = el("div", "ptb-popover ptb-icon-popover");
     const grid = el("div", "ptb-icon-grid");
     const activeIconId = root.PTB_ICON_LIBRARY.normalizeIconId(button.icon);
-    const visibleCount = Math.min(settingsState.iconVisibleCount || iconGalleryBatchSize, root.PTB_ICON_LIBRARY.icons.length);
-    root.PTB_ICON_LIBRARY.icons.slice(0, visibleCount).forEach((icon) => {
+    root.PTB_ICON_LIBRARY.icons.forEach((icon) => {
       const item = clickControl(icon.id === activeIconId ? "ptb-icon-choice active" : "ptb-icon-choice", () => {
         button.icon = icon.id;
         settingsState.openIconPicker = "";
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       item.title = icon.label;
-      item.style.background = button.accentColor || "#2b3037";
-      item.style.backgroundColor = button.accentColor || "#2b3037";
+      applyColorPreviewBackground(item, normalizeButtonBackground(button.accentColor, "#2b3037"));
       item.appendChild(createIconImage(icon.id, button.iconColor, icon.label));
       grid.appendChild(item);
     });
     popover.appendChild(grid);
-    if (visibleCount < root.PTB_ICON_LIBRARY.icons.length) {
-      const more = actionButton(root.PTB_I18N.t("moreIcons"), "ptb-button compact", () => {
-        settingsState.iconVisibleCount = Math.min(root.PTB_ICON_LIBRARY.icons.length, visibleCount + iconGalleryBatchSize);
-        renderAll();
-      });
-      popover.appendChild(more);
-      popover.addEventListener("scroll", () => {
-        if (popover.scrollTop + popover.clientHeight >= popover.scrollHeight - 24) {
-          settingsState.iconVisibleCount = Math.min(root.PTB_ICON_LIBRARY.icons.length, visibleCount + iconGalleryBatchSize);
-          renderAll();
-        }
-      });
-    }
     return popover;
   }
 
@@ -1150,10 +1170,11 @@
       });
     });
     toolButton.title = getButtonName(button);
-    toolButton.style.background = button.accentColor || "#2b3037";
-    toolButton.style.backgroundColor = button.accentColor || "#2b3037";
+    const background = normalizeButtonBackground(button.accentColor, "#2b3037");
+    toolButton.style.background = background;
+    toolButton.style.backgroundColor = background;
     toolButton.style.color = button.iconColor || "#f0f0f0";
-    toolButton.style.borderColor = "rgba(255,255,255,0.12)";
+    toolButton.style.borderColor = isTransparentColor(background) ? "transparent" : "rgba(255,255,255,0.12)";
     toolButton.appendChild(renderButtonFaceElement(button));
     return toolButton;
   }
@@ -1345,9 +1366,9 @@
   // Render a compact visual swatch for a button.
   function renderButtonSwatch(button) {
     const icon = el("span", "ptb-card-icon");
-    icon.style.background = button.accentColor || "#2b3037";
-    icon.style.backgroundColor = button.accentColor || "#2b3037";
-    icon.style.border = "1px solid rgba(255,255,255,0.12)";
+    const background = normalizeButtonBackground(button.accentColor, "#2b3037");
+    applyColorPreviewBackground(icon, background);
+    icon.style.border = isTransparentColor(background) ? "1px solid transparent" : "1px solid rgba(255,255,255,0.12)";
     icon.appendChild(renderButtonFaceElement(button));
     return icon;
   }
@@ -1580,7 +1601,7 @@
     }));
     fields.appendChild(colorPicker(button.id, root.PTB_I18N.t("accentColor"), button.accentColor, (value) => {
       button.accentColor = value;
-    }));
+    }, { allowTransparent: true }));
     section.appendChild(fields);
     const iconPopover = renderIconPickerPopover(button);
     if (iconPopover) {

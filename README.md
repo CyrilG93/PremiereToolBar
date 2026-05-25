@@ -65,7 +65,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Rename collections and assign them to bars 1-4 with the compact `B1` to `B4` toggles.
 - Set each bar to horizontal or vertical from the compact bar controls.
 - Choose whether a button shows an icon, a three-letter text shortcut, or both.
-- Assign an icon, icon color, and button color with popover pickers.
+- Assign an icon, icon color, and button color with popover pickers, including a transparent button background when you only want the icon or text.
 - Type either the Premiere effect name or the effect match name in one field. Video effect catalog choices fill the stable match name when Premiere exposes one.
 - Assign video transition match names from Premiere and copy the discovered transition match-name catalog when needed.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.

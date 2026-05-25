@@ -81,6 +81,7 @@
     icon: "Icon",
     iconColor: "Icon Color",
     accentColor: "Button Color",
+    transparent: "Transparent",
     buttonName: "Button Name",
     enabled: "Enabled",
     barName: "Bar Name",
