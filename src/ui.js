@@ -200,8 +200,20 @@
       addInternalLog("info", "Tool Bar is up to date.", { latestVersion: latestVersion || currentVersion }, true);
     } catch (error) {
       updateState = { available: false, checking: false, latestVersion: "", downloadUrl: "", error: formatLogDetails(error) };
+      if (isNetworkPermissionError(error)) {
+        addInternalLog("info", "Update check skipped: network permission is unavailable in this Premiere host.", "", true);
+        return;
+      }
       addInternalLog("warn", "Update check failed.", error, true);
     }
+  }
+
+  // Detect UXP host permission errors so startup logs stay useful instead of noisy.
+  function isNetworkPermissionError(error) {
+    const message = formatLogDetails(error).toLowerCase();
+    return message.includes("not permitted to access the network")
+      || message.includes("requiredpermissions.network")
+      || message.includes("permission denied");
   }
 
   // Open release download links from UXP, falling back to copying the URL.
