@@ -226,7 +226,7 @@ assert.ok(findByPredicate(settingsRoot, (node) => String(node.className).include
 assert.equal(countClass(settingsRoot, "ptb-section"), 6);
 assert.ok(settingsRoot.textContent.includes("Button Gallery"));
 assert.ok(settingsRoot.textContent.includes("Button Editor"));
-assert.ok(settingsRoot.textContent.includes("Audio Transition"));
+assert.equal(settingsRoot.textContent.includes("Audio Transition"), false);
 assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
@@ -589,13 +589,13 @@ async function applyAdjacentSelectedClipsTransitionSmokeTest() {
     actionType: "transition",
     transition: { matchName: "VideoTransition", applyTo: "both", durationSeconds: 0.5 }
   }));
-  assert.deepEqual(applied, [{ clip: "right", applyToStart: true, forceSingleSided: false, alignment: 0 }]);
+  assert.deepEqual(applied, [{ clip: "right", applyToStart: true, forceSingleSided: false, alignment: 0.5 }]);
 }
 
 await applyAdjacentSelectedClipsTransitionSmokeTest();
 
-// Verify audio transitions use the audio-specific Premiere APIs when the host exposes them.
-async function applyAudioTransitionSmokeTest() {
+// Verify audio transitions stay disabled while the Premiere UXP API is not reliable enough.
+async function disabledAudioTransitionSmokeTest() {
   const appliedStarts = [];
   const context = {
     console,
@@ -644,14 +644,14 @@ async function applyAudioTransitionSmokeTest() {
   context.window = context;
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
-  await context.PTB_PREMIERE.applyButton(schema.createButton({
+  await assert.rejects(() => context.PTB_PREMIERE.applyButton(schema.createButton({
     actionType: "audioTransition",
     transition: { matchName: "Constant Gain", applyTo: "both", durationSeconds: 0.5 }
-  }));
-  assert.deepEqual(appliedStarts, [true, false]);
+  })), /Audio transitions are disabled/);
+  assert.deepEqual(appliedStarts, []);
 }
 
-await applyAudioTransitionSmokeTest();
+await disabledAudioTransitionSmokeTest();
 
 // Verify selection diagnostics report component and nearby transition match names.
 async function inspectSelectionMatchNamesSmokeTest() {

@@ -28,6 +28,7 @@
   let catalogLoadStarted = false;
   const iconGalleryBatchSize = 160;
   const maxInternalLogs = 160;
+  const audioTransitionsEnabled = false;
   const internalLogs = [];
   const colorPalette = [
     "#d7dee8", "#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986",
@@ -1236,13 +1237,20 @@
       button.displayMode = value === "text" || value === "both" ? value : "icon";
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
-    form.appendChild(selectField(root.PTB_I18N.t("action"), button.actionType, [
+    const actionOptions = [
       { value: "settings", label: root.PTB_I18N.t("settings") },
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
-      { value: "audioTransition", label: root.PTB_I18N.t("audioTransition") },
       { value: "preset", label: root.PTB_I18N.t("presetAction") }
-    ], (value) => {
+    ];
+    if (audioTransitionsEnabled || button.actionType === "audioTransition") {
+      // Keep existing audio-transition buttons visible enough to convert, but hide the action for new buttons.
+      actionOptions.splice(3, 0, {
+        value: "audioTransition",
+        label: audioTransitionsEnabled ? root.PTB_I18N.t("audioTransition") : root.PTB_I18N.t("audioTransitionDisabled")
+      });
+    }
+    form.appendChild(selectField(root.PTB_I18N.t("action"), button.actionType, actionOptions, (value) => {
       button.actionType = value;
       if (value === "preset" && !button.preset.name) {
         button.preset.name = getButtonName(button);
@@ -1292,6 +1300,10 @@
     const wrap = el("div", "ptb-fieldset");
     if (button.actionType === "settings") {
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("settingsButtonDescription")));
+      return wrap;
+    }
+    if (button.actionType === "audioTransition" && !audioTransitionsEnabled) {
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("audioTransitionDisabledHelp")));
       return wrap;
     }
     if (button.actionType === "transition" || button.actionType === "audioTransition") {

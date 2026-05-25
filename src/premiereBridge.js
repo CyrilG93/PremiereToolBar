@@ -16,6 +16,8 @@
     "Constant Power",
     "Exponential Fade"
   ];
+  const AUDIO_TRANSITIONS_ENABLED = false;
+  const CENTERED_TRANSITION_ALIGNMENT = 0.5;
 
   // Return the Premiere UXP API module when the plugin is running inside Premiere.
   function getPremiere() {
@@ -660,6 +662,11 @@
       return applyTransitionButton(normalizedButton);
     }
     if (normalizedButton.actionType === "audioTransition") {
+      if (!AUDIO_TRANSITIONS_ENABLED) {
+        const message = "Audio transitions are disabled until Premiere exposes reliable UXP support.";
+        logBridge("warn", message);
+        throw new Error(message);
+      }
       return applyAudioTransitionButton(normalizedButton);
     }
     if (normalizedButton.actionType === "preset") {
@@ -811,7 +818,7 @@
       const transition = await createTransitionWithFallback(app, button.transition.matchName, target.applyTo, "video");
       const options = createTransitionOptions(app, button, target.applyTo, {
         forceSingleSided: false,
-        alignment: 0
+        alignment: CENTERED_TRANSITION_ALIGNMENT
       });
       actions.push(target.item.createAddVideoTransitionAction(transition, options));
       logBridge("info", "Queued " + logLabel + " video transition action.", {

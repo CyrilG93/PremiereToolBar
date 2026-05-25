@@ -1,6 +1,6 @@
 # Tool Bar
 
-Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortcut bars. Each button can apply a configured native effect, a video transition, an audio transition when Premiere exposes the needed UXP APIs, or a captured Tool Bar preset to the clips currently selected in the timeline.
+Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortcut bars. Each button can apply a configured native effect, a video transition, or a captured Tool Bar preset to the clips currently selected in the timeline.
 
 ## Requirements
 
@@ -68,7 +68,6 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Assign an icon, icon color, and button color with popover pickers.
 - Type either the Premiere effect name or the effect match name in one field.
 - Assign video transition match names from Premiere and copy the discovered transition match-name catalog when needed.
-- Create audio transition buttons for crossfades such as `Constant Gain`, `Constant Power`, and `Exponential Fade` when the running Premiere build exposes audio-transition UXP methods.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
 - Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
@@ -76,9 +75,9 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 
 ## Important API Notes
 
-Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. Audio transition creation is not currently documented by Adobe, so Tool Bar exposes it as a runtime-detected action and logs a clear message when the required host methods are unavailable. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
+Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. Audio transition creation is not currently documented by Adobe and did not apply reliably in current tests, so Tool Bar keeps that code disabled for now. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Native video transitions can be applied by transition match name, and audio transitions are attempted only when Premiere exposes compatible runtime methods. Some third-party effects, transition presets, or protected parameters may not expose all values to UXP.
+Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. Native video transitions can be applied by transition match name. Some third-party effects, transition presets, or protected parameters may not expose all values to UXP.
 
 ## Development
 
@@ -97,6 +96,11 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.1.42 - 2026-05-25
+
+- Centered detected edit-point video transitions on the shared cut between adjacent clips.
+- Hid and disabled audio transition buttons until Premiere exposes reliable support.
 
 ### 0.1.41 - 2026-05-24
 
