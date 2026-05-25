@@ -99,6 +99,13 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.3.0 - 2026-05-25
+
+- Added reliable captured video presets with keyframe timing modes.
+- Added experimental `.prfpset` import for native video effect presets.
+- Improved preset replay so static values and keyframes are preserved more consistently.
+- Kept update checks quieter when Premiere blocks network access.
+
 ### 0.2.0 - 2026-05-25
 
 - Added a GitHub release update check with a settings banner when a newer version is available.
