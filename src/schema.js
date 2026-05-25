@@ -198,44 +198,44 @@
     return [
       createButton({
         id: "btn-settings",
-        label: "Settings",
+        label: "SETTINGS",
         actionType: "settings",
         icon: "camera-addon-identification",
-        iconColor: "#d7dee8",
-        accentColor: "#3a4149",
-        displayMode: "icon",
-        textOverride: "SET"
+        iconColor: "#e11d48",
+        accentColor: "#ffffff",
+        displayMode: "both",
+        textOverride: "SETTINGS"
       }),
       createButton({
         id: "btn-transform",
         label: "Transform",
         actionType: "effect",
-        icon: "slr-large-lens",
-        iconColor: "#9bd3ff",
-        accentColor: "#263747",
-        displayMode: "icon",
+        icon: "bricks",
+        iconColor: "#3b82f6",
+        accentColor: "#d7dee8",
+        displayMode: "both",
         textOverride: "Transform",
-        effect: { matchName: "AE.ADBE Transform", displayName: "Transform" }
+        effect: { matchName: "AE.ADBE Geometry2", displayName: "Transform" }
       }),
       createButton({
         id: "btn-crop",
         label: "Crop",
         actionType: "effect",
-        icon: "viewfinder",
-        iconColor: "#9fe3c1",
-        accentColor: "#263d35",
-        displayMode: "icon",
+        icon: "scissors",
+        iconColor: "#000000",
+        accentColor: "#9fe3c1",
+        displayMode: "both",
         textOverride: "Crop",
-        effect: { matchName: "AE.ADBE Crop", displayName: "Crop" }
+        effect: { matchName: "AE.ADBE AECrop", displayName: "Crop" }
       }),
       createButton({
         id: "btn-gaussian-blur",
         label: "Gaussian Blur",
         actionType: "effect",
         icon: "lens",
-        iconColor: "#ffd166",
-        accentColor: "#403724",
-        displayMode: "icon",
+        iconColor: "#000000",
+        accentColor: "#ff9aa2",
+        displayMode: "both",
         textOverride: "Gaussian Blur",
         effect: { matchName: "AE.ADBE Gaussian Blur 2", displayName: "Gaussian Blur" }
       }),
@@ -244,44 +244,62 @@
         label: "Drop Shadow",
         actionType: "effect",
         icon: "softbox",
-        iconColor: "#d7b6ff",
-        accentColor: "#342a45",
-        displayMode: "icon",
+        iconColor: "#ffffff",
+        accentColor: "#313840",
+        displayMode: "both",
         textOverride: "Drop Shadow",
         effect: { matchName: "AE.ADBE Drop Shadow", displayName: "Drop Shadow" }
       }),
       createButton({
         id: "btn-flip-horizontal",
-        label: "Flip Horizontal",
+        label: "FlH",
         actionType: "effect",
-        icon: "wire",
-        iconColor: "#ffb986",
-        accentColor: "#423025",
-        displayMode: "icon",
-        textOverride: "Flip Horizontal",
+        icon: "arrow-left-right",
+        iconColor: "#f4f4f5",
+        accentColor: "#3b82f6",
+        displayMode: "both",
+        textOverride: "FlH",
         effect: { matchName: "AE.ADBE Horizontal Flip", displayName: "Horizontal Flip" }
       }),
       createButton({
         id: "btn-flip-vertical",
-        label: "Flip Vertical",
+        label: "FLV",
         actionType: "effect",
-        icon: "wire",
-        iconColor: "#ff9aa2",
-        accentColor: "#422a2f",
-        displayMode: "icon",
-        textOverride: "Flip Vertical",
+        icon: "arrow-down-up",
+        iconColor: "#ffffff",
+        accentColor: "#3b82f6",
+        displayMode: "both",
+        textOverride: "FLV",
         effect: { matchName: "AE.ADBE Vertical Flip", displayName: "Vertical Flip" }
       }),
       createButton({
         id: "btn-ultra-key",
-        label: "Ultra Key",
+        label: "key",
         actionType: "effect",
-        icon: "camera-addon",
-        iconColor: "#9dffcf",
-        accentColor: "#263b31",
-        displayMode: "icon",
-        textOverride: "Ultra Key",
+        icon: "key",
+        iconColor: "#000000",
+        accentColor: "#22c55e",
+        displayMode: "both",
+        textOverride: "key",
         effect: { matchName: "AE.ADBE Ultra Key", displayName: "Ultra Key" }
+      }),
+      createButton({
+        id: "button-mpjho02m-ogjvvn76",
+        label: "Pop Transition",
+        actionType: "transition",
+        mediaType: "video",
+        icon: "input-cursor",
+        iconColor: "#000000",
+        accentColor: "#ffb986",
+        displayMode: "both",
+        textOverride: "Pop Transition",
+        transition: {
+          matchName: "AE.AE_Impact_Pop",
+          applyTo: "both",
+          durationSeconds: 0.5,
+          forceSingleSided: false,
+          alignment: 0
+        }
       })
     ];
   }
@@ -295,9 +313,9 @@
         name: "Base Effects",
         buttonIds: buttons.map((button) => button.id)
       }),
-      createCollection({ id: "collection-empty-2", name: "Collection 2", buttonIds: [] }),
-      createCollection({ id: "collection-empty-3", name: "Collection 3", buttonIds: [] }),
-      createCollection({ id: "collection-empty-4", name: "Collection 4", buttonIds: [] })
+      createCollection({ id: "collection-empty-2", name: "Collection 2", buttonIds: ["btn-settings"] }),
+      createCollection({ id: "collection-empty-3", name: "Collection 3", buttonIds: ["btn-settings"] }),
+      createCollection({ id: "collection-empty-4", name: "Collection 4", buttonIds: ["btn-settings"] })
     ];
     return {
       schemaVersion: CONFIG_VERSION,

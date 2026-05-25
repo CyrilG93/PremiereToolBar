@@ -70,6 +70,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Assign video transition match names from Premiere and copy the discovered transition match-name catalog when needed.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
+- Use the update banner in settings when Tool Bar detects a newer GitHub release.
 - Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
 - Export all collections or one collection, then import them later.
 
@@ -96,6 +97,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.2.0 - 2026-05-25
+
+- Added a GitHub release update check with a settings banner when a newer version is available.
+- Updated the first-run default buttons and collections with the bundled Base Effects setup.
+- Made video effect catalog selections fill the stable Premiere match name in the editor.
 
 ### 0.1.44 - 2026-05-25
 

@@ -26,9 +26,12 @@
   let globalDragEndBound = false;
   let backupRestoreStarted = false;
   let catalogLoadStarted = false;
+  let updateCheckStarted = false;
+  let updateState = { available: false, checking: false, latestVersion: "", downloadUrl: "", error: "" };
   const iconGalleryBatchSize = 160;
   const maxInternalLogs = 160;
   const audioTransitionsEnabled = false;
+  const githubRepo = "CyrilG93/PremiereToolBar";
   const internalLogs = [];
   const colorPalette = [
     "#d7dee8", "#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986",
@@ -135,6 +138,105 @@
     });
   }
 
+  // Compare semantic version strings returned by GitHub tags.
+  function compareVersions(left, right) {
+    const leftParts = String(left || "").replace(/^v/i, "").split(".").map(Number);
+    const rightParts = String(right || "").replace(/^v/i, "").split(".").map(Number);
+    const length = Math.max(leftParts.length, rightParts.length);
+    for (let index = 0; index < length; index += 1) {
+      const leftNumber = Number.isFinite(leftParts[index]) ? leftParts[index] : 0;
+      const rightNumber = Number.isFinite(rightParts[index]) ? rightParts[index] : 0;
+      if (leftNumber > rightNumber) {
+        return 1;
+      }
+      if (leftNumber < rightNumber) {
+        return -1;
+      }
+    }
+    return 0;
+  }
+
+  // Start one background GitHub release check per panel session.
+  function startUpdateCheck() {
+    if (updateCheckStarted) {
+      return;
+    }
+    updateCheckStarted = true;
+    checkForUpdates();
+  }
+
+  // Ask GitHub for the latest release and show a download banner when it is newer.
+  async function checkForUpdates() {
+    if (typeof fetch !== "function") {
+      updateState = { available: false, checking: false, latestVersion: "", downloadUrl: "", error: "Fetch unavailable" };
+      addInternalLog("warn", "Update check skipped: fetch is unavailable.", "", true);
+      return;
+    }
+    updateState = Object.assign({}, updateState, { checking: true, error: "" });
+    try {
+      const response = await fetch("https://api.github.com/repos/" + githubRepo + "/releases/latest", {
+        headers: { Accept: "application/vnd.github+json" }
+      });
+      if (!response || !response.ok) {
+        throw new Error("GitHub latest release returned " + (response ? response.status : "no response"));
+      }
+      const release = await response.json();
+      const latestVersion = String(release.tag_name || "").replace(/^v/i, "");
+      const currentVersion = String(root.PTB_VERSION || "0.0.0");
+      if (latestVersion && compareVersions(latestVersion, currentVersion) > 0) {
+        const assets = Array.isArray(release.assets) ? release.assets : [];
+        const preferredAsset = assets.find((asset) => /\.zip$/i.test(asset.name || ""))
+          || assets.find((asset) => /\.ccx$/i.test(asset.name || ""));
+        updateState = {
+          available: true,
+          checking: false,
+          latestVersion,
+          downloadUrl: preferredAsset && preferredAsset.browser_download_url ? preferredAsset.browser_download_url : release.html_url,
+          error: ""
+        };
+        addInternalLog("info", "Update available.", { latestVersion, currentVersion }, true);
+        renderAll();
+        return;
+      }
+      updateState = { available: false, checking: false, latestVersion, downloadUrl: "", error: "" };
+      addInternalLog("info", "Tool Bar is up to date.", { latestVersion: latestVersion || currentVersion }, true);
+    } catch (error) {
+      updateState = { available: false, checking: false, latestVersion: "", downloadUrl: "", error: formatLogDetails(error) };
+      addInternalLog("warn", "Update check failed.", error, true);
+    }
+  }
+
+  // Open release download links from UXP, falling back to copying the URL.
+  async function openExternalUrl(url) {
+    if (!url) {
+      return;
+    }
+    try {
+      const uxp = typeof require === "function" ? require("uxp") : null;
+      if (uxp && uxp.shell && typeof uxp.shell.openExternal === "function") {
+        await uxp.shell.openExternal(url);
+        return;
+      }
+    } catch (error) {
+      // Some hosts expose require without the shell module; fallback below.
+    }
+    try {
+      if (root.open) {
+        root.open(url);
+        return;
+      }
+      if (root.location) {
+        root.location.href = url;
+        return;
+      }
+    } catch (error) {
+      // Clipboard fallback keeps the update URL accessible.
+    }
+    await root.PTB_STORAGE.copyText(url);
+    statusMessage = root.PTB_I18N.t("statusCopied");
+    renderAll();
+  }
+
   // Inject only into the document head; UXP can render style tags inside panel roots as visible text.
   function ensureHeadStyles() {
     const rootStyle = document.documentElement && document.documentElement.style;
@@ -157,6 +259,7 @@
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
       .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:2px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:wrap;align-content:flex-start;width:auto;height:100%;max-height:100%;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-svg-icon svg{display:block;width:22px;height:22px;fill:currentColor}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:900;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
       .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
+      .ptb-update-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 12px 0;border:1px solid rgba(121,200,255,.65);border-radius:8px;padding:9px 10px;color:var(--ptb-text);background:#172d3d;cursor:pointer}.ptb-update-banner strong{font-weight:900}.ptb-update-banner small{color:var(--ptb-muted)}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
       .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
@@ -259,6 +362,9 @@
     }
     if (tokens.includes("ptb-settings-header")) {
       setStyles(node, { position: "sticky", top: "0", zIndex: "4", display: "flex", width: "100%", alignItems: "center", justifyContent: "flex-start", gap: "10px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)", background: "var(--ptb-bg)" });
+    }
+    if (tokens.includes("ptb-update-banner")) {
+      setStyles(node, { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", margin: "12px 12px 0", border: "1px solid rgba(121, 200, 255, 0.65)", borderRadius: "8px", padding: "9px 10px", color: "var(--ptb-text)", background: "#172d3d", cursor: "pointer" });
     }
     if (tokens.includes("ptb-title-line")) {
       setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minWidth: "0" });
@@ -1074,9 +1180,14 @@
   function renderSettingsPanel(rootNode) {
     startBackupRestore();
     startCatalogLoad();
+    startUpdateCheck();
     ensureSettingsSelection();
     const shell = el("div", "ptb-settings-shell");
     shell.appendChild(renderSettingsHeader());
+    const updateBanner = renderUpdateBanner();
+    if (updateBanner) {
+      shell.appendChild(updateBanner);
+    }
     const content = el("div", "ptb-settings-content");
     shell.appendChild(content);
     rootNode.appendChild(shell);
@@ -1102,6 +1213,23 @@
     header.appendChild(title);
     header.appendChild(renderHeaderActions());
     return header;
+  }
+
+  // Render a compact clickable update notice only when GitHub has a newer release.
+  function renderUpdateBanner() {
+    if (!updateState.available) {
+      return null;
+    }
+    const banner = el("button", "ptb-update-banner");
+    banner.type = "button";
+    banner.title = root.PTB_I18N.t("updateBannerTitle");
+    const text = el("span");
+    text.appendChild(el("strong", "", root.PTB_I18N.t("updateAvailable")));
+    text.appendChild(el("small", "", " v" + updateState.latestVersion));
+    banner.appendChild(text);
+    banner.appendChild(el("span", "", root.PTB_I18N.t("downloadUpdate")));
+    banner.addEventListener("click", () => openExternalUrl(updateState.downloadUrl));
+    return banner;
   }
 
   // Render status only when it carries useful information.

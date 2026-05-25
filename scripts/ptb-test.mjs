@@ -14,10 +14,11 @@ assert.equal(defaultConfig.schemaVersion, 2);
 assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");
 assert.equal(defaultConfig.bars[0].collectionId, "collection-base-effects");
-assert.equal(defaultConfig.collections[0].buttonIds.length, 8);
+assert.equal(defaultConfig.collections[0].buttonIds.length, 9);
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-settings"));
-assert.ok(defaultConfig.buttons.every((item) => item.displayMode === "icon"));
+assert.ok(defaultConfig.buttons.every((item) => item.displayMode === "both"));
 assert.ok(defaultConfig.buttons.some((button) => button.effect && button.effect.displayName === "Ultra Key"));
+assert.ok(defaultConfig.buttons.some((button) => button.actionType === "transition" && button.transition.matchName === "AE.AE_Impact_Pop"));
 
 // Verify malformed legacy configs are migrated to the collection model.
 const migratedLegacy = schema.normalizeConfig({
@@ -38,8 +39,8 @@ const importedConfig = schema.importJson(customConfig, exportedCollection, {
 });
 const replacedCollection = schema.getCollection(importedConfig, "collection-empty-3");
 assert.equal(replacedCollection.id, "collection-empty-3");
-assert.equal(replacedCollection.buttonIds.length, 8);
-assert.equal(schema.getCollection(importedConfig, "collection-empty-2").buttonIds.length, 0);
+assert.equal(replacedCollection.buttonIds.length, 9);
+assert.equal(schema.getCollection(importedConfig, "collection-empty-2").buttonIds.length, 1);
 
 // Verify captured stack snapshots survive normalization.
 const button = schema.createButton({
@@ -292,7 +293,7 @@ function effectLookupDisplaySmokeTest() {
   videoConfig.activeButtonId = "btn-transform";
   const videoHarness = renderSettingsHarness(videoConfig);
   const videoInputs = findAllByPredicate(videoHarness.rootNode, (node) => node.tagName === "INPUT");
-  assert.ok(videoInputs.some((input) => input.value === "AE.ADBE Transform"));
+  assert.ok(videoInputs.some((input) => input.value === "AE.ADBE Geometry2"));
 
   const audioButton = schema.createButton({
     id: "btn-audio-test",
