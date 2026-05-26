@@ -1565,7 +1565,7 @@
       });
       setStyles(presetNameField, { flex: "0 1 auto" });
       wrap.appendChild(presetNameField);
-      wrap.appendChild(selectField(root.PTB_I18N.t("presetTiming"), button.preset.keyframeTiming || "anchorIn", [
+      const presetTimingField = selectField(root.PTB_I18N.t("presetTiming"), button.preset.keyframeTiming || "anchorIn", [
         { value: "anchorIn", label: root.PTB_I18N.t("presetTimingAnchorIn") },
         { value: "anchorOut", label: root.PTB_I18N.t("presetTimingAnchorOut") },
         { value: "scale", label: root.PTB_I18N.t("presetTimingScale") },
@@ -1573,7 +1573,10 @@
       ], (value) => {
         button.preset.keyframeTiming = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
-      }));
+      });
+      // Keep preset-specific fields compact inside the vertical fieldset.
+      setStyles(presetTimingField, { flex: "0 1 auto" });
+      wrap.appendChild(presetTimingField);
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("presetHelp")));
       wrap.appendChild(el("p", "ptb-muted", summary));
       wrap.appendChild(actionButton(root.PTB_I18N.t("capturePreset"), "ptb-button primary", async () => {

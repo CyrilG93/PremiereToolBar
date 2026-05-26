@@ -480,6 +480,8 @@ await capturePresetSmokeTest();
 async function applyPresetTimingSmokeTest() {
   const runs = [];
   let transactionCount = 0;
+  // Record transaction boundaries so keyframe setup stays before keyframe creation.
+  const transactionActionTypes = [];
   let keyframeSeconds = [];
   const context = {
     console,
@@ -524,13 +526,18 @@ async function applyPresetTimingSmokeTest() {
             }),
             executeTransaction: (handler) => {
               transactionCount += 1;
+              const actionTypes = [];
               handler({
                 addAction(action) {
+                  if (action && action.type) {
+                    actionTypes.push(action.type);
+                  }
                   if (action && action.type === "keyframe") {
                     keyframeSeconds.push(action.keyframe.position.seconds);
                   }
                 }
               });
+              transactionActionTypes.push(actionTypes);
               return true;
             }
           })
@@ -580,7 +587,8 @@ async function applyPresetTimingSmokeTest() {
     { seconds: 2, relativeSeconds: 2, value: { kind: "primitive", value: 50 } }
   ]);
   await applyTimingMode("absolute", 4, [{ seconds: 2, relativeSeconds: 2, ticks: "914452519680000", value: { kind: "primitive", value: 50 } }]);
-  assert.equal(transactionCount, 8);
+  assert.equal(transactionCount, 12);
+  assert.deepEqual(transactionActionTypes.slice(0, 3), [["insert"], ["timeVarying"], ["keyframe"]]);
   assert.deepEqual(runs[0].keyframeSeconds, [12]);
   assert.deepEqual(runs[1].keyframeSeconds, [10, 20]);
   assert.deepEqual(runs[2].keyframeSeconds, [18, 20]);

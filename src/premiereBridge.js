@@ -933,19 +933,15 @@
         if (componentSnapshot.mediaType === "video" && isVideoItem(item)) {
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
           const chain = await item.getComponentChain();
-          const earlyTarget = { component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming };
-          const earlyParamActions = await createParamActions(app, component, componentSnapshot.params, earlyTarget);
           appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
-          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming, earlyParamActions });
+          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
           appendOffset += 1;
         }
         if (componentSnapshot.mediaType === "audio" && isAudioItem(item)) {
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
           const chain = await item.getComponentChain();
-          const earlyTarget = { component, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming };
-          const earlyParamActions = await createParamActions(app, component, componentSnapshot.params, earlyTarget);
           appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
-          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming, earlyParamActions });
+          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
           appendOffset += 1;
         }
       }
@@ -953,17 +949,43 @@
     const result = executeActions(project, appendActions, "Tool Bar: " + button.label + " components");
     await refreshSequenceView(sequence);
     await waitForHostPaint();
+    const resolvedTargets = pendingParamTargets.map((target) => Object.assign({}, target, {
+      resolvedComponent: resolveInsertedComponent(target.chain, target.insertIndex) || target.component
+    }));
+    const setupActions = [];
+    for (const target of resolvedTargets) {
+      let actions = await createParamSetupActions(app, target.resolvedComponent, target.params);
+      target.valueComponent = target.resolvedComponent;
+      if (!actions.length && target.resolvedComponent !== target.component) {
+        // Use the original component proxy when the inserted component is not exposing params yet.
+        const fallbackSetupActions = await createParamSetupActions(app, target.component, target.params);
+        if (fallbackSetupActions.length) {
+          actions = fallbackSetupActions;
+          target.valueComponent = target.component;
+        }
+      }
+      setupActions.push.apply(setupActions, actions);
+    }
+    if (setupActions.length) {
+      // Enable animated parameters in their own transaction; macOS can ignore keyframes added in the same transaction.
+      executeActions(project, setupActions, "Tool Bar: " + button.label + " preset keyframe setup");
+      await refreshSequenceView(sequence);
+      await waitForHostPaint();
+    }
     const paramActions = [];
-    for (const target of pendingParamTargets) {
-      const resolvedComponent = resolveInsertedComponent(target.chain, target.insertIndex) || target.component;
-      const lateActions = await createParamActions(app, resolvedComponent, target.params, target);
-      const usableActions = lateActions.length ? lateActions : (target.earlyParamActions || []);
+    for (const target of resolvedTargets) {
+      const lateActions = await createParamValueActions(app, target.valueComponent, target.params, target);
+      const alternateComponent = target.valueComponent === target.resolvedComponent ? target.component : target.resolvedComponent;
+      const fallbackActions = lateActions.length || target.valueComponent === alternateComponent
+        ? []
+        : await createParamValueActions(app, alternateComponent, target.params, target);
+      const usableActions = lateActions.length ? lateActions : fallbackActions;
       if (!usableActions.length) {
         logBridge("warn", "Preset component has no parameter actions.", {
           storedParams: target.params.length,
           insertIndex: target.insertIndex,
-          resolvedParamCount: getComponentParamCount(resolvedComponent),
-          earlyParamActions: target.earlyParamActions ? target.earlyParamActions.length : 0
+          resolvedParamCount: getComponentParamCount(target.resolvedComponent),
+          setupActions: setupActions.length
         });
       }
       paramActions.push.apply(paramActions, usableActions);
@@ -974,7 +996,7 @@
       logBridge("warn", "Preset applied without parameter actions.", { components: pendingParamTargets.length });
     }
     await refreshSequenceView(sequence);
-    logBridge("info", "Preset command completed.", { components: pendingParamTargets.length, parameterActions: paramActions.length });
+    logBridge("info", "Preset command completed.", { components: pendingParamTargets.length, keyframeSetupActions: setupActions.length, parameterActions: setupActions.length + paramActions.length });
     return result;
   }
 
@@ -1107,8 +1129,8 @@
     return output;
   }
 
-  // Create parameter set/keyframe actions for a newly-created component.
-  async function createParamActions(app, component, paramSnapshots, timingContext) {
+  // Create only the actions that turn parameter keyframing on before keyframes are added.
+  async function createParamSetupActions(app, component, paramSnapshots) {
     const actions = [];
     const paramCount = getComponentParamCount(component);
     for (const snapshot of paramSnapshots) {
@@ -1120,11 +1142,37 @@
         if (!param) {
           continue;
         }
-        if (snapshot.timeVarying && snapshot.keyframes.length) {
+        if (snapshot.timeVarying && Array.isArray(snapshot.keyframes) && snapshot.keyframes.length) {
+          actions.push(param.createSetTimeVaryingAction(true));
+        }
+      } catch (error) {
+        logBridge("warn", "Skipped preset keyframe setup action.", {
+          index: snapshot.index,
+          name: snapshot.displayName,
+          error: describeBridgeError(error)
+        });
+      }
+    }
+    return actions;
+  }
+
+  // Create parameter value/keyframe actions after animated parameters have been enabled.
+  async function createParamValueActions(app, component, paramSnapshots, timingContext) {
+    const actions = [];
+    const paramCount = getComponentParamCount(component);
+    for (const snapshot of paramSnapshots) {
+      if (snapshot.index >= paramCount) {
+        continue;
+      }
+      try {
+        const param = component.getParam(snapshot.index);
+        if (!param) {
+          continue;
+        }
+        if (snapshot.timeVarying && Array.isArray(snapshot.keyframes) && snapshot.keyframes.length) {
           const paramTimingContext = Object.assign({}, timingContext || {}, {
             paramDurationSeconds: getParamKeyframeDuration(snapshot)
           });
-          actions.push(param.createSetTimeVaryingAction(true));
           for (const keyframeSnapshot of snapshot.keyframes) {
             if (!isSupportedPresetValue(keyframeSnapshot.value)) {
               continue;
@@ -1147,17 +1195,6 @@
                 }
               }
               actions.push(param.createAddKeyframeAction(keyframe));
-              if (position && keyframeSnapshot.temporalInterpolation !== null && typeof param.createSetInterpolationAtKeyframeAction === "function") {
-                try {
-                  actions.push(param.createSetInterpolationAtKeyframeAction(position, keyframeSnapshot.temporalInterpolation, true));
-                } catch (error) {
-                  logBridge("warn", "Skipped captured interpolation action.", {
-                    index: snapshot.index,
-                    name: snapshot.displayName,
-                    error: describeBridgeError(error)
-                  });
-                }
-              }
             } catch (error) {
               logBridge("warn", "Skipped one preset keyframe.", {
                 index: snapshot.index,

@@ -99,6 +99,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.3.4 - 2026-05-26
+
+- Split preset keyframe replay into a dedicated setup step before adding keyframes, improving macOS reliability.
+- Removed the extra empty space in the Preset button editor layout.
+
 ### 0.3.3 - 2026-05-26
 
 - Fixed macOS installer backups so valid Tool Bar JSON is no longer rejected by `plutil`.
