@@ -99,6 +99,10 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.3.5 - 2026-05-26
+
+- Rebased preset keyframes on the selected clip in/out point so they appear on macOS instead of applying only one static value.
+
 ### 0.3.4 - 2026-05-26
 
 - Split preset keyframe replay into a dedicated setup step before adding keyframes, improving macOS reliability.

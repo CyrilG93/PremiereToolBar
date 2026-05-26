@@ -46,6 +46,7 @@ assert.equal(schema.getCollection(importedConfig, "collection-empty-2").buttonId
 const button = schema.createButton({
   actionType: "preset",
   stack: {
+    sourceInPointSeconds: 100,
     components: [{
       mediaType: "video",
       matchName: "AE.ADBE Mosaic",
@@ -67,6 +68,7 @@ const button = schema.createButton({
   }
 });
 assert.equal(button.stack.components[0].params[0].keyframes[0].seconds, 1);
+assert.equal(button.stack.sourceInPointSeconds, 100);
 assert.equal(button.stack.components[0].params[1].startValue.kind, "raw");
 assert.equal(button.stack.components[0].params[1].startValue.encoding, "base64");
 
@@ -508,6 +510,8 @@ async function applyPresetTimingSmokeTest() {
         createAddVideoTransitionAction() {},
         getStartTime: async () => ({ seconds: 10, ticks: "10" }),
         getEndTime: async () => ({ seconds: 20, ticks: "20" }),
+        getInPoint: async () => ({ seconds: 100, ticks: "100" }),
+        getOutPoint: async () => ({ seconds: 110, ticks: "110" }),
         getComponentChain: async () => ({
           getComponentCount: () => 0,
           createInsertComponentAction: () => ({ type: "insert" })
@@ -589,10 +593,10 @@ async function applyPresetTimingSmokeTest() {
   await applyTimingMode("absolute", 4, [{ seconds: 2, relativeSeconds: 2, ticks: "914452519680000", value: { kind: "primitive", value: 50 } }]);
   assert.equal(transactionCount, 12);
   assert.deepEqual(transactionActionTypes.slice(0, 3), [["insert"], ["timeVarying"], ["keyframe"]]);
-  assert.deepEqual(runs[0].keyframeSeconds, [12]);
-  assert.deepEqual(runs[1].keyframeSeconds, [10, 20]);
-  assert.deepEqual(runs[2].keyframeSeconds, [18, 20]);
-  assert.deepEqual(runs[3].keyframeSeconds, [12]);
+  assert.deepEqual(runs[0].keyframeSeconds, [102]);
+  assert.deepEqual(runs[1].keyframeSeconds, [100, 110]);
+  assert.deepEqual(runs[2].keyframeSeconds, [108, 110]);
+  assert.deepEqual(runs[3].keyframeSeconds, [102]);
 }
 
 await applyPresetTimingSmokeTest();

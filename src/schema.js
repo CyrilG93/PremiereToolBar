@@ -106,6 +106,8 @@
       // Keep source timing so replay can anchor or scale keyframes like Premiere presets.
       sourceStartSeconds: typeof input.sourceStartSeconds === "number" ? input.sourceStartSeconds : null,
       sourceEndSeconds: typeof input.sourceEndSeconds === "number" ? input.sourceEndSeconds : null,
+      sourceInPointSeconds: typeof input.sourceInPointSeconds === "number" ? input.sourceInPointSeconds : null,
+      sourceOutPointSeconds: typeof input.sourceOutPointSeconds === "number" ? input.sourceOutPointSeconds : null,
       sourceDurationSeconds: typeof input.sourceDurationSeconds === "number" ? input.sourceDurationSeconds : null,
       importSource: safeString(input.importSource, ""),
       components: components.map(normalizeComponentSnapshot).filter(Boolean)

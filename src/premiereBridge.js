@@ -282,13 +282,22 @@
   async function getItemTimingSnapshot(item) {
     const startTime = await readOptionalMethod(item, "getStartTime", null);
     const endTime = await readOptionalMethod(item, "getEndTime", null);
+    // Premiere stores effect keyframes on the clip's source/in-point clock, not only on sequence time.
+    const inPoint = await readOptionalMethod(item, "getInPoint", null);
+    const outPoint = await readOptionalMethod(item, "getOutPoint", null);
     const startSeconds = timeToNumber(startTime);
     const endSeconds = timeToNumber(endTime);
+    const inPointSeconds = timeToNumber(inPoint);
+    const outPointSeconds = timeToNumber(outPoint);
     return {
       start: describeTickTime(startTime),
       end: describeTickTime(endTime),
+      inPoint: describeTickTime(inPoint),
+      outPoint: describeTickTime(outPoint),
       startSeconds,
       endSeconds,
+      inPointSeconds,
+      outPointSeconds,
       durationSeconds: typeof startSeconds === "number" && typeof endSeconds === "number"
         ? Math.max(0, endSeconds - startSeconds)
         : null
@@ -1082,36 +1091,45 @@
     const target = timingContext.targetTiming || {};
     const sourceStart = typeof stack.sourceStartSeconds === "number" ? stack.sourceStartSeconds : null;
     const sourceEnd = typeof stack.sourceEndSeconds === "number" ? stack.sourceEndSeconds : null;
+    // Prefer in/out point timing for actual keyframe positions so image/text/adjustment clips stay visible.
+    const sourceKeyStart = typeof stack.sourceInPointSeconds === "number" ? stack.sourceInPointSeconds : sourceStart;
+    const sourceKeyEnd = typeof stack.sourceOutPointSeconds === "number" ? stack.sourceOutPointSeconds : sourceEnd;
     const sourceDuration = typeof timingContext.paramDurationSeconds === "number" && timingContext.paramDurationSeconds > 0
       ? timingContext.paramDurationSeconds
       : (typeof stack.sourceDurationSeconds === "number" && stack.sourceDurationSeconds > 0
-      ? stack.sourceDurationSeconds
-      : (typeof sourceStart === "number" && typeof sourceEnd === "number" ? Math.max(0, sourceEnd - sourceStart) : null));
+        ? stack.sourceDurationSeconds
+        : (typeof sourceKeyStart === "number" && typeof sourceKeyEnd === "number" ? Math.max(0, sourceKeyEnd - sourceKeyStart) : null));
     const targetStart = typeof target.startSeconds === "number" ? target.startSeconds : null;
     const targetEnd = typeof target.endSeconds === "number" ? target.endSeconds : null;
-    const targetDuration = typeof target.durationSeconds === "number" && target.durationSeconds > 0 ? target.durationSeconds : null;
+    // UXP keyframes are positioned against the selected clip's in/out point clock.
+    const targetKeyStart = typeof target.inPointSeconds === "number" ? target.inPointSeconds : targetStart;
+    const targetKeyEnd = typeof target.outPointSeconds === "number" ? target.outPointSeconds : targetEnd;
+    const targetKeyDuration = typeof targetKeyStart === "number" && typeof targetKeyEnd === "number" && targetKeyEnd > targetKeyStart
+      ? targetKeyEnd - targetKeyStart
+      : null;
+    const targetDuration = targetKeyDuration || (typeof target.durationSeconds === "number" && target.durationSeconds > 0 ? target.durationSeconds : null);
     const rawSeconds = typeof keyframeSnapshot.seconds === "number" ? keyframeSnapshot.seconds : null;
     let relativeSeconds = typeof keyframeSnapshot.relativeSeconds === "number" ? keyframeSnapshot.relativeSeconds : null;
     if (relativeSeconds === null && rawSeconds !== null) {
-      const looksAbsolute = sourceStart !== null && sourceEnd !== null && rawSeconds >= sourceStart - 0.5 && rawSeconds <= sourceEnd + 0.5;
-      relativeSeconds = looksAbsolute ? rawSeconds - sourceStart : rawSeconds;
+      const looksAbsolute = sourceKeyStart !== null && sourceKeyEnd !== null && rawSeconds >= sourceKeyStart - 0.5 && rawSeconds <= sourceKeyEnd + 0.5;
+      relativeSeconds = looksAbsolute ? rawSeconds - sourceKeyStart : rawSeconds;
     }
     if (relativeSeconds === null) {
       return null;
     }
     let outputSeconds = null;
     if (timingContext.timingMode === "absolute") {
-      outputSeconds = targetStart !== null ? targetStart + relativeSeconds : (rawSeconds !== null ? rawSeconds : relativeSeconds);
-    } else if (timingContext.timingMode === "scale" && targetStart !== null && sourceDuration && targetDuration) {
-      outputSeconds = targetStart + (relativeSeconds / sourceDuration) * targetDuration;
-    } else if (timingContext.timingMode === "anchorOut" && targetEnd !== null && sourceDuration !== null) {
-      outputSeconds = targetEnd - Math.max(0, sourceDuration - relativeSeconds);
-    } else if (targetStart !== null) {
-      outputSeconds = targetStart + relativeSeconds;
+      outputSeconds = targetKeyStart !== null ? targetKeyStart + relativeSeconds : (rawSeconds !== null ? rawSeconds : relativeSeconds);
+    } else if (timingContext.timingMode === "scale" && targetKeyStart !== null && sourceDuration && targetDuration) {
+      outputSeconds = targetKeyStart + (relativeSeconds / sourceDuration) * targetDuration;
+    } else if (timingContext.timingMode === "anchorOut" && targetKeyEnd !== null && sourceDuration !== null) {
+      outputSeconds = targetKeyEnd - Math.max(0, sourceDuration - relativeSeconds);
+    } else if (targetKeyStart !== null) {
+      outputSeconds = targetKeyStart + relativeSeconds;
     } else {
       outputSeconds = relativeSeconds;
     }
-    return clampPresetKeyframeSeconds(outputSeconds, targetStart, targetEnd);
+    return clampPresetKeyframeSeconds(outputSeconds, targetKeyStart, targetKeyEnd);
   }
 
   // Keep generated keyframes inside the selected clip so Premiere does not silently drop them.
@@ -1343,11 +1361,14 @@
     const seconds = position && typeof position.seconds === "number" ? position.seconds : 0;
     const sourceStart = sourceTiming && typeof sourceTiming.startSeconds === "number" ? sourceTiming.startSeconds : null;
     const sourceEnd = sourceTiming && typeof sourceTiming.endSeconds === "number" ? sourceTiming.endSeconds : null;
-    const looksAbsolute = sourceStart !== null && sourceEnd !== null && seconds >= sourceStart - 0.5 && seconds <= sourceEnd + 0.5;
+    // Store keyframe offsets from the clip in-point when Premiere exposes it.
+    const sourceKeyStart = sourceTiming && typeof sourceTiming.inPointSeconds === "number" ? sourceTiming.inPointSeconds : sourceStart;
+    const sourceKeyEnd = sourceTiming && typeof sourceTiming.outPointSeconds === "number" ? sourceTiming.outPointSeconds : sourceEnd;
+    const looksAbsolute = sourceKeyStart !== null && sourceKeyEnd !== null && seconds >= sourceKeyStart - 0.5 && seconds <= sourceKeyEnd + 0.5;
     return {
       ticks: position && position.ticks ? String(position.ticks) : "0",
       seconds,
-      relativeSeconds: looksAbsolute ? seconds - sourceStart : seconds,
+      relativeSeconds: looksAbsolute ? seconds - sourceKeyStart : seconds,
       temporalInterpolation,
       value: serializeValue(value)
     };
@@ -1422,6 +1443,8 @@
       capturedAt: new Date().toISOString(),
       sourceStartSeconds: sourceTiming.startSeconds,
       sourceEndSeconds: sourceTiming.endSeconds,
+      sourceInPointSeconds: sourceTiming.inPointSeconds,
+      sourceOutPointSeconds: sourceTiming.outPointSeconds,
       sourceDurationSeconds: sourceTiming.durationSeconds,
       components
     });
