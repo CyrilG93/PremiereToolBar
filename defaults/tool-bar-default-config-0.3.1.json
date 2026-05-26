@@ -1,0 +1,386 @@
+{
+  "schemaVersion": 2,
+  "activeCollectionId": "collection-base-effects",
+  "activeButtonId": "btn-settings",
+  "buttons": [
+    {
+      "id": "btn-settings",
+      "label": "SETTINGS",
+      "actionType": "settings",
+      "mediaType": "video",
+      "icon": "camera-addon-identification",
+      "iconColor": "#e11d48",
+      "accentColor": "#ffffff",
+      "displayMode": "both",
+      "textOverride": "SETTINGS",
+      "effect": {
+        "matchName": "",
+        "displayName": "Mosaic"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "btn-transform",
+      "label": "Transform",
+      "actionType": "effect",
+      "mediaType": "video",
+      "icon": "bricks",
+      "iconColor": "#3b82f6",
+      "accentColor": "#d7dee8",
+      "displayMode": "both",
+      "textOverride": "Transform",
+      "effect": {
+        "matchName": "AE.ADBE Geometry2",
+        "displayName": "Transform"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "btn-crop",
+      "label": "Crop",
+      "actionType": "effect",
+      "mediaType": "video",
+      "icon": "scissors",
+      "iconColor": "#000000",
+      "accentColor": "#9fe3c1",
+      "displayMode": "both",
+      "textOverride": "Crop",
+      "effect": {
+        "matchName": "AE.ADBE AECrop",
+        "displayName": "Crop"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "btn-gaussian-blur",
+      "label": "Gaussian Blur",
+      "actionType": "effect",
+      "mediaType": "video",
+      "icon": "lens",
+      "iconColor": "#000000",
+      "accentColor": "#ff9aa2",
+      "displayMode": "both",
+      "textOverride": "Gaussian Blur",
+      "effect": {
+        "matchName": "AE.ADBE Gaussian Blur 2",
+        "displayName": "Gaussian Blur"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "btn-drop-shadow",
+      "label": "Drop Shadow",
+      "actionType": "effect",
+      "mediaType": "video",
+      "icon": "softbox",
+      "iconColor": "#ffffff",
+      "accentColor": "#313840",
+      "displayMode": "both",
+      "textOverride": "Drop Shadow",
+      "effect": {
+        "matchName": "AE.ADBE Drop Shadow",
+        "displayName": "Drop Shadow"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "btn-flip-horizontal",
+      "label": "FlH",
+      "actionType": "effect",
+      "mediaType": "video",
+      "icon": "arrow-left-right",
+      "iconColor": "#f4f4f5",
+      "accentColor": "#3b82f6",
+      "displayMode": "both",
+      "textOverride": "FlH",
+      "effect": {
+        "matchName": "AE.ADBE Horizontal Flip",
+        "displayName": "Horizontal Flip"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "btn-flip-vertical",
+      "label": "FLV",
+      "actionType": "effect",
+      "mediaType": "video",
+      "icon": "arrow-down-up",
+      "iconColor": "#ffffff",
+      "accentColor": "#3b82f6",
+      "displayMode": "both",
+      "textOverride": "FLV",
+      "effect": {
+        "matchName": "AE.ADBE Vertical Flip",
+        "displayName": "Vertical Flip"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "btn-ultra-key",
+      "label": "key",
+      "actionType": "effect",
+      "mediaType": "video",
+      "icon": "key",
+      "iconColor": "#000000",
+      "accentColor": "#22c55e",
+      "displayMode": "both",
+      "textOverride": "key",
+      "effect": {
+        "matchName": "AE.ADBE Ultra Key",
+        "displayName": "Ultra Key"
+      },
+      "transition": {
+        "matchName": "",
+        "applyTo": "end",
+        "durationSeconds": 1,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    },
+    {
+      "id": "button-mpjho02m-ogjvvn76",
+      "label": "Pop Transition",
+      "actionType": "transition",
+      "mediaType": "video",
+      "icon": "input-cursor",
+      "iconColor": "#000000",
+      "accentColor": "#ffb986",
+      "displayMode": "both",
+      "textOverride": "Pop Transition",
+      "effect": {
+        "matchName": "",
+        "displayName": "Mosaic"
+      },
+      "transition": {
+        "matchName": "AE.AE_Impact_Pop",
+        "applyTo": "both",
+        "durationSeconds": 0.5,
+        "forceSingleSided": false,
+        "alignment": 0
+      },
+      "preset": {
+        "name": "",
+        "keyframeTiming": "anchorIn"
+      },
+      "stack": {
+        "sourceName": "",
+        "capturedAt": "",
+        "sourceStartSeconds": null,
+        "sourceEndSeconds": null,
+        "sourceDurationSeconds": null,
+        "importSource": "",
+        "components": []
+      }
+    }
+  ],
+  "collections": [
+    {
+      "id": "collection-base-effects",
+      "name": "Base Effects",
+      "buttonIds": [
+        "btn-settings",
+        "btn-transform",
+        "btn-crop",
+        "btn-gaussian-blur",
+        "btn-drop-shadow",
+        "btn-flip-horizontal",
+        "btn-flip-vertical",
+        "btn-ultra-key",
+        "button-mpjho02m-ogjvvn76"
+      ]
+    },
+    {
+      "id": "collection-empty-2",
+      "name": "Collection 2",
+      "buttonIds": [
+        "btn-settings"
+      ]
+    },
+    {
+      "id": "collection-empty-3",
+      "name": "Collection 3",
+      "buttonIds": [
+        "btn-settings"
+      ]
+    },
+    {
+      "id": "collection-empty-4",
+      "name": "Collection 4",
+      "buttonIds": [
+        "btn-settings"
+      ]
+    }
+  ],
+  "bars": [
+    {
+      "id": "bar-1",
+      "collectionId": "collection-base-effects",
+      "enabled": true,
+      "orientation": "auto"
+    },
+    {
+      "id": "bar-2",
+      "collectionId": "collection-empty-2",
+      "enabled": true,
+      "orientation": "auto"
+    },
+    {
+      "id": "bar-3",
+      "collectionId": "collection-empty-3",
+      "enabled": true,
+      "orientation": "auto"
+    },
+    {
+      "id": "bar-4",
+      "collectionId": "collection-empty-4",
+      "enabled": true,
+      "orientation": "auto"
+    }
+  ]
+}
