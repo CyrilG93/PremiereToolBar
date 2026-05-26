@@ -99,6 +99,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.3.1 - 2026-05-26
+
+- Improved macOS packaging so local Finder metadata files are excluded from the generated `.ccx`.
+- Extended local verification to cover the preset import module loaded by the plugin.
+
 ### 0.3.0 - 2026-05-25
 
 - Added reliable captured video presets with keyframe timing modes.

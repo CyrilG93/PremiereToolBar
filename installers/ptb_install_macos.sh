@@ -35,6 +35,8 @@ cp -R "${PTB_ROOT}/src" "${PTB_STAGE_DIR}/src"
 if [ -d "${PTB_ROOT}/assets" ]; then
   cp -R "${PTB_ROOT}/assets" "${PTB_STAGE_DIR}/assets"
 fi
+# // Remove macOS Finder metadata from the staged package so local .DS_Store files never enter the CCX.
+/usr/bin/find "${PTB_STAGE_DIR}" -name ".DS_Store" -type f -delete
 
 # // Build a .ccx package; Adobe documents CCX as a ZIP container for UXP plugins.
 mkdir -p "${PTB_BUILD_DIR}"

@@ -51,6 +51,7 @@ Object.keys(packageJson.scripts || {}).forEach((scriptName) => {
   "src/i18n.js",
   "src/iconLibrary.js",
   "src/schema.js",
+  "src/presetImport.js",
   "src/storage.js",
   "src/premiereBridge.js",
   "src/ui.js"
