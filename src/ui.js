@@ -1640,10 +1640,34 @@
     const wrap = el("div", "ptb-fieldset");
     const assignedIds = button.multi.buttonIds.filter((buttonId) => buttonId !== button.id && getButton(buttonId));
     const list = el("div", "ptb-collection-member-list");
+    const multiTargetId = "multi:" + button.id;
+    const setMultiTailTarget = (event) => {
+      if (hasPendingDrag() && !isInteractiveTarget(event.target, wrap)) {
+        setDropTarget(multiTargetId, button.multi.buttonIds.length, list, "tail");
+      }
+    };
+    wrap.addEventListener("mouseenter", setMultiTailTarget);
+    wrap.addEventListener("mousemove", setMultiTailTarget);
+    wrap.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      setMultiTailTarget(event);
+    });
+    wrap.addEventListener("mouseup", (event) => {
+      if (!isInteractiveTarget(event.target, wrap)) {
+        const preview = settingsState.dropTarget || {};
+        applyPendingDragToMultiAction(button, preview.collectionId === multiTargetId && preview.index >= 0 ? preview.index : button.multi.buttonIds.length);
+      }
+    });
+    wrap.addEventListener("drop", (event) => {
+      event.preventDefault();
+      if (!isInteractiveTarget(event.target, wrap)) {
+        applyMultiActionDropEvent(button, button.multi.buttonIds.length, event);
+      }
+    });
     const setListTarget = (event) => {
-      if (hasPendingDrag() && isDirectDropSurface(event, list)) {
+      if (hasPendingDrag() && (isDirectDropSurface(event, list) || isWithinClass(event.target, list, "ptb-collection-member"))) {
         const target = getListInsertion(event, list, button.multi.buttonIds.length);
-        setDropTarget("multi:" + button.id, target.index, target.node || list, target.position);
+        setDropTarget(multiTargetId, target.index, target.node || list, target.position);
       }
     };
     list.addEventListener("mouseenter", setListTarget);
@@ -1655,7 +1679,7 @@
     list.addEventListener("mouseup", (event) => {
       if (!isInteractiveTarget(event.target, list) && isDirectDropSurface(event, list)) {
         const preview = settingsState.dropTarget || {};
-        applyPendingDragToMultiAction(button, preview.collectionId === "multi:" + button.id && preview.index >= 0 ? preview.index : button.multi.buttonIds.length);
+        applyPendingDragToMultiAction(button, preview.collectionId === multiTargetId && preview.index >= 0 ? preview.index : button.multi.buttonIds.length);
       }
     });
     list.addEventListener("drop", (event) => {
@@ -1675,12 +1699,14 @@
     const options = [{ value: "", label: root.PTB_I18N.t("addExistingButton") }].concat(config.buttons
       .filter((item) => item.id !== button.id && !button.multi.buttonIds.includes(item.id))
       .map((item) => ({ value: item.id, label: getButtonName(item) })));
-    wrap.appendChild(selectField(root.PTB_I18N.t("addToMultiAction"), "", options, (buttonId) => {
+    const addField = selectField(root.PTB_I18N.t("addToMultiAction"), "", options, (buttonId) => {
       if (buttonId) {
         button.multi.buttonIds.push(buttonId);
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       }
-    }));
+    });
+    setStyles(addField, { flex: "0 1 auto" });
+    wrap.appendChild(addField);
     wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("multiActionHelp")));
     return wrap;
   }
@@ -1692,7 +1718,6 @@
     row.dataset.collectionIndex = String(index);
     row.draggable = true;
     row.setAttribute("draggable", "true");
-    row.addEventListener("click", () => selectButton(child.id));
     row.addEventListener("mousedown", () => beginButtonDrag(child.id, "multi:" + multiButton.id));
     row.addEventListener("pointerdown", () => beginButtonDrag(child.id, "multi:" + multiButton.id));
     row.addEventListener("mouseup", (event) => {

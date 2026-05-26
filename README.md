@@ -101,6 +101,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.3.8 - 2026-05-26
+
+- Fixed Multi Action drag and drop from the gallery and between Multi Action buttons.
+- Removed the extra empty space in the Multi Action button editor.
+
 ### 0.3.7 - 2026-05-26
 
 - Made Multi Action editing compact and drag/drop based, with right-click removal like collections.

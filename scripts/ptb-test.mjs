@@ -385,6 +385,40 @@ function collectionReorderSmokeTest() {
 
 collectionReorderSmokeTest();
 
+// Verify Multi Action editing accepts gallery drops and in-list reordering.
+function multiActionDropSmokeTest() {
+  const multiButton = schema.createButton({
+    id: "btn-multi-test",
+    label: "Multi",
+    actionType: "multi",
+    multi: { buttonIds: ["btn-transform", "btn-crop"] }
+  });
+  const config = schema.createDefaultConfig();
+  config.buttons.push(multiButton);
+  config.collections[0].buttonIds.push(multiButton.id);
+  config.activeButtonId = multiButton.id;
+  const harness = renderSettingsHarness(config);
+  const lists = findAllByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-collection-member-list"));
+  const multiList = lists.find((node) => String(node.textContent || "").includes("Transform") && String(node.textContent || "").includes("Crop"));
+  const members = (multiList.children || []).filter((node) => String(node.className || "").includes("ptb-multi-member"));
+  members[1].onmousedown({ target: members[1] });
+  members[0].onmousemove({ target: members[0], clientX: 0, clientY: 20, stopPropagation() {} });
+  members[0].onmouseup({ target: members[0], stopPropagation() {} });
+  assert.deepEqual(harness.getSavedConfig().buttons.find((button) => button.id === "btn-multi-test").multi.buttonIds.slice(0, 2), ["btn-crop", "btn-transform"]);
+
+  const addHarness = renderSettingsHarness(config);
+  const galleryCards = findAllByPredicate(addHarness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-gallery-card"));
+  const blurCard = galleryCards.find((node) => String(node.textContent || "").includes("Gaussian Blur"));
+  const addLists = findAllByPredicate(addHarness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-collection-member-list"));
+  const addMultiList = addLists.find((node) => String(node.textContent || "").includes("Transform") && String(node.textContent || "").includes("Crop"));
+  blurCard.onmousedown({ target: blurCard });
+  addMultiList.onmousemove({ target: addMultiList, clientX: 400, clientY: 20 });
+  addMultiList.onmouseup({ target: addMultiList });
+  assert.ok(addHarness.getSavedConfig().buttons.find((button) => button.id === "btn-multi-test").multi.buttonIds.includes("btn-gaussian-blur"));
+}
+
+multiActionDropSmokeTest();
+
 // Verify video effect buttons show the stable match name while audio effects keep display-name lookup.
 function effectLookupDisplaySmokeTest() {
   const videoConfig = schema.createDefaultConfig();
