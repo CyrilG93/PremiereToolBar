@@ -68,10 +68,9 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Assign an icon, icon color, and button color with popover pickers, including a transparent button background when you only want the icon or text.
 - Type either the Premiere effect name or the effect match name in one field. Video effect catalog choices fill the stable match name when Premiere exposes one.
 - Assign video transition match names from Premiere.
-- Create a `Tool` action for built-in utilities such as opening settings, copying the selected clip's effect stack, or pasting the copied stack to the current selection.
+- Create a `Tools` action for built-in utilities such as opening settings, copying the selected clip's effect stack, or pasting the copied stack to the current selection.
 - Create a `Multi Action` button that runs several existing Tool Bar buttons in order, with drag and drop ordering like collections.
-- Create a `Script` action and import a `.jsx` file so it is stored with the button; current Premiere UXP builds do not expose a documented JSX runner, so these buttons are prepared for future host support.
-- Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`; choose whether keyframes anchor to the clip in/out, scale to clip duration, or keep original times.
+- Create an `Effect Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`; choose whether keyframes anchor to the clip in/out, scale to clip duration, or keep original times.
 - Try `Import .prfpset (Experimental)` on a `Preset` button when you want Tool Bar to parse a Premiere effect preset file directly. It works best with native video effects whose match names and parameter values are visible in the XML.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
 - Use the update banner in settings when Tool Bar detects a newer GitHub release.
@@ -101,6 +100,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.4.0 - 2026-05-26
+
+- Renamed the action labels to `Effect Preset` and `Tools`.
+- Hid Script buttons from the visible action list until Premiere exposes a usable JSX runner.
+- Published the first `0.4.x` beta release package.
 
 ### 0.3.11 - 2026-05-26
 

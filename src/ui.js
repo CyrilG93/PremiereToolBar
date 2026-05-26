@@ -1457,7 +1457,6 @@
       { value: "preset", label: root.PTB_I18N.t("presetAction") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
       { value: "multi", label: root.PTB_I18N.t("multiAction") },
-      { value: "script", label: root.PTB_I18N.t("scriptAction") },
       { value: "tool", label: root.PTB_I18N.t("toolAction") }
     ];
     if (audioTransitionsEnabled || button.actionType === "audioTransition") {
