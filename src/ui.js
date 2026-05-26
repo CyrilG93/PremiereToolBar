@@ -1453,12 +1453,12 @@
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     const actionOptions = [
-      { value: "tool", label: root.PTB_I18N.t("toolAction") },
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
-      { value: "transition", label: root.PTB_I18N.t("videoTransition") },
-      { value: "transitionPreset", label: root.PTB_I18N.t("transitionPresetAction") },
       { value: "preset", label: root.PTB_I18N.t("presetAction") },
-      { value: "multi", label: root.PTB_I18N.t("multiAction") }
+      { value: "transition", label: root.PTB_I18N.t("videoTransition") },
+      { value: "multi", label: root.PTB_I18N.t("multiAction") },
+      { value: "script", label: root.PTB_I18N.t("scriptAction") },
+      { value: "tool", label: root.PTB_I18N.t("toolAction") }
     ];
     if (audioTransitionsEnabled || button.actionType === "audioTransition") {
       // Keep existing audio-transition buttons visible enough to convert, but hide the action for new buttons.
@@ -1531,6 +1531,22 @@
     }
     if (button.actionType === "multi") {
       wrap.appendChild(renderMultiActionEditor(button));
+      return wrap;
+    }
+    if (button.actionType === "script") {
+      const grid = el("div", "ptb-form-grid");
+      grid.appendChild(textField(root.PTB_I18N.t("scriptName"), button.script.name || getButtonName(button), (value) => {
+        button.script.name = value;
+        if (value) {
+          setButtonName(button, value);
+        }
+      }));
+      wrap.appendChild(grid);
+      wrap.appendChild(el("p", "ptb-muted", button.script.sourceFileName || root.PTB_I18N.t("scriptNoSource")));
+      wrap.appendChild(actionButton(root.PTB_I18N.t("importScriptFile"), "ptb-button compact", async () => {
+        await importScriptFileIntoButton(button);
+      }));
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("scriptHelp")));
       return wrap;
     }
     if (button.actionType === "audioTransition" && !audioTransitionsEnabled) {
@@ -1904,6 +1920,28 @@
       });
       setButtonName(button, transition.name || transition.displayName || file.name);
       addInternalLog("info", "Imported .prfpset as Tool Bar transition preset.", result.summary, true);
+      saveAndRender(root.PTB_I18N.t("statusImported"));
+    });
+  }
+
+  // Import a JSX script file into the selected Script button for future host-side execution.
+  async function importScriptFileIntoButton(button) {
+    await runWithStatus(root.PTB_I18N.t("statusImportingPreset"), async () => {
+      const file = await root.PTB_STORAGE.importTextFile(["jsx", "js"]);
+      if (!file) {
+        return;
+      }
+      button.actionType = "script";
+      button.script.name = String(file.name || "Script").replace(/\.(jsx|js)$/i, "");
+      button.script.sourceFileName = file.name || "";
+      button.script.sourcePath = file.path || "";
+      button.script.source = file.text || "";
+      setButtonName(button, button.script.name);
+      addInternalLog("info", "Imported JSX script into Tool Bar.", {
+        name: button.script.name,
+        sourceFileName: button.script.sourceFileName,
+        characters: button.script.source.length
+      }, true);
       saveAndRender(root.PTB_I18N.t("statusImported"));
     });
   }

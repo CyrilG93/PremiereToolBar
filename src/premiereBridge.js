@@ -705,6 +705,9 @@
     if (normalizedButton.actionType === "multi") {
       return applyMultiButton(normalizedButton, config, recursionDepth);
     }
+    if (normalizedButton.actionType === "script") {
+      return applyScriptButton(normalizedButton);
+    }
     if (normalizedButton.actionType === "transition" || normalizedButton.actionType === "transitionPreset") {
       return applyTransitionButton(normalizedButton);
     }
@@ -720,6 +723,48 @@
       return applyPresetButton(normalizedButton);
     }
     return applyEffectButton(normalizedButton);
+  }
+
+  // Run an imported JSX script only when Premiere exposes a compatible host API.
+  async function applyScriptButton(button) {
+    const app = getPremiere();
+    if (!app) {
+      throw new Error(root.PTB_I18N.t("noPremiereApi"));
+    }
+    const source = button.script && button.script.source ? button.script.source : "";
+    const sourcePath = button.script && button.script.sourcePath ? button.script.sourcePath : "";
+    if (!source && !sourcePath) {
+      throw new Error(root.PTB_I18N.t("scriptNoSource"));
+    }
+    const fileRunners = [
+      "executeScriptFile",
+      "runScriptFile",
+      "evaluateScriptFile"
+    ];
+    for (const methodName of fileRunners) {
+      if (sourcePath && typeof app[methodName] === "function") {
+        logBridge("info", "Executing JSX script through Premiere host API.", { method: methodName, name: button.script.name || button.label });
+        return app[methodName](sourcePath);
+      }
+    }
+    const sourceRunners = [
+      "executeScript",
+      "executeExtendScript",
+      "evalScript",
+      "evaluateScript",
+      "runScript"
+    ];
+    for (const methodName of sourceRunners) {
+      if (source && typeof app[methodName] === "function") {
+        logBridge("info", "Executing JSX source through Premiere host API.", { method: methodName, name: button.script.name || button.label });
+        return app[methodName](source);
+      }
+    }
+    logBridge("warn", root.PTB_I18N.t("scriptUnsupported"), {
+      script: button.script && (button.script.sourceFileName || button.script.name),
+      storedCharacters: source.length
+    });
+    throw new Error(root.PTB_I18N.t("scriptUnsupported"));
   }
 
   // Run a built-in utility action that can be assigned to toolbar buttons.

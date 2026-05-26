@@ -24,6 +24,10 @@ assert.ok(defaultConfig.buttons.some((button) => button.effect && button.effect.
 assert.ok(defaultConfig.buttons.some((button) => button.actionType === "transition" && button.transition.matchName === "AE.AE_Impact_Pop"));
 assert.equal(schema.createButton({ actionType: "settings" }).actionType, "tool");
 assert.equal(schema.createButton({ actionType: "settings" }).tool.id, "openSettings");
+const scriptButton = schema.createButton({ actionType: "script", script: { name: "Sort Project", sourceFileName: "Sort Project.jsx", source: "alert('x');" } });
+assert.equal(scriptButton.actionType, "script");
+assert.equal(scriptButton.script.sourceFileName, "Sort Project.jsx");
+assert.equal(scriptButton.script.source, "alert('x');");
 
 // Verify malformed legacy configs are migrated to the collection model.
 const migratedLegacy = schema.normalizeConfig({
@@ -745,6 +749,65 @@ async function applyEffectOrderSmokeTest() {
 }
 
 await applyEffectOrderSmokeTest();
+
+// Verify Script buttons store JSX and call a compatible host runner only when one exists.
+async function applyScriptButtonSmokeTest() {
+  let executedSource = "";
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    PTB_LOGGER: { info() {}, warn() {}, error() {} },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      return {
+        evalScript(source) {
+          executedSource = source;
+          return "ok";
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  const result = await context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "script",
+    script: { name: "Rename Sequence", source: "app.project.activeSequence.name = 'x';" }
+  }));
+  assert.equal(result, "ok");
+  assert.equal(executedSource, "app.project.activeSequence.name = 'x';");
+}
+
+await applyScriptButtonSmokeTest();
+
+async function unsupportedScriptButtonSmokeTest() {
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    PTB_LOGGER: { info() {}, warn() {}, error() {} },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      return {};
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await assert.rejects(() => context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "script",
+    script: { name: "Sort Project", source: "organizeProject();" }
+  })), /scriptUnsupported/);
+}
+
+await unsupportedScriptButtonSmokeTest();
 
 // Verify transitions can target both clip edges and nudge the timeline refresh.
 async function applyTransitionSmokeTest() {

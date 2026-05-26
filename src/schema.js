@@ -14,7 +14,7 @@
   const CONFIG_VERSION = 2;
   const MAX_BARS = 4;
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
-  const ACTION_TYPES = ["tool", "effect", "transition", "transitionPreset", "audioTransition", "preset", "multi"];
+  const ACTION_TYPES = ["tool", "effect", "transition", "transitionPreset", "audioTransition", "preset", "multi", "script"];
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
@@ -58,14 +58,14 @@
       : (input.tool && TOOL_IDS.includes(input.tool.id) ? input.tool.id : "openSettings");
     const button = {
       id: safeString(input.id, createId("button")),
-      label: safeString(input.label, actionType === "tool" ? "Settings" : "Button"),
+      label: safeString(input.label, actionType === "tool" ? "Settings" : (actionType === "script" ? "Script" : "Button")),
       actionType,
       mediaType,
-      icon: safeString(input.icon, actionType === "tool" ? "camera-addon-identification" : "aperture"),
+      icon: safeString(input.icon, actionType === "tool" ? "camera-addon-identification" : (actionType === "script" ? "terminal" : "aperture")),
       iconColor: safeString(input.iconColor, actionType === "tool" ? "#d7dee8" : "#8fd6ff"),
       accentColor: safeString(input.accentColor, actionType === "tool" ? "#313840" : "#1f2937"),
       displayMode: DISPLAY_MODES.includes(input.displayMode) ? input.displayMode : "icon",
-      textOverride: safeString(input.textOverride, safeString(input.label, actionType === "tool" ? "Settings" : "Button")),
+      textOverride: safeString(input.textOverride, safeString(input.label, actionType === "tool" ? "Settings" : (actionType === "script" ? "Script" : "Button"))),
       tool: {
         // Tool buttons run built-in utility commands that can grow over time.
         id: toolId
@@ -93,6 +93,13 @@
         buttonIds: Array.isArray(input.multi && input.multi.buttonIds)
           ? input.multi.buttonIds.filter((id, index, list) => typeof id === "string" && list.indexOf(id) === index)
           : []
+      },
+      script: {
+        // JSX scripts are stored for future host support; current Premiere UXP builds do not expose a documented JSX runner.
+        name: safeString(input.script && input.script.name, ""),
+        sourceFileName: safeString(input.script && input.script.sourceFileName, ""),
+        sourcePath: safeString(input.script && input.script.sourcePath, ""),
+        source: typeof (input.script && input.script.source) === "string" ? input.script.source : ""
       },
       stack: normalizeStack(input.stack)
     };

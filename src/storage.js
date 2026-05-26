@@ -223,6 +223,7 @@
     const content = await file.read();
     return {
       name: file.name || "Imported file",
+      path: file.nativePath || file.fsName || file.fullName || file.url || "",
       text: typeof content === "string" ? content : (root.TextDecoder ? new root.TextDecoder("utf-8").decode(content) : String(content))
     };
   }
