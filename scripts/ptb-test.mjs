@@ -180,9 +180,17 @@ function prfpsetImporterSmokeTest() {
       </FilterPreset>
       <VideoFilterComponent ObjectID="8">
         <VideoFilterType>2</VideoFilterType>
-        <Component><DisplayName>Pop Motion</DisplayName></Component>
+        <Component><DisplayName>Pop Motion</DisplayName><Params><Param Index="2" ObjectRef="9"/></Params></Component>
         <MatchName>AE.AE_Impact_Pop</MatchName>
       </VideoFilterComponent>
+      <VideoComponentParam ObjectID="9">
+        <Keyframes></Keyframes>
+        <IsTimeVarying>false</IsTimeVarying>
+        <StartKeyframe>-91445760000000000,42.,0,0,0,0,0,0</StartKeyframe>
+        <CurrentValue>0.</CurrentValue>
+        <ParameterID>12</ParameterID>
+        <Name>Bounces</Name>
+      </VideoComponentParam>
     </PremiereData>`;
   const transitionResult = context.PTB_PRESET_IMPORT.parseTransitionPrfpsetText(transitionPreset, "Preset Pop.prfpset");
   assert.equal(transitionResult.transitions.length, 1);
@@ -191,6 +199,8 @@ function prfpsetImporterSmokeTest() {
   assert.equal(transitionResult.transitions[0].matchName, "AE.AE_Impact_Pop");
   assert.ok(transitionResult.transitions[0].durationSeconds > 0.47);
   assert.ok(transitionResult.transitions[0].durationSeconds < 0.49);
+  assert.equal(transitionResult.transitions[0].component.params.length, 1);
+  assert.equal(transitionResult.transitions[0].component.params[0].startValue.value, 42);
 }
 
 prfpsetImporterSmokeTest();
@@ -798,6 +808,121 @@ async function applyTransitionSmokeTest() {
 }
 
 await applyTransitionSmokeTest();
+
+// Verify imported transition presets replay exposed transition parameters after creation.
+async function applyTransitionPresetParameterSmokeTest() {
+  let setValueActions = 0;
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const param = {
+        createKeyframe(value) {
+          return { value };
+        },
+        createSetValueAction(keyframe) {
+          setValueActions += 1;
+          return { kind: "setValue", keyframe };
+        }
+      };
+      const component = {
+        getParamCount: () => 1,
+        getParam: () => param,
+        getMatchName: async () => "AE.AE_Impact_Pop",
+        getDisplayName: async () => "Pop Motion"
+      };
+      const transitionItem = {
+        getName: async () => "Pop Motion",
+        getMatchName: async () => "AE.AE_Impact_Pop",
+        getType: async () => 2,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ seconds: 0, ticks: "0" }),
+        getEndTime: async () => ({ seconds: 0.5, ticks: "127008000000" }),
+        getInPoint: async () => ({ seconds: 0, ticks: "0" }),
+        getOutPoint: async () => ({ seconds: 0.5, ticks: "127008000000" }),
+        getComponentChain: async () => ({
+          getComponentCount: () => 1,
+          getComponentAtIndex: () => component
+        })
+      };
+      const selectedClip = {
+        getType: async () => 1,
+        getTrackIndex: async () => 0,
+        getStartTime: async () => ({ seconds: 0, ticks: "0" }),
+        getEndTime: async () => ({ seconds: 10, ticks: "2540160000000" }),
+        getInPoint: async () => ({ seconds: 0, ticks: "0" }),
+        getOutPoint: async () => ({ seconds: 10, ticks: "2540160000000" }),
+        createAddVideoTransitionAction(transition, options) {
+          return { transition, options };
+        }
+      };
+      return {
+        AddTransitionOptions: function AddTransitionOptions() {
+          this.setApplyToStart = (value) => { this.applyToStart = value; return this; };
+          this.setForceSingleSided = (value) => { this.forceSingleSided = value; return this; };
+          this.setTransitionAlignment = (value) => { this.transitionAlignment = value; return this; };
+          this.setDuration = (value) => { this.duration = value; return this; };
+        },
+        TickTime: {
+          createWithSeconds: (seconds) => ({ seconds })
+        },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getPlayerPosition: () => ({ ticks: "0" }),
+              setPlayerPosition: () => {},
+              getSelection: async () => ({
+                getTrackItems: async () => [selectedClip]
+              }),
+              getVideoTrackCount: async () => 1,
+              getVideoTrack: async () => ({
+                getTrackItems: async (type) => type === 2 ? [transitionItem] : [selectedClip]
+              })
+            }),
+            executeTransaction: (handler) => {
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        TransitionFactory: {
+          createVideoTransition: async (matchName) => ({ matchName })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    label: "Imported Pop",
+    actionType: "transitionPreset",
+    transition: { matchName: "AE.AE_Impact_Pop", applyTo: "end", durationSeconds: 0.5 },
+    stack: {
+      sourceDurationSeconds: 0.5,
+      components: [{
+        mediaType: "video",
+        matchName: "AE.AE_Impact_Pop",
+        displayName: "Pop Motion",
+        params: [{
+          index: 0,
+          displayName: "Bounces",
+          timeVarying: false,
+          startValue: { kind: "primitive", value: 42 },
+          keyframes: []
+        }]
+      }]
+    }
+  }));
+  assert.equal(setValueActions, 1);
+}
+
+await applyTransitionPresetParameterSmokeTest();
 
 // Verify a selected edit point applies the transition at that edit regardless of the button start/end mode.
 async function applyEditPointTransitionSmokeTest() {

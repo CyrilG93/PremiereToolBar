@@ -363,12 +363,19 @@
         return;
       }
       const durationSeconds = ticksToSeconds(readTagText(filterBlock, "TransitionDuration"), 0) || null;
+      const component = {
+        mediaType: "video",
+        matchName,
+        displayName: readTagText(componentBlock, "DisplayName") || matchName,
+        params: parsePremiereParams(text, componentBlock, readTagText(filterBlock, "AnchorInPoint"))
+      };
       transitions.push({
         name: readPresetNameFromText(text, fileName),
-        displayName: readTagText(componentBlock, "DisplayName") || matchName,
+        displayName: component.displayName,
         matchName,
         mediaType: "video",
         durationSeconds,
+        component,
         importSource: fileName || ".prfpset"
       });
     });
@@ -378,7 +385,11 @@
         name: transitions[0] ? transitions[0].name : readPresetNameFromText(text, fileName),
         transitions: transitions.length,
         matchName: transitions[0] ? transitions[0].matchName : "",
-        durationSeconds: transitions[0] ? transitions[0].durationSeconds : null
+        durationSeconds: transitions[0] ? transitions[0].durationSeconds : null,
+        params: transitions[0] && transitions[0].component ? transitions[0].component.params.length : 0,
+        keyframes: transitions[0] && transitions[0].component
+          ? transitions[0].component.params.reduce((total, param) => total + param.keyframes.length, 0)
+          : 0
       }
     };
   }

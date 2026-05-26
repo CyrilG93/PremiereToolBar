@@ -528,9 +528,22 @@
 
   // Read every transition track item from all exposed tracks of one media kind.
   async function inspectAllTransitionsForMedia(app, sequence, mediaType) {
+    const scan = await getTransitionTrackItemsForMedia(app, sequence, mediaType);
+    return {
+      mediaType,
+      trackCount: scan.trackCount,
+      scannedTracks: scan.scannedTracks,
+      transitionType: scan.transitionType,
+      transitions: scan.items.map((entry) => entry.info),
+      errors: scan.errors
+    };
+  }
+
+  // Read transition track items and keep the raw UXP item when later parameter replay needs it.
+  async function getTransitionTrackItemsForMedia(app, sequence, mediaType) {
     const trackGetter = mediaType === "audio" ? "getAudioTrack" : "getVideoTrack";
     const countGetter = mediaType === "audio" ? "getAudioTrackCount" : "getVideoTrackCount";
-    const output = { mediaType, trackCount: null, scannedTracks: 0, transitions: [], errors: [] };
+    const output = { mediaType, trackCount: null, scannedTracks: 0, transitionType: null, items: [], errors: [] };
     if (!sequence || typeof sequence[trackGetter] !== "function" || typeof sequence[countGetter] !== "function") {
       output.errors.push("Sequence does not expose " + trackGetter + " / " + countGetter + ".");
       return output;
@@ -548,7 +561,7 @@
         for (let transitionIndex = 0; transitionIndex < trackTransitions.length; transitionIndex += 1) {
           const transitionInfo = await inspectTrackItemIdentity(trackTransitions[transitionIndex], transitionIndex, mediaType, "trackTransition");
           transitionInfo.scannedTrackIndex = trackIndex;
-          output.transitions.push(transitionInfo);
+          output.items.push({ item: trackTransitions[transitionIndex], info: transitionInfo });
         }
       } catch (error) {
         output.errors.push({ trackIndex, error: describeBridgeError(error) });
@@ -948,6 +961,7 @@
         await queueVideoEditPointTransitionActions(app, button, editPointTargets, actions, "edit-point");
         const result = executeActions(project, actions, "Tool Bar: " + button.label);
         await refreshSequenceView(sequence);
+        await applyTransitionPresetValues(app, project, sequence, button, items);
         logBridge("info", "Edit-point video transition command completed.", { actions: actions.length });
         return result;
       }
@@ -957,6 +971,7 @@
         await queueVideoEditPointTransitionActions(app, button, adjacentClipTargets, actions, "adjacent-clip");
         const result = executeActions(project, actions, "Tool Bar: " + button.label);
         await refreshSequenceView(sequence);
+        await applyTransitionPresetValues(app, project, sequence, button, items);
         logBridge("info", "Adjacent-clip video transition command completed.", { actions: actions.length });
         return result;
       }
@@ -982,8 +997,135 @@
     }
     const result = executeActions(project, actions, "Tool Bar: " + button.label);
     await refreshSequenceView(sequence);
+    await applyTransitionPresetValues(app, project, sequence, button, items);
     logBridge("info", capitalize(mediaType) + " transition command completed.", { actions: actions.length });
     return result;
+  }
+
+  // Replay imported transition preset parameters on the transition items Premiere exposes after creation.
+  async function applyTransitionPresetValues(app, project, sequence, button, selectedItems) {
+    if (button.actionType !== "transitionPreset") {
+      return 0;
+    }
+    const stack = root.PTB_SCHEMA.normalizeStack(button.stack);
+    const componentSnapshot = stack.components[0];
+    if (!componentSnapshot || !componentSnapshot.params.length) {
+      logBridge("warn", "Transition preset has no stored parameters to replay.");
+      return 0;
+    }
+    await waitForHostPaint();
+    const targets = await findTransitionPresetParamTargets(app, sequence, selectedItems, button, componentSnapshot);
+    if (!targets.length) {
+      logBridge("warn", "No matching transition item found for preset parameter replay.", {
+        matchName: button.transition.matchName,
+        storedParams: componentSnapshot.params.length
+      });
+      return 0;
+    }
+    const setupActions = [];
+    const valueTargets = [];
+    for (const target of targets) {
+      const component = await resolveTransitionPresetComponent(target.item, componentSnapshot);
+      if (!component) {
+        logBridge("warn", "Matching transition item does not expose a component chain for preset parameters.", target.info);
+        continue;
+      }
+      const targetTiming = await getItemTimingSnapshot(target.item);
+      setupActions.push.apply(setupActions, await createParamSetupActions(app, component, componentSnapshot.params));
+      valueTargets.push({ component, params: componentSnapshot.params, stack, targetTiming, timingMode: "scale" });
+    }
+    if (setupActions.length) {
+      executeActions(project, setupActions, "Tool Bar: " + button.label + " transition preset setup");
+      await refreshSequenceView(sequence);
+      await waitForHostPaint();
+    }
+    const paramActions = [];
+    for (const target of valueTargets) {
+      paramActions.push.apply(paramActions, await createParamValueActions(app, target.component, target.params, target));
+    }
+    if (paramActions.length) {
+      executeActions(project, paramActions, "Tool Bar: " + button.label + " transition preset values");
+      await refreshSequenceView(sequence);
+    } else {
+      logBridge("warn", "Transition preset applied without parameter actions.", {
+        targets: valueTargets.length,
+        storedParams: componentSnapshot.params.length
+      });
+    }
+    logBridge("info", "Transition preset parameter replay completed.", {
+      targets: valueTargets.length,
+      setupActions: setupActions.length,
+      parameterActions: setupActions.length + paramActions.length
+    });
+    return setupActions.length + paramActions.length;
+  }
+
+  // Find newly-created or nearby transition track items that match the imported preset.
+  async function findTransitionPresetParamTargets(app, sequence, selectedItems, button, componentSnapshot) {
+    const selectedInfos = [];
+    for (let index = 0; index < selectedItems.length; index += 1) {
+      selectedInfos.push(await inspectTrackItemIdentity(selectedItems[index], index, "video", "selectedItem"));
+    }
+    const scan = await getTransitionTrackItemsForMedia(app, sequence, "video");
+    const seen = {};
+    const targets = [];
+    scan.items.forEach((entry) => {
+      const info = entry.info;
+      const matchName = info.matchName || "";
+      const name = info.name || "";
+      const matchesTransition = !button.transition.matchName
+        || matchName === button.transition.matchName
+        || name === componentSnapshot.displayName;
+      if (!matchesTransition) {
+        return;
+      }
+      const nearSelection = selectedInfos.some((selectedInfo) => itemsOverlapOrTouch(selectedInfo, info));
+      if (!nearSelection) {
+        return;
+      }
+      const key = [
+        info.scannedTrackIndex,
+        info.start.ticks || info.start.seconds,
+        info.end.ticks || info.end.seconds,
+        matchName || name
+      ].join("|");
+      if (!seen[key]) {
+        seen[key] = true;
+        targets.push(entry);
+      }
+    });
+    if (scan.errors.length) {
+      logBridge("warn", "Transition preset scan had errors.", { errors: scan.errors });
+    }
+    return targets;
+  }
+
+  // Resolve the component inside a transition track item that should receive imported parameters.
+  async function resolveTransitionPresetComponent(transitionItem, componentSnapshot) {
+    try {
+      if (!transitionItem || typeof transitionItem.getComponentChain !== "function") {
+        return null;
+      }
+      const chain = await transitionItem.getComponentChain();
+      const count = chain && typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+      let fallback = null;
+      for (let index = 0; index < count; index += 1) {
+        const component = chain.getComponentAtIndex(index);
+        if (!fallback) {
+          fallback = component;
+        }
+        const matchName = typeof component.getMatchName === "function" ? await component.getMatchName() : "";
+        const displayName = typeof component.getDisplayName === "function" ? await component.getDisplayName() : "";
+        if ((componentSnapshot.matchName && matchName === componentSnapshot.matchName)
+          || (componentSnapshot.displayName && displayName === componentSnapshot.displayName)) {
+          return component;
+        }
+      }
+      return fallback;
+    } catch (error) {
+      logBridge("warn", "Could not resolve transition preset component.", describeBridgeError(error));
+      return null;
+    }
   }
 
   // Apply a native video transition to all selected video clips.

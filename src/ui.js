@@ -1893,6 +1893,15 @@
       button.transition.matchName = transition.matchName;
       button.transition.applyTo = button.transition.applyTo || "both";
       button.transition.durationSeconds = transition.durationSeconds || button.transition.durationSeconds || 1;
+      button.stack = root.PTB_SCHEMA.normalizeStack({
+        sourceName: transition.name || transition.displayName || file.name,
+        capturedAt: new Date().toISOString(),
+        importSource: transition.importSource || file.name,
+        sourceStartSeconds: 0,
+        sourceEndSeconds: transition.durationSeconds || null,
+        sourceDurationSeconds: transition.durationSeconds || null,
+        components: transition.component ? [transition.component] : []
+      });
       setButtonName(button, transition.name || transition.displayName || file.name);
       addInternalLog("info", "Imported .prfpset as Tool Bar transition preset.", result.summary, true);
       saveAndRender(root.PTB_I18N.t("statusImported"));
