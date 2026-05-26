@@ -535,6 +535,9 @@
     if (tokens.includes("ptb-collection-member")) {
       setStyles(node, { position: "relative", width: "150px", minWidth: "150px", padding: "7px" });
     }
+    if (tokens.includes("ptb-multi-member")) {
+      setStyles(node, { width: "150px", minWidth: "150px" });
+    }
     if (tokens.includes("drop-before")) {
       setStyles(node, { boxShadow: "-5px 0 0 #9fe3c1, 0 0 0 1px rgba(159, 227, 193, 0.45)" });
     }
@@ -1512,14 +1515,16 @@
   function renderActionFields(button) {
     const wrap = el("div", "ptb-fieldset");
     if (button.actionType === "tool") {
-      wrap.appendChild(selectField(root.PTB_I18N.t("toolAction"), button.tool.id, [
+      const toolField = selectField(root.PTB_I18N.t("toolAction"), button.tool.id, [
         { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") },
         { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
         { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") }
       ], (value) => {
         button.tool.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
-      }));
+      });
+      setStyles(toolField, { flex: "0 1 auto" });
+      wrap.appendChild(toolField);
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("toolHelp")));
       return wrap;
     }
@@ -1635,20 +1640,36 @@
     const wrap = el("div", "ptb-fieldset");
     const assignedIds = button.multi.buttonIds.filter((buttonId) => buttonId !== button.id && getButton(buttonId));
     const list = el("div", "ptb-collection-member-list");
+    const setListTarget = (event) => {
+      if (hasPendingDrag() && isDirectDropSurface(event, list)) {
+        const target = getListInsertion(event, list, button.multi.buttonIds.length);
+        setDropTarget("multi:" + button.id, target.index, target.node || list, target.position);
+      }
+    };
+    list.addEventListener("mouseenter", setListTarget);
+    list.addEventListener("mousemove", setListTarget);
+    list.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      setListTarget(event);
+    });
+    list.addEventListener("mouseup", (event) => {
+      if (!isInteractiveTarget(event.target, list) && isDirectDropSurface(event, list)) {
+        const preview = settingsState.dropTarget || {};
+        applyPendingDragToMultiAction(button, preview.collectionId === "multi:" + button.id && preview.index >= 0 ? preview.index : button.multi.buttonIds.length);
+      }
+    });
+    list.addEventListener("drop", (event) => {
+      event.preventDefault();
+      if (isDirectDropSurface(event, list)) {
+        applyMultiActionDropEvent(button, button.multi.buttonIds.length, event);
+      }
+    });
     if (!assignedIds.length) {
       list.appendChild(el("div", "ptb-drop-hint", root.PTB_I18N.t("multiActionEmpty")));
     }
     assignedIds.forEach((buttonId, index) => {
       const child = getButton(buttonId);
-      const row = el("div", "ptb-collection-member");
-      row.appendChild(renderButtonSwatch(child));
-      row.appendChild(el("strong", "", getButtonName(child)));
-      const actions = el("span", "ptb-card-actions");
-      actions.appendChild(actionButton("Up", "ptb-icon-action", () => moveMultiActionButton(button, index, -1)));
-      actions.appendChild(actionButton("Down", "ptb-icon-action", () => moveMultiActionButton(button, index, 1)));
-      actions.appendChild(actionButton("Remove", "ptb-icon-action danger", () => removeMultiActionButton(button, buttonId)));
-      row.appendChild(actions);
-      list.appendChild(row);
+      list.appendChild(renderMultiActionMember(button, child, index));
     });
     wrap.appendChild(list);
     const options = [{ value: "", label: root.PTB_I18N.t("addExistingButton") }].concat(config.buttons
@@ -1662,6 +1683,73 @@
     }));
     wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("multiActionHelp")));
     return wrap;
+  }
+
+  // Render one child button inside a Multi Action editor with the same drag behavior as collections.
+  function renderMultiActionMember(multiButton, child, index) {
+    const row = el("div", "ptb-collection-member ptb-multi-member");
+    row.title = getButtonName(child) + " - right click to remove";
+    row.dataset.collectionIndex = String(index);
+    row.draggable = true;
+    row.setAttribute("draggable", "true");
+    row.addEventListener("click", () => selectButton(child.id));
+    row.addEventListener("mousedown", () => beginButtonDrag(child.id, "multi:" + multiButton.id));
+    row.addEventListener("pointerdown", () => beginButtonDrag(child.id, "multi:" + multiButton.id));
+    row.addEventListener("mouseup", (event) => {
+      event.stopPropagation();
+      const preview = settingsState.dropTarget || {};
+      applyPendingDragToMultiAction(multiButton, preview.collectionId === "multi:" + multiButton.id && preview.index >= 0 ? preview.index : index);
+    });
+    row.addEventListener("mouseenter", (event) => {
+      if (hasPendingDrag()) {
+        event.stopPropagation();
+        const target = getPointerInsertion(event, row, index);
+        setDropTarget("multi:" + multiButton.id, target.index, row, target.position);
+      }
+    });
+    row.addEventListener("mousemove", (event) => {
+      if (hasPendingDrag()) {
+        event.stopPropagation();
+        const target = getPointerInsertion(event, row, index);
+        setDropTarget("multi:" + multiButton.id, target.index, row, target.position);
+      }
+    });
+    row.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      removeMultiActionButton(multiButton, child.id);
+    });
+    row.addEventListener("dragstart", (event) => {
+      writeDraggedButton(event, child.id, "multi:" + multiButton.id);
+    });
+    row.addEventListener("dragend", () => {
+      applyPendingDragTarget();
+    });
+    row.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      row.classList.add("drag-over");
+      const target = getPointerInsertion(event, row, index);
+      setDropTarget("multi:" + multiButton.id, target.index, row, target.position);
+    });
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drag-over");
+      row.classList.remove("drop-before");
+      row.classList.remove("drop-after");
+    });
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      row.classList.remove("drag-over");
+      row.classList.remove("drop-before");
+      row.classList.remove("drop-after");
+      applyMultiActionDropEvent(multiButton, index, event);
+    });
+    row.appendChild(renderButtonSwatch(child));
+    const text = el("span", "ptb-button-card-text");
+    text.appendChild(el("strong", "", getButtonName(child)));
+    text.style.color = child.iconColor || "var(--ptb-text)";
+    row.appendChild(text);
+    return row;
   }
 
   // Remove a child button from a Multi Action button.
@@ -1678,6 +1766,49 @@
     }
     const item = button.multi.buttonIds.splice(index, 1)[0];
     button.multi.buttonIds.splice(nextIndex, 0, item);
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
+  }
+
+  // Add or move a dragged button into a Multi Action button.
+  function applyPendingDragToMultiAction(multiButton, targetIndex) {
+    const payload = getPendingDrag();
+    if (!multiButton || !payload.buttonId || payload.buttonId === multiButton.id) {
+      return false;
+    }
+    if (!multiButton.multi.buttonIds.includes(payload.buttonId)) {
+      multiButton.multi.buttonIds.push(payload.buttonId);
+    }
+    moveMultiActionButtonToIndex(multiButton, payload.buttonId, typeof targetIndex === "number" ? targetIndex : multiButton.multi.buttonIds.length);
+    clearPendingDrag();
+    return true;
+  }
+
+  // Apply a native drop payload to a Multi Action button.
+  function applyMultiActionDropEvent(multiButton, targetIndex, event) {
+    const payload = readDraggedButton(event);
+    if (!payload.buttonId || payload.buttonId === multiButton.id) {
+      clearPendingDrag();
+      return;
+    }
+    if (!multiButton.multi.buttonIds.includes(payload.buttonId)) {
+      multiButton.multi.buttonIds.push(payload.buttonId);
+    }
+    const preview = settingsState.dropTarget || {};
+    const resolvedIndex = preview.collectionId === "multi:" + multiButton.id && preview.index >= 0 ? preview.index : targetIndex;
+    moveMultiActionButtonToIndex(multiButton, payload.buttonId, resolvedIndex);
+    clearPendingDrag();
+  }
+
+  // Move a Multi Action child to an absolute visual index.
+  function moveMultiActionButtonToIndex(multiButton, buttonId, targetIndex) {
+    const currentIndex = multiButton.multi.buttonIds.indexOf(buttonId);
+    if (currentIndex < 0) {
+      return;
+    }
+    const item = multiButton.multi.buttonIds.splice(currentIndex, 1)[0];
+    const adjustedIndex = currentIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    const clampedIndex = Math.min(multiButton.multi.buttonIds.length, Math.max(0, adjustedIndex));
+    multiButton.multi.buttonIds.splice(clampedIndex, 0, item);
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
@@ -2083,6 +2214,12 @@
   // Apply the last hovered drop target when UXP fires dragend without a reliable drop event.
   function applyPendingDragTarget() {
     const target = settingsState.dropTarget || {};
+    if (target.collectionId && target.collectionId.indexOf("multi:") === 0) {
+      const multiButton = getButton(target.collectionId.slice(6));
+      if (multiButton && target.index >= 0) {
+        return applyPendingDragToMultiAction(multiButton, target.index);
+      }
+    }
     const collection = getCollection(target.collectionId);
     if (collection && target.index >= 0) {
       return applyPendingDragToCollection(collection, target.index);
@@ -2126,6 +2263,7 @@
     header.appendChild(name);
     header.appendChild(renderBarToggles(collection));
     const actions = el("div", "ptb-card-actions");
+    actions.appendChild(actionButton(root.PTB_I18N.t("exportCollection"), "ptb-icon-action", async () => exportPayload(true, "ToolBar-" + collection.id + ".json", collection.id)));
     actions.appendChild(actionButton(root.PTB_I18N.t("duplicateButton"), "ptb-icon-action", () => duplicateCollection(collection.id)));
     const deleteButton = actionButton(root.PTB_I18N.t("deleteButton"), "ptb-icon-action danger", () => deleteCollection(collection.id));
     deleteButton.disabled = config.collections.length <= 1;
@@ -2241,10 +2379,7 @@
     const section = el("div", "ptb-import-export");
     const actions = el("div", "ptb-action-row");
     actions.appendChild(actionButton(root.PTB_I18N.t("exportComplete"), "ptb-button", async () => exportPayload(false)));
-    actions.appendChild(actionButton(root.PTB_I18N.t("exportBar"), "ptb-button", async () => exportPayload(true)));
     actions.appendChild(actionButton(root.PTB_I18N.t("importMerge"), "ptb-button", async () => importPayload(false)));
-    actions.appendChild(actionButton(root.PTB_I18N.t("importBar"), "ptb-button", async () => importPayload(true)));
-    actions.appendChild(actionButton(root.PTB_I18N.t("copyJson"), "ptb-button", async () => copyCurrentJson()));
     section.appendChild(actions);
     return section;
   }
@@ -2440,10 +2575,11 @@
   }
 
   // Export all collections or the selected collection to JSON.
-  async function exportPayload(selectedOnly, suggestedName) {
+  async function exportPayload(selectedOnly, suggestedName, collectionId) {
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
-      const json = root.PTB_SCHEMA.exportToJson(config, selectedOnly ? settingsState.selectedCollectionId : null);
-      await root.PTB_STORAGE.exportJsonFile(json, suggestedName || (selectedOnly ? "ToolBar-" + settingsState.selectedCollectionId + ".json" : "ToolBar-complete-pack.json"));
+      const targetCollectionId = collectionId || settingsState.selectedCollectionId;
+      const json = root.PTB_SCHEMA.exportToJson(config, selectedOnly ? targetCollectionId : null);
+      await root.PTB_STORAGE.exportJsonFile(json, suggestedName || (selectedOnly ? "ToolBar-" + targetCollectionId + ".json" : "ToolBar-complete-pack.json"));
       statusMessage = root.PTB_I18N.t("statusExported");
     });
   }
@@ -2463,15 +2599,6 @@
       settingsState.selectedCollectionId = config.activeCollectionId;
       settingsState.collapsed.collections = false;
       statusMessage = root.PTB_I18N.t("statusImported");
-    });
-  }
-
-  // Copy the selected collection JSON for quick backup or sharing.
-  async function copyCurrentJson() {
-    await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
-      const json = root.PTB_SCHEMA.exportToJson(config, settingsState.selectedCollectionId);
-      await root.PTB_STORAGE.copyText(json);
-      statusMessage = root.PTB_I18N.t("statusCopied");
     });
   }
 
