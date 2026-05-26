@@ -13,10 +13,21 @@ PTB_EXTERNAL_CONFIG="${PTB_SUPPORT_DIR}/ToolBar-config.json"
 PTB_LATEST_BACKUP="${PTB_BACKUP_DIR}/ToolBar-config-latest.json"
 PTB_LOCATIONS_FILE="${PTB_BACKUP_DIR}/ToolBar-backup-locations.tsv"
 
-# // Validate JSON with macOS built-in plutil before preserving or restoring it.
+# // Validate JSON with Node first because macOS plutil can reject valid plain JSON on some systems.
 ptb_is_json_backup() {
   local PTB_FILE="$1"
-  [ -s "${PTB_FILE}" ] && /usr/bin/plutil -lint "${PTB_FILE}" >/dev/null 2>&1
+  if [ ! -s "${PTB_FILE}" ]; then
+    return 1
+  fi
+  if command -v node >/dev/null 2>&1; then
+    node -e "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'))" "${PTB_FILE}" >/dev/null 2>&1
+    return $?
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "${PTB_FILE}" >/dev/null 2>&1
+    return $?
+  fi
+  return 1
 }
 
 # // List the external config plus Premiere UXP mirrors for this plugin only.

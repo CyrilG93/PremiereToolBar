@@ -99,6 +99,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.3.3 - 2026-05-26
+
+- Fixed macOS installer backups so valid Tool Bar JSON is no longer rejected by `plutil`.
+- Preserved unsupported captured preset values as raw entries so Lumetri-like parameters remain visible in exported JSON.
+
 ### 0.3.2 - 2026-05-26
 
 - Preserved raw Lumetri curve and selector payloads when importing `.prfpset` files.

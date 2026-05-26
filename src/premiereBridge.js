@@ -1238,6 +1238,19 @@
     }
   }
 
+  // Keep non-replayable captured values visible in exported Tool Bar JSON.
+  function serializeUnsupportedPresetValue(rawValue, param, reason) {
+    const valueText = rawValue === undefined || rawValue === null ? "" : String(rawValue);
+    return {
+      kind: "raw",
+      // Capture can expose placeholders for Lumetri curves without a UXP-writable value.
+      encoding: reason || "uxp-unsupported",
+      value: valueText,
+      valueType: rawValue === null ? "null" : typeof rawValue,
+      objectShape: describeObjectShape(param)
+    };
+  }
+
   // Unwrap UXP keyframe/value containers while supporting multiple host shapes.
   function unwrapParamValue(value) {
     if (value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "value")) {
@@ -1318,7 +1331,12 @@
       index,
       displayName: param.displayName || "Param " + (index + 1),
       timeVarying,
-      startValue: serializeValue(startKeyframe && startKeyframe.value),
+      startValue: (() => {
+        const serialized = serializeValue(startKeyframe && startKeyframe.value);
+        return isSupportedPresetValue(serialized) || serialized.kind === "raw"
+          ? serialized
+          : serializeUnsupportedPresetValue(startKeyframe && startKeyframe.value, param, "uxp-unsupported-start-value");
+      })(),
       startTemporalInterpolation: startKeyframe && typeof startKeyframe.getTemporalInterpolationMode === "function"
         ? await startKeyframe.getTemporalInterpolationMode()
         : null,
