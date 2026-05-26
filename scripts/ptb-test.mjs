@@ -167,6 +167,30 @@ function prfpsetImporterSmokeTest() {
   assert.equal(result.stack.components[0].params[3].startValue.kind, "raw");
   assert.equal(result.stack.components[0].params[3].startValue.encoding, "compact-start-keyframe");
   assert.ok(result.stack.sourceDurationSeconds > 3.8);
+
+  const transitionPreset = `<?xml version="1.0" encoding="UTF-8"?>
+    <PremiereData Version="3">
+      <TreeItem ObjectID="5"><TreeItemBase><Name>Test Preset Pop</Name></TreeItemBase></TreeItem>
+      <FilterPreset ObjectID="7">
+        <AnchorInPoint>0</AnchorInPoint>
+        <AnchorOutPoint>121927680000</AnchorOutPoint>
+        <TransitionDuration>121927680000</TransitionDuration>
+        <Component ObjectRef="8"/>
+        <FilterMatchName>AE.AE_Impact_Pop</FilterMatchName>
+      </FilterPreset>
+      <VideoFilterComponent ObjectID="8">
+        <VideoFilterType>2</VideoFilterType>
+        <Component><DisplayName>Pop Motion</DisplayName></Component>
+        <MatchName>AE.AE_Impact_Pop</MatchName>
+      </VideoFilterComponent>
+    </PremiereData>`;
+  const transitionResult = context.PTB_PRESET_IMPORT.parseTransitionPrfpsetText(transitionPreset, "Preset Pop.prfpset");
+  assert.equal(transitionResult.transitions.length, 1);
+  assert.equal(transitionResult.transitions[0].name, "Test Preset Pop");
+  assert.equal(transitionResult.transitions[0].displayName, "Pop Motion");
+  assert.equal(transitionResult.transitions[0].matchName, "AE.AE_Impact_Pop");
+  assert.ok(transitionResult.transitions[0].durationSeconds > 0.47);
+  assert.ok(transitionResult.transitions[0].durationSeconds < 0.49);
 }
 
 prfpsetImporterSmokeTest();

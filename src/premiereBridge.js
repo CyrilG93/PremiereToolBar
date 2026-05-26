@@ -692,7 +692,7 @@
     if (normalizedButton.actionType === "multi") {
       return applyMultiButton(normalizedButton, config, recursionDepth);
     }
-    if (normalizedButton.actionType === "transition") {
+    if (normalizedButton.actionType === "transition" || normalizedButton.actionType === "transitionPreset") {
       return applyTransitionButton(normalizedButton);
     }
     if (normalizedButton.actionType === "audioTransition") {

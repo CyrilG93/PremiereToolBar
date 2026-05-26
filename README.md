@@ -67,11 +67,11 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Choose whether a button shows an icon, a three-letter text shortcut, or both.
 - Assign an icon, icon color, and button color with popover pickers, including a transparent button background when you only want the icon or text.
 - Type either the Premiere effect name or the effect match name in one field. Video effect catalog choices fill the stable match name when Premiere exposes one.
-- Assign video transition match names from Premiere and copy the discovered transition match-name catalog when needed.
+- Assign video transition match names from Premiere, or create a `Transition Preset` button and import a transition `.prfpset` file to fill the match name and duration.
 - Create a `Tool` action for built-in utilities such as opening settings, copying the selected clip's effect stack, or pasting the copied stack to the current selection.
 - Create a `Multi Action` button that runs several existing Tool Bar buttons in order, with drag and drop ordering like collections.
 - Create a `Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`; choose whether keyframes anchor to the clip in/out, scale to clip duration, or keep original times.
-- Try `Import .prfpset (Experimental)` on a `Preset` button when you want Tool Bar to parse a Premiere preset file directly. It works best with native video effects whose match names and parameter values are visible in the XML.
+- Try `Import .prfpset (Experimental)` on a `Preset` button when you want Tool Bar to parse a Premiere effect preset file directly. It works best with native video effects whose match names and parameter values are visible in the XML.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
 - Use the update banner in settings when Tool Bar detects a newer GitHub release.
 - Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
@@ -81,7 +81,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 
 Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. Video effects expose stable match names, while audio effects currently expose display names for creation in the documented UXP API. Audio transition creation is not currently documented by Adobe and did not apply reliably in current tests, so Tool Bar keeps that code disabled for now. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. The experimental `.prfpset` importer reads XML and rebuilds a Tool Bar preset when possible, but Premiere UXP still does not expose stable parameter IDs, so some third-party effects, transition presets, duplicated parameter names, or protected parameters may not replay perfectly. Lumetri curve blobs and other opaque preset payloads are preserved in exported Tool Bar JSON for future compatibility, but Premiere UXP cannot replay those raw values yet. Native video transitions can be applied by transition match name.
+Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. The experimental `.prfpset` importer reads XML and rebuilds a Tool Bar preset when possible, but Premiere UXP still does not expose stable parameter IDs, so some third-party effects, duplicated parameter names, or protected parameters may not replay perfectly. `Transition Preset` buttons read transition `.prfpset` files and store the extracted match name and duration in Tool Bar; the original preset file is not needed after import, but the matching Premiere transition or third-party plugin must stay installed. Lumetri curve blobs and other opaque preset payloads are preserved in exported Tool Bar JSON for future compatibility, but Premiere UXP cannot replay those raw values yet.
 
 ## Development
 
@@ -100,6 +100,11 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.3.9 - 2026-05-26
+
+- Added `Transition Preset` buttons with `.prfpset` import for transition match name and duration.
+- Stored imported transition preset data in Tool Bar so the original preset file is not required after import.
 
 ### 0.3.8 - 2026-05-26
 

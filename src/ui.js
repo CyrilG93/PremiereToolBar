@@ -1456,6 +1456,7 @@
       { value: "tool", label: root.PTB_I18N.t("toolAction") },
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
+      { value: "transitionPreset", label: root.PTB_I18N.t("transitionPresetAction") },
       { value: "preset", label: root.PTB_I18N.t("presetAction") },
       { value: "multi", label: root.PTB_I18N.t("multiAction") }
     ];
@@ -1536,7 +1537,7 @@
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("audioTransitionDisabledHelp")));
       return wrap;
     }
-    if (button.actionType === "transition" || button.actionType === "audioTransition") {
+    if (button.actionType === "transition" || button.actionType === "transitionPreset" || button.actionType === "audioTransition") {
       const catalogKind = button.actionType === "audioTransition" ? "audioTransition" : "transition";
       const grid = el("div", "ptb-form-grid");
       if (catalogKind === "audioTransition") {
@@ -1561,7 +1562,12 @@
         button.transition.durationSeconds = value;
       }));
       wrap.appendChild(grid);
-      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(catalogKind === "audioTransition" ? "audioTransitionHelp" : "transitionHelp")));
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(button.actionType === "transitionPreset" ? "transitionPresetHelp" : (catalogKind === "audioTransition" ? "audioTransitionHelp" : "transitionHelp"))));
+      if (button.actionType === "transitionPreset" && root.PTB_PRESET_IMPORT && root.PTB_STORAGE.importTextFile) {
+        wrap.appendChild(actionButton(root.PTB_I18N.t("importTransitionPresetFile"), "ptb-button compact", async () => {
+          await importTransitionPresetFileIntoButton(button);
+        }));
+      }
       if (catalogKind === "transition") {
         const catalogPicker = renderCatalogPicker(catalogKind, button);
         if (catalogPicker) {
@@ -1866,6 +1872,29 @@
         setButtonName(button, button.preset.name);
       }
       addInternalLog("info", "Imported .prfpset as Tool Bar preset.", result.summary, true);
+      saveAndRender(root.PTB_I18N.t("statusImported"));
+    });
+  }
+
+  // Import a transition .prfpset and store the replayable transition fields in the button.
+  async function importTransitionPresetFileIntoButton(button) {
+    await runWithStatus(root.PTB_I18N.t("statusImportingPreset"), async () => {
+      const file = await root.PTB_STORAGE.importTextFile(["prfpset", "xml"]);
+      if (!file) {
+        return;
+      }
+      const result = root.PTB_PRESET_IMPORT.parseTransitionPrfpsetText(file.text, file.name);
+      const transition = result.transitions[0];
+      if (!transition) {
+        throw new Error(root.PTB_I18N.t("presetImportNoTransitions"));
+      }
+      button.actionType = "transitionPreset";
+      button.mediaType = "video";
+      button.transition.matchName = transition.matchName;
+      button.transition.applyTo = button.transition.applyTo || "both";
+      button.transition.durationSeconds = transition.durationSeconds || button.transition.durationSeconds || 1;
+      setButtonName(button, transition.name || transition.displayName || file.name);
+      addInternalLog("info", "Imported .prfpset as Tool Bar transition preset.", result.summary, true);
       saveAndRender(root.PTB_I18N.t("statusImported"));
     });
   }

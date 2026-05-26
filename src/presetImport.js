@@ -332,6 +332,57 @@
     return textName || String(fileName || "Imported Preset").replace(/\.prfpset$/i, "");
   }
 
+  // Read the user-facing preset name from Premiere's text XML export.
+  function readPresetNameFromText(xmlText, fileName) {
+    const treeItems = String(xmlText || "").match(/<TreeItem\b[\s\S]*?<\/TreeItem>/gi) || [];
+    for (const treeItem of treeItems) {
+      const name = readTagText(treeItem, "Name");
+      if (name && !/^root$|^presets$/i.test(name)) {
+        return name;
+      }
+    }
+    return String(fileName || "Imported Preset").replace(/\.prfpset$/i, "");
+  }
+
+  // Parse a transition .prfpset into the data Tool Bar can replay through Premiere UXP.
+  function parseTransitionPrfpsetText(xmlText, fileName) {
+    const text = String(xmlText || "");
+    if (!text.trim()) {
+      throw new Error("Empty .prfpset file.");
+    }
+    const filterBlocks = text.match(/<FilterPreset\b[\s\S]*?<\/FilterPreset>/gi) || [];
+    const transitions = [];
+    filterBlocks.forEach((filterBlock) => {
+      const matchName = readTagText(filterBlock, "FilterMatchName");
+      const componentRefTag = (filterBlock.match(/<Component\b[^>]*>/i) || [""])[0];
+      const componentRef = readTagAttr(componentRefTag, "ObjectRef");
+      const componentBlock = findObjectBlock(text, componentRef);
+      const isTransition = Boolean(readTagText(filterBlock, "TransitionDuration"))
+        || readTagText(componentBlock, "VideoFilterType") === "2";
+      if (!matchName || !isTransition) {
+        return;
+      }
+      const durationSeconds = ticksToSeconds(readTagText(filterBlock, "TransitionDuration"), 0) || null;
+      transitions.push({
+        name: readPresetNameFromText(text, fileName),
+        displayName: readTagText(componentBlock, "DisplayName") || matchName,
+        matchName,
+        mediaType: "video",
+        durationSeconds,
+        importSource: fileName || ".prfpset"
+      });
+    });
+    return {
+      transitions,
+      summary: {
+        name: transitions[0] ? transitions[0].name : readPresetNameFromText(text, fileName),
+        transitions: transitions.length,
+        matchName: transitions[0] ? transitions[0].matchName : "",
+        durationSeconds: transitions[0] ? transitions[0].durationSeconds : null
+      }
+    };
+  }
+
   // Parse a .prfpset XML string into Tool Bar's captured-stack structure.
   function parsePrfpsetText(xmlText, fileName) {
     if (!xmlText) {
@@ -514,6 +565,7 @@
 
   // Expose the importer separately so the UI can keep Premiere bridge code focused on Premiere APIs.
   root.PTB_PRESET_IMPORT = {
-    parsePrfpsetText
+    parsePrfpsetText,
+    parseTransitionPrfpsetText
   };
 }(typeof window !== "undefined" ? window : globalThis));
