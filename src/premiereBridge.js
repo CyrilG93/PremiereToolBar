@@ -1030,6 +1030,9 @@
         return { red: value.red, green: value.green, blue: value.blue, alpha: value.alpha };
       }
     }
+    if (value.kind === "raw") {
+      return undefined;
+    }
     return value.value;
   }
 
@@ -1165,6 +1168,14 @@
           }
         } else {
           if (!isSupportedPresetValue(snapshot.startValue)) {
+            if (snapshot.startValue && snapshot.startValue.kind === "raw") {
+              logBridge("info", "Preserved raw preset parameter; Premiere UXP cannot replay this value type yet.", {
+                index: snapshot.index,
+                name: snapshot.displayName,
+                encoding: snapshot.startValue.encoding || "",
+                parameterControlType: snapshot.startValue.parameterControlType || ""
+              });
+            }
             continue;
           }
           const keyframe = param.createKeyframe(reviveValue(app, snapshot.startValue));
@@ -1209,10 +1220,22 @@
     if (snapshot.kind === "color") {
       return ["red", "green", "blue"].every((key) => Number.isFinite(Number(snapshot[key])));
     }
+    if (snapshot.kind === "raw") {
+      return false;
+    }
     if (snapshot.kind === "primitive") {
       return typeof snapshot.value === "number" || typeof snapshot.value === "boolean";
     }
     return false;
+  }
+
+  // Return JSON-safe data for opaque objects exposed by UXP parameter values.
+  function tryJsonClone(value) {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (error) {
+      return null;
+    }
   }
 
   // Unwrap UXP keyframe/value containers while supporting multiple host shapes.
@@ -1236,6 +1259,17 @@
         green: rawValue.green,
         blue: rawValue.blue,
         alpha: typeof rawValue.alpha === "number" ? rawValue.alpha : 1
+      };
+    }
+    if (rawValue && typeof rawValue === "object") {
+      return {
+        kind: "raw",
+        // Store opaque Lumetri/host values for export and future replay support.
+        encoding: "uxp-object",
+        value: "",
+        valueType: Object.prototype.toString.call(rawValue),
+        jsonValue: tryJsonClone(rawValue),
+        objectShape: describeObjectShape(rawValue)
       };
     }
     return { kind: "primitive", value: rawValue };

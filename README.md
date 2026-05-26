@@ -79,7 +79,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 
 Adobe's documented UXP API supports adding native video/audio effects and video transitions to selected timeline clips. Video effects expose stable match names, while audio effects currently expose display names for creation in the documented UXP API. Audio transition creation is not currently documented by Adobe and did not apply reliably in current tests, so Tool Bar keeps that code disabled for now. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. The experimental `.prfpset` importer reads XML and rebuilds a Tool Bar preset when possible, but Premiere UXP still does not expose stable parameter IDs, so some third-party effects, transition presets, duplicated parameter names, or protected parameters may not replay perfectly. Native video transitions can be applied by transition match name.
+Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. The experimental `.prfpset` importer reads XML and rebuilds a Tool Bar preset when possible, but Premiere UXP still does not expose stable parameter IDs, so some third-party effects, transition presets, duplicated parameter names, or protected parameters may not replay perfectly. Lumetri curve blobs and other opaque preset payloads are preserved in exported Tool Bar JSON for future compatibility, but Premiere UXP cannot replay those raw values yet. Native video transitions can be applied by transition match name.
 
 ## Development
 
@@ -98,6 +98,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.3.2 - 2026-05-26
+
+- Preserved raw Lumetri curve and selector payloads when importing `.prfpset` files.
+- Preserved opaque captured parameter objects in Tool Bar preset JSON for future replay support.
+- Skipped raw preset values cleanly when Premiere UXP cannot apply their parameter type.
 
 ### 0.3.1 - 2026-05-26
 

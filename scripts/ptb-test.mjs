@@ -56,11 +56,19 @@ const button = schema.createButton({
         timeVarying: true,
         startValue: { kind: "primitive", value: 12 },
         keyframes: [{ ticks: "254016000000", seconds: 1, value: { kind: "primitive", value: 24 } }]
+      }, {
+        index: 1,
+        displayName: "Lumetri Curve",
+        timeVarying: false,
+        startValue: { kind: "raw", encoding: "base64", value: "AAAA", checksum: "1234", parameterControlType: "9" },
+        keyframes: []
       }]
     }]
   }
 });
 assert.equal(button.stack.components[0].params[0].keyframes[0].seconds, 1);
+assert.equal(button.stack.components[0].params[1].startValue.kind, "raw");
+assert.equal(button.stack.components[0].params[1].startValue.encoding, "base64");
 
 // Verify legacy captured-stack buttons migrate to the user-facing preset action.
 const legacyStackButton = schema.createButton({ actionType: "stack" });
@@ -95,7 +103,7 @@ function prfpsetImporterSmokeTest() {
         <AnchorOutPoint>915438101760000</AnchorOutPoint>
       </FilterPreset>
       <VideoFilterComponent ObjectID="10">
-        <Component><DisplayName>Transform</DisplayName><Params><Param Index="0" ObjectRef="11"/><Param Index="3" ObjectRef="14"/></Params></Component>
+        <Component><DisplayName>Transform</DisplayName><Params><Param Index="0" ObjectRef="11"/><Param Index="3" ObjectRef="14"/><Param Index="4" ObjectRef="15"/><Param Index="5" ObjectRef="16"/></Params></Component>
         <MatchName>AE.ADBE Geometry2</MatchName>
       </VideoFilterComponent>
       <VideoComponentParam ObjectID="11">
@@ -113,6 +121,21 @@ function prfpsetImporterSmokeTest() {
         <ParameterID>3</ParameterID>
         <Name>Scale Height</Name>
       </VideoComponentParam>
+      <ArbVideoComponentParam ObjectID="15" ClassID="313e54d4-6903-49ad-b0bf-8262cdd10f4e">
+        <ParameterControlType>9</ParameterControlType>
+        <IsTimeVarying>false</IsTimeVarying>
+        <Name>Hue vs Hue</Name>
+        <StartKeyframeValue Encoding="base64" Checksum="3879288038">AwAAAAMAAAA+BCk3Fc2jPw==</StartKeyframeValue>
+        <ParameterID>106</ParameterID>
+      </ArbVideoComponentParam>
+      <VideoComponentParam ObjectID="16" ClassID="0fde4e9f-f895-4ba3-b0fe-9a6feafda583">
+        <ParameterControlType>5</ParameterControlType>
+        <IsTimeVarying>false</IsTimeVarying>
+        <StartKeyframe>-91445760000000000,18374809626483900416,0,0,0,0,0,0</StartKeyframe>
+        <CurrentValue>0</CurrentValue>
+        <ParameterID>114</ParameterID>
+        <Name>Hue (vs Hue) Selector</Name>
+      </VideoComponentParam>
     </PremiereData>`;
   const result = context.PTB_PRESET_IMPORT.parsePrfpsetText(samplePreset, "Zoom5.prfpset");
   assert.equal(result.stack.sourceName, "ZOOM 5%");
@@ -120,6 +143,10 @@ function prfpsetImporterSmokeTest() {
   assert.equal(result.stack.components[0].params[0].startValue.value, 100);
   assert.equal(result.stack.components[0].params[1].keyframes.length, 2);
   assert.equal(result.stack.components[0].params[1].keyframes[1].value.value, 105);
+  assert.equal(result.stack.components[0].params[2].startValue.kind, "raw");
+  assert.equal(result.stack.components[0].params[2].startValue.encoding, "base64");
+  assert.equal(result.stack.components[0].params[3].startValue.kind, "raw");
+  assert.equal(result.stack.components[0].params[3].startValue.encoding, "compact-start-keyframe");
   assert.ok(result.stack.sourceDurationSeconds > 3.8);
 }
 

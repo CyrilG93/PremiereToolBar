@@ -62,6 +62,18 @@
     return match ? decodeXmlText(match[1].trim()) : "";
   }
 
+  // Return text plus attributes for tags whose payload must be preserved exactly.
+  function readTagPayload(block, tagName) {
+    const match = String(block || "").match(new RegExp("<" + tagName + "([^>]*)>([\\s\\S]*?)<\\/" + tagName + ">", "i"));
+    if (!match) {
+      return { text: "", openTag: "" };
+    }
+    return {
+      text: decodeXmlText(match[2].trim()),
+      openTag: match[1] || ""
+    };
+  }
+
   // Read one XML attribute from a tag snippet.
   function readTagAttr(tagText, attrName) {
     const match = String(tagText || "").match(new RegExp("\\b" + attrName + "=\"([^\"]*)\"", "i"));
@@ -141,6 +153,66 @@
       return parseValue(parts[1]);
     }
     return parseValue(fallbackText);
+  }
+
+  // Build a raw value snapshot for Lumetri curves and opaque Premiere parameter payloads.
+  function createRawValue(options) {
+    const input = options || {};
+    return {
+      kind: "raw",
+      encoding: input.encoding || "",
+      value: input.value || "",
+      checksum: input.checksum || "",
+      valueTag: input.valueTag || "",
+      parameterControlType: input.parameterControlType || "",
+      objectTag: input.objectTag || "",
+      objectClassId: input.objectClassId || "",
+      valueType: input.valueType || ""
+    };
+  }
+
+  // Return direct child text by tag name without truncating base64-like values.
+  function readChildText(node, tagName) {
+    const child = toArray(node && node.children).find((item) => nodeLabel(item) === String(tagName).toLowerCase());
+    return child ? decodeXmlText(String(child.textContent || "").trim()) : "";
+  }
+
+  // Return one direct child attribute by tag name.
+  function readChildAttr(node, tagName, attrName) {
+    const child = toArray(node && node.children).find((item) => nodeLabel(item) === String(tagName).toLowerCase());
+    return child ? readAttr(child, [attrName]) : "";
+  }
+
+  // Preserve encoded StartKeyframeValue blobs from DOMParser mode.
+  function readDomRawParamValue(node) {
+    const encodedValue = readChildText(node, "StartKeyframeValue");
+    const encoding = readChildAttr(node, "StartKeyframeValue", "Encoding");
+    const parameterControlType = readChildText(node, "ParameterControlType");
+    if (encodedValue && encoding) {
+      return createRawValue({
+        encoding,
+        value: encodedValue,
+        checksum: readChildAttr(node, "StartKeyframeValue", "Checksum"),
+        valueTag: "StartKeyframeValue",
+        parameterControlType,
+        objectTag: node && (node.localName || node.nodeName) || "",
+        objectClassId: readAttr(node, ["ClassID"])
+      });
+    }
+    const startKeyframe = readChildText(node, "StartKeyframe");
+    const startParts = String(startKeyframe || "").split(",");
+    const compactValue = startParts.length >= 2 ? startParts[1] : "";
+    if (parameterControlType === "5" && /^\d{12,}$/.test(compactValue)) {
+      return createRawValue({
+        encoding: "compact-start-keyframe",
+        value: compactValue,
+        valueTag: "StartKeyframe",
+        parameterControlType,
+        objectTag: node && (node.localName || node.nodeName) || "",
+        objectClassId: readAttr(node, ["ClassID"])
+      });
+    }
+    return null;
   }
 
   // Find any match names embedded in one node's attributes or text.
@@ -235,7 +307,7 @@
       .slice(0, 500);
     return paramNodes.map((node, index) => {
       const keyframes = parseKeyframes(node);
-      const value = parseValue(readRawValue(node));
+      const value = readDomRawParamValue(node) || parseValue(readRawValue(node));
       return {
         index,
         displayName: readAttr(node, ["displayName", "name", "Name"]) || "Param " + (index + 1),
@@ -390,7 +462,31 @@
       const paramBlock = findObjectBlock(xmlText, paramRef.objectRef);
       const keyframes = parseCompactKeyframes(readTagText(paramBlock, "Keyframes"), anchorTicks);
       const currentValue = readTagText(paramBlock, "CurrentValue");
-      const startValue = parseStartKeyframeValue(readTagText(paramBlock, "StartKeyframe"), currentValue);
+      const parameterControlType = readTagText(paramBlock, "ParameterControlType");
+      const encodedPayload = readTagPayload(paramBlock, "StartKeyframeValue");
+      const encodedValue = encodedPayload.text ? createRawValue({
+        encoding: readTagAttr(encodedPayload.openTag, "Encoding"),
+        value: encodedPayload.text,
+        checksum: readTagAttr(encodedPayload.openTag, "Checksum"),
+        valueTag: "StartKeyframeValue",
+        parameterControlType,
+        objectTag: (paramBlock.match(/^<([A-Za-z0-9_]+)/) || ["", ""])[1],
+        objectClassId: readTagAttr((paramBlock.match(/^<[A-Za-z0-9_]+\\b([^>]*)>/) || ["", ""])[1], "ClassID")
+      }) : null;
+      const compactStart = readTagText(paramBlock, "StartKeyframe");
+      const compactParts = String(compactStart || "").split(",");
+      const compactValue = compactParts.length >= 2 ? compactParts[1] : "";
+      const compactRawValue = !encodedValue && parameterControlType === "5" && /^\d{12,}$/.test(compactValue)
+        ? createRawValue({
+          encoding: "compact-start-keyframe",
+          value: compactValue,
+          valueTag: "StartKeyframe",
+          parameterControlType,
+          objectTag: (paramBlock.match(/^<([A-Za-z0-9_]+)/) || ["", ""])[1],
+          objectClassId: readTagAttr((paramBlock.match(/^<[A-Za-z0-9_]+\\b([^>]*)>/) || ["", ""])[1], "ClassID")
+        })
+        : null;
+      const startValue = encodedValue || compactRawValue || parseStartKeyframeValue(compactStart, currentValue);
       return {
         index: paramRef.index,
         displayName: readTagText(paramBlock, "Name") || "Param " + (paramRef.index + 1),

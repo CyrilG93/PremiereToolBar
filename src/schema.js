@@ -154,6 +154,22 @@
     if (!value || typeof value !== "object") {
       return { kind: "primitive", value };
     }
+    if (value.kind === "raw") {
+      return {
+        kind: "raw",
+        // Preserve Lumetri and other opaque preset payloads even when UXP cannot replay them yet.
+        encoding: safeString(value.encoding, ""),
+        value: typeof value.value === "string" ? value.value : "",
+        checksum: safeString(value.checksum, ""),
+        valueTag: safeString(value.valueTag, ""),
+        parameterControlType: safeString(value.parameterControlType, ""),
+        objectTag: safeString(value.objectTag, ""),
+        objectClassId: safeString(value.objectClassId, ""),
+        valueType: safeString(value.valueType, ""),
+        jsonValue: value.jsonValue === undefined ? null : clone(value.jsonValue),
+        objectShape: value.objectShape && typeof value.objectShape === "object" ? clone(value.objectShape) : null
+      };
+    }
     if (value.kind === "point") {
       return { kind: "point", x: Number(value.x) || 0, y: Number(value.y) || 0 };
     }
