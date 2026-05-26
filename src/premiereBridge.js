@@ -18,6 +18,7 @@
   ];
   const AUDIO_TRANSITIONS_ENABLED = false;
   const CENTERED_TRANSITION_ALIGNMENT = 0.5;
+  const EFFECT_CLIPBOARD_KEY = "com.cyrilplugin.toolbar.effectClipboard.v1";
 
   // Return the Premiere UXP API module when the plugin is running inside Premiere.
   function getPremiere() {
@@ -679,10 +680,17 @@
   }
 
   // Apply a toolbar button to the current Premiere timeline selection.
-  async function applyButton(button) {
+  async function applyButton(button, config, depth) {
     const normalizedButton = root.PTB_SCHEMA.createButton(button);
-    if (normalizedButton.actionType === "settings") {
-      return false;
+    const recursionDepth = Number(depth) || 0;
+    if (recursionDepth > 8) {
+      throw new Error("Multi Action nesting is too deep.");
+    }
+    if (normalizedButton.actionType === "tool") {
+      return applyToolButton(normalizedButton);
+    }
+    if (normalizedButton.actionType === "multi") {
+      return applyMultiButton(normalizedButton, config, recursionDepth);
     }
     if (normalizedButton.actionType === "transition") {
       return applyTransitionButton(normalizedButton);
@@ -699,6 +707,68 @@
       return applyPresetButton(normalizedButton);
     }
     return applyEffectButton(normalizedButton);
+  }
+
+  // Run a built-in utility action that can be assigned to toolbar buttons.
+  async function applyToolButton(button) {
+    if (button.tool.id === "copyClipEffects") {
+      return copySelectedClipEffects();
+    }
+    if (button.tool.id === "pasteClipEffects") {
+      return pasteCopiedClipEffects(button);
+    }
+    return false;
+  }
+
+  // Run multiple existing buttons in order, sharing the same current Premiere selection.
+  async function applyMultiButton(button, config, depth) {
+    const buttons = config && Array.isArray(config.buttons) ? config.buttons : [];
+    const ids = button.multi.buttonIds.filter((buttonId) => buttonId !== button.id);
+    if (!ids.length) {
+      throw new Error("This Multi Action button has no actions assigned.");
+    }
+    const results = [];
+    for (const buttonId of ids) {
+      const child = buttons.find((item) => item.id === buttonId);
+      if (!child) {
+        logBridge("warn", "Skipped missing Multi Action child.", { buttonId });
+        continue;
+      }
+      results.push(await applyButton(child, config, depth + 1));
+    }
+    logBridge("info", "Multi Action completed.", { actions: results.length });
+    return results;
+  }
+
+  // Capture the selected clip's replayable effect stack into Tool Bar's local clipboard.
+  async function copySelectedClipEffects() {
+    const stack = await captureSelectedStack();
+    if (root.localStorage) {
+      root.localStorage.setItem(EFFECT_CLIPBOARD_KEY, JSON.stringify(stack));
+    }
+    logBridge("info", "Copied selected clip effects.", {
+      sourceName: stack.sourceName,
+      components: stack.components.length
+    });
+    return stack;
+  }
+
+  // Paste the last copied effect stack to the current selected target clip(s).
+  async function pasteCopiedClipEffects(button) {
+    const raw = root.localStorage && root.localStorage.getItem(EFFECT_CLIPBOARD_KEY);
+    if (!raw) {
+      throw new Error("No copied clip effects are available yet.");
+    }
+    const stack = root.PTB_SCHEMA.normalizeStack(JSON.parse(raw));
+    if (!stack.components.length) {
+      throw new Error("The copied clip effects are empty.");
+    }
+    return applyPresetButton(root.PTB_SCHEMA.createButton({
+      label: button.label || "Paste Clip Effects",
+      actionType: "preset",
+      preset: { name: stack.sourceName || "Copied Clip Effects", keyframeTiming: "anchorIn" },
+      stack
+    }));
   }
 
   // Apply a native audio or video effect to all compatible selected clips.

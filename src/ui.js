@@ -1218,12 +1218,12 @@
   // Render one clickable toolbar button.
   function renderToolButton(button, context) {
     const toolButton = clickControl("ptb-tool-button", async () => {
-      if (button.actionType === "settings") {
+      if (button.actionType === "tool" && button.tool && button.tool.id === "openSettings") {
         openPanel(context, "ptb-settings");
         return;
       }
       await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
-        await root.PTB_PREMIERE.applyButton(button);
+        await root.PTB_PREMIERE.applyButton(button, config);
       });
     });
     toolButton.title = getButtonName(button);
@@ -1450,10 +1450,11 @@
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     const actionOptions = [
-      { value: "settings", label: root.PTB_I18N.t("settings") },
+      { value: "tool", label: root.PTB_I18N.t("toolAction") },
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
-      { value: "preset", label: root.PTB_I18N.t("presetAction") }
+      { value: "preset", label: root.PTB_I18N.t("presetAction") },
+      { value: "multi", label: root.PTB_I18N.t("multiAction") }
     ];
     if (audioTransitionsEnabled || button.actionType === "audioTransition") {
       // Keep existing audio-transition buttons visible enough to convert, but hide the action for new buttons.
@@ -1510,8 +1511,20 @@
   // Render action-specific button fields.
   function renderActionFields(button) {
     const wrap = el("div", "ptb-fieldset");
-    if (button.actionType === "settings") {
-      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("settingsButtonDescription")));
+    if (button.actionType === "tool") {
+      wrap.appendChild(selectField(root.PTB_I18N.t("toolAction"), button.tool.id, [
+        { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") },
+        { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
+        { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") }
+      ], (value) => {
+        button.tool.id = value;
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("toolHelp")));
+      return wrap;
+    }
+    if (button.actionType === "multi") {
+      wrap.appendChild(renderMultiActionEditor(button));
       return wrap;
     }
     if (button.actionType === "audioTransition" && !audioTransitionsEnabled) {
@@ -1615,6 +1628,57 @@
       wrap.appendChild(catalogPicker);
     }
     return wrap;
+  }
+
+  // Render the ordered list of child buttons used by a Multi Action button.
+  function renderMultiActionEditor(button) {
+    const wrap = el("div", "ptb-fieldset");
+    const assignedIds = button.multi.buttonIds.filter((buttonId) => buttonId !== button.id && getButton(buttonId));
+    const list = el("div", "ptb-collection-member-list");
+    if (!assignedIds.length) {
+      list.appendChild(el("div", "ptb-drop-hint", root.PTB_I18N.t("multiActionEmpty")));
+    }
+    assignedIds.forEach((buttonId, index) => {
+      const child = getButton(buttonId);
+      const row = el("div", "ptb-collection-member");
+      row.appendChild(renderButtonSwatch(child));
+      row.appendChild(el("strong", "", getButtonName(child)));
+      const actions = el("span", "ptb-card-actions");
+      actions.appendChild(actionButton("Up", "ptb-icon-action", () => moveMultiActionButton(button, index, -1)));
+      actions.appendChild(actionButton("Down", "ptb-icon-action", () => moveMultiActionButton(button, index, 1)));
+      actions.appendChild(actionButton("Remove", "ptb-icon-action danger", () => removeMultiActionButton(button, buttonId)));
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+    wrap.appendChild(list);
+    const options = [{ value: "", label: root.PTB_I18N.t("addExistingButton") }].concat(config.buttons
+      .filter((item) => item.id !== button.id && !button.multi.buttonIds.includes(item.id))
+      .map((item) => ({ value: item.id, label: getButtonName(item) })));
+    wrap.appendChild(selectField(root.PTB_I18N.t("addToMultiAction"), "", options, (buttonId) => {
+      if (buttonId) {
+        button.multi.buttonIds.push(buttonId);
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }
+    }));
+    wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("multiActionHelp")));
+    return wrap;
+  }
+
+  // Remove a child button from a Multi Action button.
+  function removeMultiActionButton(button, buttonId) {
+    button.multi.buttonIds = button.multi.buttonIds.filter((id) => id !== buttonId);
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
+  }
+
+  // Move a child button up or down inside a Multi Action button.
+  function moveMultiActionButton(button, index, direction) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= button.multi.buttonIds.length) {
+      return;
+    }
+    const item = button.multi.buttonIds.splice(index, 1)[0];
+    button.multi.buttonIds.splice(nextIndex, 0, item);
+    saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
   // Render a catalog picker populated from Premiere API discovery.
@@ -2176,9 +2240,9 @@
   function renderImportExportSettings() {
     const section = el("div", "ptb-import-export");
     const actions = el("div", "ptb-action-row");
-    actions.appendChild(actionButton(root.PTB_I18N.t("exportAll"), "ptb-button", async () => exportPayload(false)));
+    actions.appendChild(actionButton(root.PTB_I18N.t("exportComplete"), "ptb-button", async () => exportPayload(false)));
     actions.appendChild(actionButton(root.PTB_I18N.t("exportBar"), "ptb-button", async () => exportPayload(true)));
-    actions.appendChild(actionButton(root.PTB_I18N.t("importAll"), "ptb-button", async () => importPayload(false)));
+    actions.appendChild(actionButton(root.PTB_I18N.t("importMerge"), "ptb-button", async () => importPayload(false)));
     actions.appendChild(actionButton(root.PTB_I18N.t("importBar"), "ptb-button", async () => importPayload(true)));
     actions.appendChild(actionButton(root.PTB_I18N.t("copyJson"), "ptb-button", async () => copyCurrentJson()));
     section.appendChild(actions);
@@ -2379,7 +2443,7 @@
   async function exportPayload(selectedOnly, suggestedName) {
     await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
       const json = root.PTB_SCHEMA.exportToJson(config, selectedOnly ? settingsState.selectedCollectionId : null);
-      await root.PTB_STORAGE.exportJsonFile(json, suggestedName || (selectedOnly ? "ToolBar-" + settingsState.selectedCollectionId + ".json" : "ToolBar-all-collections.json"));
+      await root.PTB_STORAGE.exportJsonFile(json, suggestedName || (selectedOnly ? "ToolBar-" + settingsState.selectedCollectionId + ".json" : "ToolBar-complete-pack.json"));
       statusMessage = root.PTB_I18N.t("statusExported");
     });
   }

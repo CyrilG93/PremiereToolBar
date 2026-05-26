@@ -14,11 +14,16 @@ assert.equal(defaultConfig.schemaVersion, 2);
 assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");
 assert.equal(defaultConfig.bars[0].collectionId, "collection-base-effects");
-assert.equal(defaultConfig.collections[0].buttonIds.length, 9);
+assert.equal(defaultConfig.collections[0].buttonIds.length, 11);
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-settings"));
+assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-copy-effects"));
+assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-paste-effects"));
 assert.ok(defaultConfig.buttons.every((item) => item.displayMode === "both"));
+assert.ok(defaultConfig.buttons.some((button) => button.actionType === "tool" && button.tool.id === "openSettings"));
 assert.ok(defaultConfig.buttons.some((button) => button.effect && button.effect.displayName === "Ultra Key"));
 assert.ok(defaultConfig.buttons.some((button) => button.actionType === "transition" && button.transition.matchName === "AE.AE_Impact_Pop"));
+assert.equal(schema.createButton({ actionType: "settings" }).actionType, "tool");
+assert.equal(schema.createButton({ actionType: "settings" }).tool.id, "openSettings");
 
 // Verify malformed legacy configs are migrated to the collection model.
 const migratedLegacy = schema.normalizeConfig({
@@ -32,6 +37,9 @@ assert.ok(migratedLegacy.buttons.some((button) => button.label === "Old Button")
 
 // Verify selected-collection export/import replaces only the requested target collection.
 const exportedCollection = schema.exportToJson(defaultConfig, "collection-base-effects");
+const exportedComplete = JSON.parse(schema.exportToJson(defaultConfig));
+assert.equal(exportedComplete.exportType, "complete");
+assert.equal(exportedComplete.bars.length, 4);
 const customConfig = schema.normalizeConfig(defaultConfig);
 const importedConfig = schema.importJson(customConfig, exportedCollection, {
   mode: "collection",
@@ -39,8 +47,17 @@ const importedConfig = schema.importJson(customConfig, exportedCollection, {
 });
 const replacedCollection = schema.getCollection(importedConfig, "collection-empty-3");
 assert.equal(replacedCollection.id, "collection-empty-3");
-assert.equal(replacedCollection.buttonIds.length, 9);
+assert.equal(replacedCollection.buttonIds.length, 11);
 assert.equal(schema.getCollection(importedConfig, "collection-empty-2").buttonIds.length, 1);
+
+// Verify complete import merges conflicts instead of replacing the user's current setup.
+const conflictConfig = schema.normalizeConfig(defaultConfig);
+const importedPack = JSON.parse(schema.exportToJson(defaultConfig));
+importedPack.buttons[0].label = "Changed Settings";
+const mergedConfig = schema.importJson(conflictConfig, JSON.stringify(importedPack), { mode: "all" });
+assert.ok(mergedConfig.buttons.some((item) => item.id === "btn-settings"));
+assert.ok(mergedConfig.buttons.some((item) => item.label === "Changed Settings Imported"));
+assert.equal(mergedConfig.collections.length, defaultConfig.collections.length);
 
 // Verify captured stack snapshots survive normalization.
 const button = schema.createButton({
@@ -339,6 +356,8 @@ assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
+assert.ok(settingsRoot.textContent.includes("Tool"));
+assert.ok(settingsRoot.textContent.includes("Multi Action"));
 assert.ok(settingsRoot.textContent.includes("Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
 

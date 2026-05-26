@@ -14,10 +14,11 @@
   const CONFIG_VERSION = 2;
   const MAX_BARS = 4;
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
-  const ACTION_TYPES = ["settings", "effect", "transition", "audioTransition", "preset"];
+  const ACTION_TYPES = ["tool", "effect", "transition", "audioTransition", "preset", "multi"];
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
+  const TOOL_IDS = ["openSettings", "copyClipEffects", "pasteClipEffects"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -49,19 +50,26 @@
   function createButton(overrides) {
     const input = overrides || {};
     // Migrate the old captured-stack action name to the user-facing preset action.
-    const requestedActionType = input.actionType === "stack" ? "preset" : input.actionType;
+    const requestedActionType = input.actionType === "stack" ? "preset" : (input.actionType === "settings" ? "tool" : input.actionType);
     const actionType = ACTION_TYPES.includes(requestedActionType) ? requestedActionType : "effect";
     const mediaType = MEDIA_TYPES.includes(input.mediaType) ? input.mediaType : "video";
+    const toolId = input.actionType === "settings"
+      ? "openSettings"
+      : (input.tool && TOOL_IDS.includes(input.tool.id) ? input.tool.id : "openSettings");
     const button = {
       id: safeString(input.id, createId("button")),
-      label: safeString(input.label, actionType === "settings" ? "Settings" : "Button"),
+      label: safeString(input.label, actionType === "tool" ? "Settings" : "Button"),
       actionType,
       mediaType,
-      icon: safeString(input.icon, actionType === "settings" ? "camera-addon-identification" : "aperture"),
-      iconColor: safeString(input.iconColor, actionType === "settings" ? "#d7dee8" : "#8fd6ff"),
-      accentColor: safeString(input.accentColor, actionType === "settings" ? "#313840" : "#1f2937"),
+      icon: safeString(input.icon, actionType === "tool" ? "camera-addon-identification" : "aperture"),
+      iconColor: safeString(input.iconColor, actionType === "tool" ? "#d7dee8" : "#8fd6ff"),
+      accentColor: safeString(input.accentColor, actionType === "tool" ? "#313840" : "#1f2937"),
       displayMode: DISPLAY_MODES.includes(input.displayMode) ? input.displayMode : "icon",
-      textOverride: safeString(input.textOverride, safeString(input.label, actionType === "settings" ? "Settings" : "Button")),
+      textOverride: safeString(input.textOverride, safeString(input.label, actionType === "tool" ? "Settings" : "Button")),
+      tool: {
+        // Tool buttons run built-in utility commands that can grow over time.
+        id: toolId
+      },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
         displayName: safeString(input.effect && input.effect.displayName, input.effectDisplayName || "Mosaic")
@@ -79,6 +87,12 @@
         keyframeTiming: PRESET_TIMING_MODES.includes(input.preset && input.preset.keyframeTiming)
           ? input.preset.keyframeTiming
           : "anchorIn"
+      },
+      multi: {
+        // Multi-action buttons reference other library buttons in execution order.
+        buttonIds: Array.isArray(input.multi && input.multi.buttonIds)
+          ? input.multi.buttonIds.filter((id, index, list) => typeof id === "string" && list.indexOf(id) === index)
+          : []
       },
       stack: normalizeStack(input.stack)
     };
@@ -231,12 +245,35 @@
       createButton({
         id: "btn-settings",
         label: "SETTINGS",
-        actionType: "settings",
+        actionType: "tool",
+        tool: { id: "openSettings" },
         icon: "camera-addon-identification",
         iconColor: "#e11d48",
         accentColor: "#ffffff",
         displayMode: "both",
         textOverride: "SETTINGS"
+      }),
+      createButton({
+        id: "btn-copy-effects",
+        label: "Copy FX",
+        actionType: "tool",
+        tool: { id: "copyClipEffects" },
+        icon: "copy",
+        iconColor: "#000000",
+        accentColor: "#9fe3c1",
+        displayMode: "both",
+        textOverride: "Copy FX"
+      }),
+      createButton({
+        id: "btn-paste-effects",
+        label: "Paste FX",
+        actionType: "tool",
+        tool: { id: "pasteClipEffects" },
+        icon: "clipboard2-check",
+        iconColor: "#000000",
+        accentColor: "#ffb986",
+        displayMode: "both",
+        textOverride: "Paste FX"
       }),
       createButton({
         id: "btn-transform",
@@ -437,6 +474,10 @@
     }
     const buttons = normalizeButtons(input.buttons);
     const validButtonIds = buttons.map((button) => button.id);
+    buttons.forEach((button) => {
+      // Drop stale Multi Action references after import or button deletion.
+      button.multi.buttonIds = button.multi.buttonIds.filter((buttonId) => buttonId !== button.id && validButtonIds.includes(buttonId));
+    });
     const collections = normalizeCollections(input.collections, validButtonIds);
     const validCollectionIds = collections.map((collection) => collection.id);
     const fallbackCollectionId = collections[0].id;
@@ -482,13 +523,20 @@
     const buttonIds = collections.reduce((ids, collection) => ids.concat(collection.buttonIds), []);
     const uniqueButtonIds = buttonIds.filter((id, index, list) => list.indexOf(id) === index);
     const buttons = normalized.buttons.filter((button) => !collectionId || uniqueButtonIds.includes(button.id));
-    return {
+    const payload = {
       app: "Tool Bar",
       schemaVersion: CONFIG_VERSION,
+      exportType: collectionId ? "collection" : "complete",
       exportedAt: new Date().toISOString(),
       buttons: clone(buttons),
       collections: clone(collections)
     };
+    if (!collectionId) {
+      payload.bars = clone(normalized.bars);
+      payload.activeCollectionId = normalized.activeCollectionId;
+      payload.activeButtonId = normalized.activeButtonId;
+    }
+    return payload;
   }
 
   // Convert a configuration or selected collection to formatted JSON.
@@ -510,40 +558,107 @@
       });
       return {
         buttons: normalized.buttons,
-        collections: normalized.collections
+        collections: normalized.collections,
+        bars: Array.isArray(parsed.bars) ? normalized.bars : [],
+        activeCollectionId: normalized.activeCollectionId,
+        activeButtonId: normalized.activeButtonId
       };
     }
     const legacy = migrateLegacyConfig(parsed);
     return {
       buttons: legacy.buttons,
-      collections: legacy.collections
+      collections: legacy.collections,
+      bars: legacy.bars,
+      activeCollectionId: legacy.activeCollectionId,
+      activeButtonId: legacy.activeButtonId
     };
   }
 
-  // Import all collections or replace a selected target collection with the first imported collection.
+  // Return true when two normalized records are equivalent enough to reuse an existing id.
+  function areRecordsEquivalent(left, right, ignoredKeys) {
+    const ignored = ignoredKeys || [];
+    const clean = (value) => {
+      const copy = clone(value);
+      ignored.forEach((key) => {
+        delete copy[key];
+      });
+      return copy;
+    };
+    return JSON.stringify(clean(left)) === JSON.stringify(clean(right));
+  }
+
+  // Add imported buttons without overwriting different local buttons that happen to share ids.
+  function mergeImportedButtons(existingButtons, importedButtons) {
+    const buttons = existingButtons.slice();
+    const idMap = {};
+    importedButtons.forEach((button) => {
+      const existing = buttons.find((item) => item.id === button.id);
+      if (!existing) {
+        buttons.push(button);
+        idMap[button.id] = button.id;
+        return;
+      }
+      if (areRecordsEquivalent(existing, button, ["id"])) {
+        idMap[button.id] = existing.id;
+        return;
+      }
+      const importedCopy = createButton(Object.assign({}, clone(button), {
+        id: createId("button"),
+        label: safeString(button.label, "Button") + " Imported",
+        textOverride: safeString(button.textOverride, safeString(button.label, "Button")) + " Imported"
+      }));
+      buttons.push(importedCopy);
+      idMap[button.id] = importedCopy.id;
+    });
+    return { buttons, idMap };
+  }
+
+  // Remap imported collection button ids after button conflicts have been resolved.
+  function remapCollectionButtons(collection, idMap) {
+    const copy = createCollection(collection);
+    copy.buttonIds = copy.buttonIds.map((buttonId) => idMap[buttonId] || buttonId).filter(Boolean);
+    return copy;
+  }
+
+  // Merge imported collections by id/name and append missing button references.
+  function mergeImportedCollections(existingCollections, importedCollections, idMap) {
+    const collections = existingCollections.slice();
+    const collectionIdMap = {};
+    importedCollections.forEach((collection) => {
+      const remapped = remapCollectionButtons(collection, idMap);
+      const existing = collections.find((item) => item.id === remapped.id) || collections.find((item) => item.name === remapped.name);
+      if (existing) {
+        remapped.buttonIds.forEach((buttonId) => {
+          if (!existing.buttonIds.includes(buttonId)) {
+            existing.buttonIds.push(buttonId);
+          }
+        });
+        collectionIdMap[collection.id] = existing.id;
+        return;
+      }
+      collections.push(remapped);
+      collectionIdMap[collection.id] = remapped.id;
+    });
+    return { collections, collectionIdMap };
+  }
+
+  // Import collections using merge by default, or replace a selected target collection when requested.
   function importJson(config, json, options) {
     const normalized = normalizeConfig(config);
     const imported = parseImportJson(json);
-    const mode = options && options.mode === "collection" ? "collection" : "all";
-    const mergedButtons = normalized.buttons.slice();
-    imported.buttons.forEach((button) => {
-      const existingIndex = mergedButtons.findIndex((item) => item.id === button.id);
-      if (existingIndex >= 0) {
-        mergedButtons[existingIndex] = button;
-      } else {
-        mergedButtons.push(button);
-      }
-    });
+    const mode = options && options.mode === "collection" ? "collection" : "merge";
+    const buttonMerge = mergeImportedButtons(normalized.buttons, imported.buttons);
     if (mode === "collection") {
       const targetCollectionId = options && options.targetCollectionId;
       const sourceCollection = imported.collections[0];
       if (!sourceCollection) {
         throw new Error("No collection found in import file.");
       }
-      const replacement = createCollection(Object.assign({}, sourceCollection, {
+      const remappedSource = remapCollectionButtons(sourceCollection, buttonMerge.idMap);
+      const replacement = createCollection(Object.assign({}, remappedSource, {
         id: targetCollectionId || sourceCollection.id
       }));
-      normalized.buttons = mergedButtons;
+      normalized.buttons = buttonMerge.buttons;
       normalized.collections = normalized.collections.map((collection) => (
         collection.id === replacement.id ? replacement : collection
       ));
@@ -553,9 +668,17 @@
       normalized.activeCollectionId = replacement.id;
       return normalizeConfig(normalized);
     }
-    normalized.buttons = mergedButtons;
-    normalized.collections = imported.collections;
-    normalized.activeCollectionId = imported.collections[0] ? imported.collections[0].id : normalized.activeCollectionId;
+    const collectionMerge = mergeImportedCollections(normalized.collections, imported.collections, buttonMerge.idMap);
+    normalized.buttons = buttonMerge.buttons;
+    normalized.collections = collectionMerge.collections;
+    if (imported.bars && imported.bars.length) {
+      normalized.bars = normalized.bars.map((bar) => {
+        const importedBar = imported.bars.find((item) => item.id === bar.id);
+        const mappedCollectionId = importedBar && collectionMerge.collectionIdMap[importedBar.collectionId];
+        return mappedCollectionId ? createBar(Object.assign({}, bar, { collectionId: mappedCollectionId }), BAR_IDS.indexOf(bar.id), normalized.collections[0].id) : bar;
+      });
+    }
+    normalized.activeCollectionId = collectionMerge.collectionIdMap[imported.activeCollectionId] || normalized.activeCollectionId;
     return normalizeConfig(normalized);
   }
 
