@@ -344,13 +344,15 @@ function countClass(node, className) {
 function renderSettingsHarness(initialConfig, options = {}) {
   const document = createFakeDocument();
   let savedConfig = null;
+  let copiedText = "";
   const context = {
     console,
     document,
     setTimeout() {},
     fetch: options.fetch,
+    require: options.require,
     window: null,
-    PTB_VERSION: options.version || "0.3.12",
+    PTB_VERSION: options.version || "0.3.13",
     PTB_SCHEMA: schema,
     PTB_STORAGE: {
       loadConfig: () => schema.normalizeConfig(initialConfig || schema.createDefaultConfig()),
@@ -361,7 +363,9 @@ function renderSettingsHarness(initialConfig, options = {}) {
       restoreConfigBackup: async () => null,
       exportJsonFile: async () => {},
       importJsonFile: async () => "",
-      copyText: async () => {}
+      copyText: async (text) => {
+        copiedText = text;
+      }
     },
     PTB_PREMIERE: {
       applyButton: async () => {},
@@ -376,7 +380,7 @@ function renderSettingsHarness(initialConfig, options = {}) {
   const rootNode = document.createElement("div");
   document.body.appendChild(rootNode);
   context.PTB_UI.mountPanel(rootNode, "ptb-settings", {});
-  return { context, document, rootNode, getSavedConfig: () => savedConfig };
+  return { context, document, rootNode, getSavedConfig: () => savedConfig, getCopiedText: () => copiedText };
 }
 
 // Return only the root for tests that only inspect rendered text.
@@ -403,8 +407,22 @@ assert.ok(settingsRoot.textContent.includes("Transform"));
 
 // Verify a newer GitHub release renders a direct top-header download button.
 async function updateDownloadButtonSmokeTest() {
+  let openedUrl = "";
+  const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.0/ToolBar-0.4.0-install.zip";
   const harness = renderSettingsHarness(null, {
-    version: "0.3.12",
+    version: "0.3.13",
+    require: (name) => {
+      if (name !== "uxp") {
+        throw new Error("Unexpected module: " + name);
+      }
+      return {
+        shell: {
+          openExternal: async (url) => {
+            openedUrl = url;
+          }
+        }
+      };
+    },
     fetch: async () => ({
       ok: true,
       json: async () => ({
@@ -412,7 +430,7 @@ async function updateDownloadButtonSmokeTest() {
         html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.0",
         assets: [{
           name: "ToolBar-0.4.0-install.zip",
-          browser_download_url: "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.0/ToolBar-0.4.0-install.zip"
+          browser_download_url: releaseUrl
         }]
       })
     })
@@ -421,6 +439,10 @@ async function updateDownloadButtonSmokeTest() {
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.ok(harness.rootNode.textContent.includes("Download v0.4.0"));
+  const updateButton = findByPredicate(harness.rootNode, (node) => String(node.textContent || "") === "Download v0.4.0");
+  assert.ok(String(updateButton.className).includes("ptb-update-download"));
+  await updateButton.onclick();
+  assert.equal(openedUrl, releaseUrl);
 }
 
 await updateDownloadButtonSmokeTest();

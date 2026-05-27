@@ -218,31 +218,40 @@
 
   // Open release download links from UXP, falling back to copying the URL.
   async function openExternalUrl(url) {
-    if (!url) {
+    const normalizedUrl = String(url || "").trim();
+    if (!normalizedUrl) {
+      addInternalLog("warn", "Update download URL is unavailable.", "", false);
       return;
     }
+    addInternalLog("info", "Opening update download.", { url: normalizedUrl }, true);
     try {
       const uxp = typeof require === "function" ? require("uxp") : null;
       if (uxp && uxp.shell && typeof uxp.shell.openExternal === "function") {
-        await uxp.shell.openExternal(url);
+        await uxp.shell.openExternal(normalizedUrl);
+        addInternalLog("info", "Update download opened in the default browser.", { url: normalizedUrl }, false);
+        return;
+      }
+      if (uxp && uxp.shell && typeof uxp.shell.openPath === "function") {
+        await uxp.shell.openPath(normalizedUrl);
+        addInternalLog("info", "Update download opened with UXP shell.", { url: normalizedUrl }, false);
         return;
       }
     } catch (error) {
-      // Some hosts expose require without the shell module; fallback below.
+      // Some hosts expose require without a usable shell module, so keep going to browser fallbacks.
+      addInternalLog("warn", "UXP shell could not open the update URL.", error, true);
     }
     try {
-      if (root.open) {
-        root.open(url);
-        return;
-      }
-      if (root.location) {
-        root.location.href = url;
+      if (root.open && typeof root.open === "function") {
+        root.open(normalizedUrl, "_blank");
+        addInternalLog("info", "Update download opened through the panel browser fallback.", { url: normalizedUrl }, false);
         return;
       }
     } catch (error) {
-      // Clipboard fallback keeps the update URL accessible.
+      // Clipboard fallback keeps the update URL accessible when the host blocks external navigation.
+      addInternalLog("warn", "Browser fallback could not open the update URL.", error, true);
     }
-    await root.PTB_STORAGE.copyText(url);
+    await root.PTB_STORAGE.copyText(normalizedUrl);
+    addInternalLog("warn", "Could not open the update URL; copied it to clipboard instead.", { url: normalizedUrl }, true);
     statusMessage = root.PTB_I18N.t("statusCopied");
     renderAll();
   }
@@ -417,6 +426,9 @@
     }
     if (tokens.includes("primary")) {
       setStyles(node, { borderColor: "rgba(121, 200, 255, 0.7)", background: "#224259" });
+    }
+    if (tokens.includes("ptb-update-download")) {
+      setStyles(node, { color: "#eafff2", borderColor: "rgba(74, 222, 128, 0.85)", background: "#16803d", boxShadow: "0 0 0 1px rgba(74, 222, 128, 0.25)" });
     }
     if (tokens.includes("compact")) {
       setStyles(node, { minHeight: "26px", padding: "5px 8px", whiteSpace: "nowrap" });
@@ -1326,7 +1338,7 @@
     const actions = el("div", "ptb-header-actions");
     if (updateState.available) {
       const label = root.PTB_I18N.t("downloadUpdateVersion") + " v" + updateState.latestVersion;
-      const updateButton = actionButton(label, "ptb-button primary compact", () => openExternalUrl(updateState.downloadUrl));
+      const updateButton = actionButton(label, "ptb-button primary compact ptb-update-download", () => openExternalUrl(updateState.downloadUrl));
       updateButton.title = root.PTB_I18N.t("updateBannerTitle");
       actions.appendChild(updateButton);
     }

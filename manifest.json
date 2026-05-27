@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.cyrilplugin.toolbar",
   "name": "Tool Bar",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "main": "index.html",
   "host": {
     "app": "premierepro",

@@ -653,6 +653,13 @@ button {
   background: #224259;
 }
 
+.ptb-button.ptb-update-download {
+  color: #eafff2;
+  border-color: rgba(74, 222, 128, 0.85);
+  background: #16803d;
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.25);
+}
+
 .ptb-button.compact {
   min-height: 26px;
   padding: 5px 8px;

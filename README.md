@@ -101,9 +101,10 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
-### 0.3.12 - 2026-05-27
+### 0.3.13 - 2026-05-27
 
-- Added a top settings download button for detected GitHub updates.
+- Made the top settings update button green and wired it to open the latest GitHub release `.zip` download.
+- Added update-click logs and a clipboard fallback if Premiere blocks the browser launch.
 - Kept this as a test build below `0.4.0` so the updater can be verified against the existing release.
 
 ### 0.4.0 - 2026-05-26
