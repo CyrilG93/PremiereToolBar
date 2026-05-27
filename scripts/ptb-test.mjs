@@ -341,14 +341,16 @@ function countClass(node, className) {
 }
 
 // Execute the browser UI scripts against the fake DOM.
-function renderSettingsHarness(initialConfig) {
+function renderSettingsHarness(initialConfig, options = {}) {
   const document = createFakeDocument();
   let savedConfig = null;
   const context = {
     console,
     document,
     setTimeout() {},
+    fetch: options.fetch,
     window: null,
+    PTB_VERSION: options.version || "0.3.12",
     PTB_SCHEMA: schema,
     PTB_STORAGE: {
       loadConfig: () => schema.normalizeConfig(initialConfig || schema.createDefaultConfig()),
@@ -394,10 +396,34 @@ assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
-assert.ok(settingsRoot.textContent.includes("Tool"));
+assert.ok(settingsRoot.textContent.includes("Tools"));
 assert.ok(settingsRoot.textContent.includes("Multi Action"));
-assert.ok(settingsRoot.textContent.includes("Preset"));
+assert.ok(settingsRoot.textContent.includes("Effect Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
+
+// Verify a newer GitHub release renders a direct top-header download button.
+async function updateDownloadButtonSmokeTest() {
+  const harness = renderSettingsHarness(null, {
+    version: "0.3.12",
+    fetch: async () => ({
+      ok: true,
+      json: async () => ({
+        tag_name: "v0.4.0",
+        html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.0",
+        assets: [{
+          name: "ToolBar-0.4.0-install.zip",
+          browser_download_url: "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.0/ToolBar-0.4.0-install.zip"
+        }]
+      })
+    })
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(harness.rootNode.textContent.includes("Download v0.4.0"));
+}
+
+await updateDownloadButtonSmokeTest();
 
 // Verify collection drag/drop can reorder to the beginning and preview gaps between cards.
 function collectionReorderSmokeTest() {

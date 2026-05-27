@@ -1324,6 +1324,12 @@
   // Render always-visible settings actions in the header.
   function renderHeaderActions() {
     const actions = el("div", "ptb-header-actions");
+    if (updateState.available) {
+      const label = root.PTB_I18N.t("downloadUpdateVersion") + " v" + updateState.latestVersion;
+      const updateButton = actionButton(label, "ptb-button primary compact", () => openExternalUrl(updateState.downloadUrl));
+      updateButton.title = root.PTB_I18N.t("updateBannerTitle");
+      actions.appendChild(updateButton);
+    }
     actions.appendChild(actionButton(root.PTB_I18N.t("backupButtons"), "ptb-button compact", () => exportPayload(false, "ToolBar-buttons-backup.json")));
     actions.appendChild(actionButton(root.PTB_I18N.t("restoreButtons"), "ptb-button compact", () => importPayload(false)));
     actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button primary compact", () => createLibraryButton()));

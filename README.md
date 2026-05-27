@@ -73,7 +73,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Create an `Effect Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`; choose whether keyframes anchor to the clip in/out, scale to clip duration, or keep original times.
 - Try `Import .prfpset (Experimental)` on a `Preset` button when you want Tool Bar to parse a Premiere effect preset file directly. It works best with native video effects whose match names and parameter values are visible in the XML.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
-- Use the update banner in settings when Tool Bar detects a newer GitHub release.
+- Use the update button at the top of settings when Tool Bar detects a newer GitHub release.
 - Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
 - Export a complete pack with buttons, collections, and bar assignments, or export one collection from that collection's own card. Complete imports merge into the current setup instead of replacing everything.
 
@@ -100,6 +100,11 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.3.12 - 2026-05-27
+
+- Added a top settings download button for detected GitHub updates.
+- Kept this as a test build below `0.4.0` so the updater can be verified against the existing release.
 
 ### 0.4.0 - 2026-05-26
 

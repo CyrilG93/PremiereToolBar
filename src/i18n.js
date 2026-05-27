@@ -42,6 +42,7 @@
     updateAvailable: "New Tool Bar version available",
     updateBannerTitle: "Open the latest GitHub release download.",
     downloadUpdate: "Download",
+    downloadUpdateVersion: "Download",
     noLogs: "No internal messages yet.",
     moreIcons: "More Icons",
     buttonGallery: "Button Gallery",
