@@ -101,18 +101,12 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
-### 0.3.14 - 2026-05-27
-
-- Added the Premiere UXP launch permission required to open the latest GitHub release `.zip` download.
-- Kept the top settings update button green and easy to see.
-- Added update-click logs and a clipboard fallback if Premiere blocks the browser launch.
-- Kept this as a test build below `0.4.0` so the updater can be verified against the existing release.
-
 ### 0.4.0 - 2026-05-26
 
 - Renamed the action labels to `Effect Preset` and `Tools`.
 - Hid Script buttons from the visible action list until Premiere exposes a usable JSX runner.
 - Published the first `0.4.x` beta release package.
+- Added the visible update download button and the Premiere UXP permission required to open the GitHub release `.zip`.
 
 ### 0.3.11 - 2026-05-26
 

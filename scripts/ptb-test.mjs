@@ -352,7 +352,7 @@ function renderSettingsHarness(initialConfig, options = {}) {
     fetch: options.fetch,
     require: options.require,
     window: null,
-    PTB_VERSION: options.version || "0.3.14",
+    PTB_VERSION: options.version || "0.4.0",
     PTB_SCHEMA: schema,
     PTB_STORAGE: {
       loadConfig: () => schema.normalizeConfig(initialConfig || schema.createDefaultConfig()),
@@ -410,7 +410,7 @@ async function updateDownloadButtonSmokeTest() {
   let openedUrl = "";
   const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.0/ToolBar-0.4.0-install.zip";
   const harness = renderSettingsHarness(null, {
-    version: "0.3.14",
+    version: "0.3.99",
     require: (name) => {
       if (name !== "uxp") {
         throw new Error("Unexpected module: " + name);
