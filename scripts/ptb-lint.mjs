@@ -38,6 +38,13 @@ assert(indexHtml.includes(`src/ui.js?v=${packageJson.version}`), "index.html mus
 assert(manifestJson.id === "com.cyrilplugin.toolbar", "manifest id must use the Cyril plugin namespace.");
 assert(manifestJson.host && manifestJson.host.app === "premierepro", "manifest must target Premiere Pro.");
 assert(Array.isArray(manifestJson.entrypoints) && manifestJson.entrypoints.length === 5, "manifest must declare four bars plus settings.");
+assert(
+  manifestJson.requiredPermissions
+    && manifestJson.requiredPermissions.launchProcess
+    && Array.isArray(manifestJson.requiredPermissions.launchProcess.schemes)
+    && manifestJson.requiredPermissions.launchProcess.schemes.includes("https"),
+  "manifest must allow launchProcess https for GitHub update downloads."
+);
 
 // Validate project-specific npm script naming.
 Object.keys(packageJson.scripts || {}).forEach((scriptName) => {

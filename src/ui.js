@@ -227,13 +227,11 @@
     try {
       const uxp = typeof require === "function" ? require("uxp") : null;
       if (uxp && uxp.shell && typeof uxp.shell.openExternal === "function") {
-        await uxp.shell.openExternal(normalizedUrl);
+        const result = await uxp.shell.openExternal(normalizedUrl, "Download the latest Tool Bar installer package from GitHub.");
+        if (result) {
+          throw new Error(result);
+        }
         addInternalLog("info", "Update download opened in the default browser.", { url: normalizedUrl }, false);
-        return;
-      }
-      if (uxp && uxp.shell && typeof uxp.shell.openPath === "function") {
-        await uxp.shell.openPath(normalizedUrl);
-        addInternalLog("info", "Update download opened with UXP shell.", { url: normalizedUrl }, false);
         return;
       }
     } catch (error) {
