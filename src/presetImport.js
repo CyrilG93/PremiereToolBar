@@ -150,9 +150,25 @@
   function parseStartKeyframeValue(text, fallbackText) {
     const parts = String(text || "").split(",");
     if (parts.length >= 2) {
-      return parseValue(parts[1]);
+      const startValue = parseValue(parts[1]);
+      const currentValue = parseValue(fallbackText);
+      if (shouldPreferCurrentValue(startValue, currentValue)) {
+        return currentValue;
+      }
+      return startValue;
     }
     return parseValue(fallbackText);
+  }
+
+  // Keep real edited static values when Premiere writes a zero placeholder into StartKeyframe.
+  function shouldPreferCurrentValue(startValue, currentValue) {
+    return startValue
+      && currentValue
+      && startValue.kind === "primitive"
+      && currentValue.kind === "primitive"
+      && Number(startValue.value) === 0
+      && Number.isFinite(Number(currentValue.value))
+      && Number(currentValue.value) !== 0;
   }
 
   // Build a raw value snapshot for Lumetri curves and opaque Premiere parameter payloads.

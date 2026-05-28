@@ -101,6 +101,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.4.1 - 2026-05-28
+
+- Fixed captured presets so edited non-keyframed parameters keep their real value instead of falling back to `0`.
+- Improved `.prfpset` parsing for static edited values stored in `CurrentValue`.
+
 ### 0.4.0 - 2026-05-26
 
 - Renamed the action labels to `Effect Preset` and `Tools`.

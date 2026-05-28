@@ -1631,8 +1631,27 @@
     };
   }
 
+  // Sample the visible static value at the selected clip's source in-point when Premiere exposes it.
+  async function sampleStaticParamValue(app, param, sourceTiming) {
+    if (!param || typeof param.getValueAtTime !== "function") {
+      return undefined;
+    }
+    const seconds = sourceTiming && typeof sourceTiming.inPointSeconds === "number"
+      ? sourceTiming.inPointSeconds
+      : (sourceTiming && typeof sourceTiming.startSeconds === "number" ? sourceTiming.startSeconds : 0);
+    const sampleTime = app && app.TickTime && typeof app.TickTime.createWithSeconds === "function"
+      ? app.TickTime.createWithSeconds(seconds)
+      : { seconds };
+    try {
+      return await param.getValueAtTime(sampleTime);
+    } catch (error) {
+      // Some Premiere parameter types only expose getStartValue; keep that fallback.
+      return undefined;
+    }
+  }
+
   // Capture one component parameter for the internal stack preset.
-  async function captureParam(param, index, sourceTiming) {
+  async function captureParam(app, param, index, sourceTiming) {
     const startKeyframe = await param.getStartValue();
     const timeVarying = typeof param.isTimeVarying === "function" ? param.isTimeVarying() : false;
     const keyframeTimes = timeVarying && typeof param.getKeyframeListAsTickTimes === "function"
@@ -1642,15 +1661,17 @@
     for (const time of keyframeTimes) {
       keyframes.push(await serializeKeyframe(param, time, sourceTiming));
     }
+    const sampledStaticValue = keyframes.length ? undefined : await sampleStaticParamValue(app, param, sourceTiming);
+    const staticValue = sampledStaticValue !== undefined ? sampledStaticValue : startKeyframe && startKeyframe.value;
     return {
       index,
       displayName: param.displayName || "Param " + (index + 1),
       timeVarying,
       startValue: (() => {
-        const serialized = serializeValue(startKeyframe && startKeyframe.value);
+        const serialized = serializeValue(staticValue);
         return isSupportedPresetValue(serialized) || serialized.kind === "raw"
           ? serialized
-          : serializeUnsupportedPresetValue(startKeyframe && startKeyframe.value, param, "uxp-unsupported-start-value");
+          : serializeUnsupportedPresetValue(staticValue, param, "uxp-unsupported-start-value");
       })(),
       startTemporalInterpolation: startKeyframe && typeof startKeyframe.getTemporalInterpolationMode === "function"
         ? await startKeyframe.getTemporalInterpolationMode()
@@ -1661,7 +1682,7 @@
 
   // Capture a selected clip's non-intrinsic effect stack for reuse by a toolbar button.
   async function captureSelectedStack() {
-    const { items } = await getSelectedItems();
+    const { app, items } = await getSelectedItems();
     const item = items[0];
     const mediaType = isVideoItem(item) ? "video" : "audio";
     const itemName = typeof item.getName === "function" ? await item.getName() : "";
@@ -1680,7 +1701,7 @@
       const params = [];
       for (let paramIndex = 0; paramIndex < paramCount; paramIndex += 1) {
         try {
-          params.push(await captureParam(component.getParam(paramIndex), paramIndex, sourceTiming));
+          params.push(await captureParam(app, component.getParam(paramIndex), paramIndex, sourceTiming));
         } catch (error) {
           console.warn("Tool Bar skipped unsupported parameter:", error);
         }

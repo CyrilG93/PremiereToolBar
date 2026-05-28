@@ -126,7 +126,7 @@ function prfpsetImporterSmokeTest() {
         <AnchorOutPoint>915438101760000</AnchorOutPoint>
       </FilterPreset>
       <VideoFilterComponent ObjectID="10">
-        <Component><DisplayName>Transform</DisplayName><Params><Param Index="0" ObjectRef="11"/><Param Index="3" ObjectRef="14"/><Param Index="4" ObjectRef="15"/><Param Index="5" ObjectRef="16"/></Params></Component>
+        <Component><DisplayName>Transform</DisplayName><Params><Param Index="0" ObjectRef="11"/><Param Index="3" ObjectRef="14"/><Param Index="4" ObjectRef="15"/><Param Index="5" ObjectRef="16"/><Param Index="6" ObjectRef="17"/></Params></Component>
         <MatchName>AE.ADBE Geometry2</MatchName>
       </VideoFilterComponent>
       <VideoComponentParam ObjectID="11">
@@ -159,6 +159,14 @@ function prfpsetImporterSmokeTest() {
         <ParameterID>114</ParameterID>
         <Name>Hue (vs Hue) Selector</Name>
       </VideoComponentParam>
+      <VideoComponentParam ObjectID="17">
+        <Keyframes></Keyframes>
+        <IsTimeVarying>false</IsTimeVarying>
+        <StartKeyframe>-91445760000000000,0.,0,0,0,0,0,0</StartKeyframe>
+        <CurrentValue>115.</CurrentValue>
+        <ParameterID>6</ParameterID>
+        <Name>Static Edited Value</Name>
+      </VideoComponentParam>
     </PremiereData>`;
   const result = context.PTB_PRESET_IMPORT.parsePrfpsetText(samplePreset, "Zoom5.prfpset");
   assert.equal(result.stack.sourceName, "ZOOM 5%");
@@ -170,6 +178,7 @@ function prfpsetImporterSmokeTest() {
   assert.equal(result.stack.components[0].params[2].startValue.encoding, "base64");
   assert.equal(result.stack.components[0].params[3].startValue.kind, "raw");
   assert.equal(result.stack.components[0].params[3].startValue.encoding, "compact-start-keyframe");
+  assert.equal(result.stack.components[0].params[4].startValue.value, 115);
   assert.ok(result.stack.sourceDurationSeconds > 3.8);
 
   const transitionPreset = `<?xml version="1.0" encoding="UTF-8"?>
@@ -352,7 +361,7 @@ function renderSettingsHarness(initialConfig, options = {}) {
     fetch: options.fetch,
     require: options.require,
     window: null,
-    PTB_VERSION: options.version || "0.4.0",
+    PTB_VERSION: options.version || "0.4.1",
     PTB_SCHEMA: schema,
     PTB_STORAGE: {
       loadConfig: () => schema.normalizeConfig(initialConfig || schema.createDefaultConfig()),
@@ -408,7 +417,7 @@ assert.ok(settingsRoot.textContent.includes("Transform"));
 // Verify a newer GitHub release renders a direct top-header download button.
 async function updateDownloadButtonSmokeTest() {
   let openedUrl = "";
-  const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.0/ToolBar-0.4.0-install.zip";
+  const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.1/ToolBar-0.4.1-install.zip";
   const harness = renderSettingsHarness(null, {
     version: "0.3.99",
     require: (name) => {
@@ -428,10 +437,10 @@ async function updateDownloadButtonSmokeTest() {
     fetch: async () => ({
       ok: true,
       json: async () => ({
-        tag_name: "v0.4.0",
-        html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.0",
+        tag_name: "v0.4.1",
+        html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.1",
         assets: [{
-          name: "ToolBar-0.4.0-install.zip",
+          name: "ToolBar-0.4.1-install.zip",
           browser_download_url: releaseUrl
         }]
       })
@@ -440,8 +449,8 @@ async function updateDownloadButtonSmokeTest() {
   await Promise.resolve();
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(harness.rootNode.textContent.includes("Download v0.4.0"));
-  const updateButton = findByPredicate(harness.rootNode, (node) => String(node.textContent || "") === "Download v0.4.0");
+  assert.ok(harness.rootNode.textContent.includes("Download v0.4.1"));
+  const updateButton = findByPredicate(harness.rootNode, (node) => String(node.textContent || "") === "Download v0.4.1");
   assert.ok(String(updateButton.className).includes("ptb-update-download"));
   await updateButton.onclick();
   assert.equal(openedUrl, releaseUrl);
@@ -566,15 +575,25 @@ async function capturePresetSmokeTest() {
         }),
         getValueAtTime: async (time) => (time.seconds === 1 ? 25 : 50)
       };
+      const staticParam = {
+        displayName: "Static Scale",
+        async getStartValue() {
+          return { value: 0, getTemporalInterpolationMode: async () => 1 };
+        },
+        isTimeVarying: () => false,
+        getKeyframeListAsTickTimes: async () => [],
+        getValueAtTime: async (time) => (time.seconds === 100 ? 115 : 0)
+      };
       const component = {
         getDisplayName: async () => "Custom Blur",
         getMatchName: async () => "AE.ADBE Custom Blur",
-        getParamCount: () => 1,
-        getParam: () => param
+        getParamCount: () => 2,
+        getParam: (index) => (index === 1 ? staticParam : param)
       };
       const item = {
         createAddVideoTransitionAction() {},
         getName: async () => "Preset Source Clip",
+        getInPoint: async () => ({ seconds: 100, ticks: "100" }),
         getComponentChain: async () => ({
           getComponentCount: () => 1,
           getComponentAtIndex: () => component
@@ -601,6 +620,7 @@ async function capturePresetSmokeTest() {
   assert.equal(stack.components[0].params[0].keyframes.length, 2);
   assert.equal(stack.components[0].params[0].keyframes[0].value.value, 25);
   assert.equal(stack.components[0].params[0].keyframes[1].ticks, "508032000000");
+  assert.equal(stack.components[0].params[1].startValue.value, 115);
 }
 
 // Traverse a fake DOM tree and return every matching node.
