@@ -1650,6 +1650,27 @@
     }
   }
 
+  // Prefer sampled static values only when getStartValue looks like a zero placeholder.
+  function chooseCapturedStaticValue(startValue, sampledValue) {
+    if (sampledValue === undefined) {
+      return startValue;
+    }
+    const startSnapshot = serializeValue(startValue);
+    const sampledSnapshot = serializeValue(sampledValue);
+    if (!isSupportedPresetValue(startSnapshot) && isSupportedPresetValue(sampledSnapshot)) {
+      return sampledValue;
+    }
+    if (startSnapshot.kind === "primitive"
+      && sampledSnapshot.kind === "primitive"
+      && typeof startSnapshot.value === "number"
+      && typeof sampledSnapshot.value === "number"
+      && startSnapshot.value === 0
+      && sampledSnapshot.value !== 0) {
+      return sampledValue;
+    }
+    return startValue;
+  }
+
   // Capture one component parameter for the internal stack preset.
   async function captureParam(app, param, index, sourceTiming) {
     const startKeyframe = await param.getStartValue();
@@ -1662,7 +1683,7 @@
       keyframes.push(await serializeKeyframe(param, time, sourceTiming));
     }
     const sampledStaticValue = keyframes.length ? undefined : await sampleStaticParamValue(app, param, sourceTiming);
-    const staticValue = sampledStaticValue !== undefined ? sampledStaticValue : startKeyframe && startKeyframe.value;
+    const staticValue = chooseCapturedStaticValue(startKeyframe && startKeyframe.value, sampledStaticValue);
     return {
       index,
       displayName: param.displayName || "Param " + (index + 1),

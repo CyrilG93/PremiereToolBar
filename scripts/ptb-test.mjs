@@ -361,7 +361,7 @@ function renderSettingsHarness(initialConfig, options = {}) {
     fetch: options.fetch,
     require: options.require,
     window: null,
-    PTB_VERSION: options.version || "0.4.2",
+    PTB_VERSION: options.version || "0.4.3",
     PTB_SCHEMA: schema,
     PTB_STORAGE: {
       loadConfig: () => schema.normalizeConfig(initialConfig || schema.createDefaultConfig()),
@@ -417,7 +417,7 @@ assert.ok(settingsRoot.textContent.includes("Transform"));
 // Verify a newer GitHub release renders a direct top-header download button.
 async function updateDownloadButtonSmokeTest() {
   let openedUrl = "";
-  const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.2/ToolBar-0.4.2-install.zip";
+  const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.3/ToolBar-0.4.3-install.zip";
   const harness = renderSettingsHarness(null, {
     version: "0.3.99",
     require: (name) => {
@@ -437,10 +437,10 @@ async function updateDownloadButtonSmokeTest() {
     fetch: async () => ({
       ok: true,
       json: async () => ({
-        tag_name: "v0.4.2",
-        html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.2",
+        tag_name: "v0.4.3",
+        html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.3",
         assets: [{
-          name: "ToolBar-0.4.2-install.zip",
+          name: "ToolBar-0.4.3-install.zip",
           browser_download_url: releaseUrl
         }]
       })
@@ -449,8 +449,8 @@ async function updateDownloadButtonSmokeTest() {
   await Promise.resolve();
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(harness.rootNode.textContent.includes("Download v0.4.2"));
-  const updateButton = findByPredicate(harness.rootNode, (node) => String(node.textContent || "") === "Download v0.4.2");
+  assert.ok(harness.rootNode.textContent.includes("Download v0.4.3"));
+  const updateButton = findByPredicate(harness.rootNode, (node) => String(node.textContent || "") === "Download v0.4.3");
   assert.ok(String(updateButton.className).includes("ptb-update-download"));
   await updateButton.onclick();
   assert.equal(openedUrl, releaseUrl);
@@ -584,11 +584,20 @@ async function capturePresetSmokeTest() {
         getKeyframeListAsTickTimes: async () => [],
         getValueAtTime: async (time) => (time.seconds === 100 ? 115 : 0)
       };
+      const staticPointParam = {
+        displayName: "Position",
+        async getStartValue() {
+          return { value: { x: 356, y: 538 }, getTemporalInterpolationMode: async () => 1 };
+        },
+        isTimeVarying: () => false,
+        getKeyframeListAsTickTimes: async () => [],
+        getValueAtTime: async () => ({ x: 960, y: 540 })
+      };
       const component = {
         getDisplayName: async () => "Custom Blur",
         getMatchName: async () => "AE.ADBE Custom Blur",
-        getParamCount: () => 2,
-        getParam: (index) => (index === 1 ? staticParam : param)
+        getParamCount: () => 3,
+        getParam: (index) => (index === 2 ? staticPointParam : (index === 1 ? staticParam : param))
       };
       const item = {
         createAddVideoTransitionAction() {},
@@ -621,6 +630,8 @@ async function capturePresetSmokeTest() {
   assert.equal(stack.components[0].params[0].keyframes[0].value.value, 25);
   assert.equal(stack.components[0].params[0].keyframes[1].ticks, "508032000000");
   assert.equal(stack.components[0].params[1].startValue.value, 115);
+  assert.equal(stack.components[0].params[2].startValue.x, 356);
+  assert.equal(stack.components[0].params[2].startValue.y, 538);
 }
 
 // Traverse a fake DOM tree and return every matching node.
