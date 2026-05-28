@@ -361,7 +361,7 @@ function renderSettingsHarness(initialConfig, options = {}) {
     fetch: options.fetch,
     require: options.require,
     window: null,
-    PTB_VERSION: options.version || "0.4.1",
+    PTB_VERSION: options.version || "0.4.2",
     PTB_SCHEMA: schema,
     PTB_STORAGE: {
       loadConfig: () => schema.normalizeConfig(initialConfig || schema.createDefaultConfig()),
@@ -417,7 +417,7 @@ assert.ok(settingsRoot.textContent.includes("Transform"));
 // Verify a newer GitHub release renders a direct top-header download button.
 async function updateDownloadButtonSmokeTest() {
   let openedUrl = "";
-  const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.1/ToolBar-0.4.1-install.zip";
+  const releaseUrl = "https://github.com/CyrilG93/PremiereToolBar/releases/download/v0.4.2/ToolBar-0.4.2-install.zip";
   const harness = renderSettingsHarness(null, {
     version: "0.3.99",
     require: (name) => {
@@ -437,10 +437,10 @@ async function updateDownloadButtonSmokeTest() {
     fetch: async () => ({
       ok: true,
       json: async () => ({
-        tag_name: "v0.4.1",
-        html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.1",
+        tag_name: "v0.4.2",
+        html_url: "https://github.com/CyrilG93/PremiereToolBar/releases/tag/v0.4.2",
         assets: [{
-          name: "ToolBar-0.4.1-install.zip",
+          name: "ToolBar-0.4.2-install.zip",
           browser_download_url: releaseUrl
         }]
       })
@@ -449,8 +449,8 @@ async function updateDownloadButtonSmokeTest() {
   await Promise.resolve();
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(harness.rootNode.textContent.includes("Download v0.4.1"));
-  const updateButton = findByPredicate(harness.rootNode, (node) => String(node.textContent || "") === "Download v0.4.1");
+  assert.ok(harness.rootNode.textContent.includes("Download v0.4.2"));
+  const updateButton = findByPredicate(harness.rootNode, (node) => String(node.textContent || "") === "Download v0.4.2");
   assert.ok(String(updateButton.className).includes("ptb-update-download"));
   await updateButton.onclick();
   assert.equal(openedUrl, releaseUrl);

@@ -101,6 +101,10 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.4.2 - 2026-05-28
+
+- Increased the default Settings panel size so the button editor and collections are usable immediately.
+
 ### 0.4.1 - 2026-05-28
 
 - Fixed captured presets so edited non-keyframed parameters keep their real value instead of falling back to `0`.
