@@ -12,7 +12,8 @@ Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortc
 
 ## Install
 
-The easiest user install method is a `.ccx` file. The included installers build that `.ccx` package, then try to install it with Adobe's Unified Plugin Installer Agent.
+The easiest user install method is to use the installers provided. The installers also build a `.ccx` package, that you can install with Adobe's Unified Plugin Installer Agent.
+You can also use extenal ZXP/UXP installer like [this one.](https://aescripts.com/learn/post/zxp-installer?srsltid=AfmBOooDDsd7L4wQn5h1OmGuJOTGiIilBJE7gAMMv228W99OHFv0YtaG)
 
 ### macOS
 
