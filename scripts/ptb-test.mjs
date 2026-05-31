@@ -593,11 +593,20 @@ async function capturePresetSmokeTest() {
         getKeyframeListAsTickTimes: async () => [],
         getValueAtTime: async () => ({ x: 960, y: 540 })
       };
+      const arrayPointParam = {
+        displayName: "Anchor Point",
+        async getStartValue() {
+          return { value: [936, 514], getTemporalInterpolationMode: async () => 1 };
+        },
+        isTimeVarying: () => false,
+        getKeyframeListAsTickTimes: async () => [],
+        getValueAtTime: async () => ({ 0: 960, 1: 540 })
+      };
       const component = {
         getDisplayName: async () => "Custom Blur",
         getMatchName: async () => "AE.ADBE Custom Blur",
-        getParamCount: () => 3,
-        getParam: (index) => (index === 2 ? staticPointParam : (index === 1 ? staticParam : param))
+        getParamCount: () => 4,
+        getParam: (index) => (index === 3 ? arrayPointParam : (index === 2 ? staticPointParam : (index === 1 ? staticParam : param)))
       };
       const item = {
         createAddVideoTransitionAction() {},
@@ -632,6 +641,8 @@ async function capturePresetSmokeTest() {
   assert.equal(stack.components[0].params[1].startValue.value, 115);
   assert.equal(stack.components[0].params[2].startValue.x, 356);
   assert.equal(stack.components[0].params[2].startValue.y, 538);
+  assert.equal(stack.components[0].params[3].startValue.x, 936);
+  assert.equal(stack.components[0].params[3].startValue.y, 514);
 }
 
 // Traverse a fake DOM tree and return every matching node.

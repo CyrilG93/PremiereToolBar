@@ -102,6 +102,10 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.4.5 - 2026-05-31
+
+- Improved capture and logging for Transform Anchor Point and Position presets.
+
 ### 0.4.4 - 2026-05-31
 
 - Fixed captured Transform Anchor Point and Position values so they paste back with their edited coordinates.

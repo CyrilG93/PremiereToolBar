@@ -1609,6 +1609,32 @@
     return snapshot && snapshot.kind === "point" && isSupportedPresetValue(snapshot);
   }
 
+  // Keep capture logs focused on Transform point suspects and values that need special replay.
+  function shouldLogPresetParam(displayName, index, serializedValue) {
+    const name = String(displayName || "").toLowerCase();
+    return index < 2 || /anchor|position/.test(name) || isPointPresetValue(serializedValue);
+  }
+
+  // Return compact log details for captured preset values without dumping opaque host objects.
+  function describeSerializedPresetValue(snapshot) {
+    if (!snapshot || typeof snapshot !== "object") {
+      return null;
+    }
+    if (snapshot.kind === "point") {
+      return { x: snapshot.x, y: snapshot.y };
+    }
+    if (snapshot.kind === "primitive") {
+      return snapshot.value;
+    }
+    if (snapshot.kind === "color") {
+      return { red: snapshot.red, green: snapshot.green, blue: snapshot.blue, alpha: snapshot.alpha };
+    }
+    if (snapshot.kind === "raw") {
+      return { encoding: snapshot.encoding || "", valueType: snapshot.valueType || "", objectShape: snapshot.objectShape || null };
+    }
+    return snapshot.kind || null;
+  }
+
   // Return the source offset of the last keyframe for anchor-out and scale placement.
   function getParamKeyframeDuration(snapshot) {
     const values = (snapshot && Array.isArray(snapshot.keyframes) ? snapshot.keyframes : []).map((keyframe) => {
@@ -1661,7 +1687,7 @@
       encoding: reason || "uxp-unsupported",
       value: valueText,
       valueType: rawValue === null ? "null" : typeof rawValue,
-      objectShape: describeObjectShape(param)
+      objectShape: inspectObjectShape(param)
     };
   }
 
@@ -1676,8 +1702,9 @@
   // Serialize a Premiere parameter value into JSON-safe data.
   function serializeValue(value) {
     const rawValue = unwrapParamValue(value);
-    if (rawValue && typeof rawValue === "object" && typeof rawValue.x === "number" && typeof rawValue.y === "number") {
-      return { kind: "point", x: rawValue.x, y: rawValue.y };
+    const pointValue = readPointLikeValue(rawValue);
+    if (pointValue) {
+      return pointValue;
     }
     if (rawValue && typeof rawValue === "object" && typeof rawValue.red === "number" && typeof rawValue.green === "number" && typeof rawValue.blue === "number") {
       return {
@@ -1696,10 +1723,48 @@
         value: "",
         valueType: Object.prototype.toString.call(rawValue),
         jsonValue: tryJsonClone(rawValue),
-        objectShape: describeObjectShape(rawValue)
+        objectShape: inspectObjectShape(rawValue)
       };
     }
     return { kind: "primitive", value: rawValue };
+  }
+
+  // Read point-ish Premiere values that may arrive as PointF, arrays, numeric-key objects, or text pairs.
+  function readPointLikeValue(rawValue) {
+    if (!rawValue) {
+      return null;
+    }
+    if (Array.isArray(rawValue) && rawValue.length >= 2) {
+      return createPointSnapshot(rawValue[0], rawValue[1]);
+    }
+    if (typeof rawValue === "object") {
+      const direct = createPointSnapshot(rawValue.x, rawValue.y)
+        || createPointSnapshot(rawValue.X, rawValue.Y)
+        || createPointSnapshot(rawValue[0], rawValue[1]);
+      if (direct) {
+        return direct;
+      }
+      const jsonValue = tryJsonClone(rawValue);
+      if (jsonValue && jsonValue !== rawValue) {
+        return readPointLikeValue(jsonValue);
+      }
+    }
+    if (typeof rawValue === "string") {
+      const match = rawValue.match(/-?\d+(?:[.,]\d+)?/g);
+      if (match && match.length >= 2) {
+        return createPointSnapshot(match[0].replace(",", "."), match[1].replace(",", "."));
+      }
+    }
+    return null;
+  }
+
+  // Return a normalized point only when both coordinates are finite numbers.
+  function createPointSnapshot(x, y) {
+    const numericX = Number(x);
+    const numericY = Number(y);
+    return Number.isFinite(numericX) && Number.isFinite(numericY)
+      ? { kind: "point", x: numericX, y: numericY }
+      : null;
   }
 
   // Serialize a keyframe into JSON-safe data.
@@ -1787,12 +1852,16 @@
     const sampledStaticValue = keyframes.length ? undefined : await sampleStaticParamValue(app, param, sourceTiming);
     const staticValue = chooseCapturedStaticValue(startKeyframe && startKeyframe.value, sampledStaticValue);
     const serializedStartValue = serializeValue(staticValue);
-    if (isPointPresetValue(serializedStartValue)) {
-      logBridge("info", "Captured point preset value.", {
+    if (shouldLogPresetParam(param.displayName, index, serializedStartValue)) {
+      logBridge("info", "Captured preset parameter value.", {
         index,
         name: param.displayName || "Param " + (index + 1),
-        x: serializedStartValue.x,
-        y: serializedStartValue.y
+        capturedKind: serializedStartValue.kind,
+        capturedValue: describeSerializedPresetValue(serializedStartValue),
+        startKind: serializeValue(startKeyframe && startKeyframe.value).kind,
+        sampledKind: sampledStaticValue === undefined ? "undefined" : serializeValue(sampledStaticValue).kind,
+        startShape: inspectObjectShape(unwrapParamValue(startKeyframe && startKeyframe.value)),
+        sampledShape: sampledStaticValue === undefined ? null : inspectObjectShape(unwrapParamValue(sampledStaticValue))
       });
     }
     return {
