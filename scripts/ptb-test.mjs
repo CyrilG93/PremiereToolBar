@@ -773,6 +773,113 @@ async function applyPresetTimingSmokeTest() {
 
 await applyPresetTimingSmokeTest();
 
+// Verify preset replay writes real PointF coordinates for static Transform Position and Anchor Point values.
+async function applyPresetPointValueSmokeTest() {
+  let pointValue = null;
+  const transactions = [];
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      function PointF() {
+        this.x = 0;
+        this.y = 0;
+      }
+      const pointParam = {
+        createKeyframe(value) {
+          return { value };
+        },
+        createSetValueAction(keyframe) {
+          pointValue = keyframe.value;
+          return { type: "pointValue", keyframe };
+        }
+      };
+      const scaleParam = {
+        createKeyframe(value) {
+          return { value };
+        },
+        createSetValueAction(keyframe) {
+          return { type: "scaleValue", keyframe };
+        }
+      };
+      const component = {
+        getParamCount: () => 2,
+        getParam: (index) => (index === 0 ? pointParam : scaleParam)
+      };
+      const item = {
+        createAddVideoTransitionAction() {},
+        getComponentChain: async () => ({
+          getComponentCount: () => 0,
+          getComponentAtIndex: () => component,
+          createInsertComponentAction: () => ({ type: "insert" })
+        })
+      };
+      return {
+        PointF,
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              const actionTypes = [];
+              handler({
+                addAction(action) {
+                  actionTypes.push(action && action.type ? action.type : "unknown");
+                }
+              });
+              transactions.push(actionTypes);
+              return true;
+            }
+          })
+        },
+        VideoFilterFactory: {
+          createComponent: async () => component
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    label: "Point Preset",
+    actionType: "preset",
+    stack: {
+      components: [{
+        mediaType: "video",
+        matchName: "AE.ADBE Geometry2",
+        displayName: "Transform",
+        params: [{
+          index: 0,
+          displayName: "Anchor Point",
+          timeVarying: false,
+          startValue: { kind: "point", x: 936, y: 514 },
+          keyframes: []
+        }, {
+          index: 1,
+          displayName: "Scale",
+          timeVarying: false,
+          startValue: { kind: "primitive", value: 105 },
+          keyframes: []
+        }]
+      }]
+    }
+  }));
+  assert.deepEqual(transactions, [["insert"], ["scaleValue"], ["pointValue"]]);
+  assert.equal(pointValue.x, 936);
+  assert.equal(pointValue.y, 514);
+}
+
+await applyPresetPointValueSmokeTest();
+
 // Verify effect buttons target Premiere's reverse UI order so they appear at the bottom.
 async function applyEffectOrderSmokeTest() {
   let appended = false;

@@ -1239,14 +1239,15 @@
       await waitForHostPaint();
     }
     const paramActions = [];
+    const finalPointActions = [];
     for (const target of resolvedTargets) {
-      const lateActions = await createParamValueActions(app, target.valueComponent, target.params, target);
+      const lateGroups = await createParamValueActionGroups(app, target.valueComponent, target.params, target);
       const alternateComponent = target.valueComponent === target.resolvedComponent ? target.component : target.resolvedComponent;
-      const fallbackActions = lateActions.length || target.valueComponent === alternateComponent
-        ? []
-        : await createParamValueActions(app, alternateComponent, target.params, target);
-      const usableActions = lateActions.length ? lateActions : fallbackActions;
-      if (!usableActions.length) {
+      const fallbackGroups = lateGroups.actions.length || lateGroups.pointActions.length || target.valueComponent === alternateComponent
+        ? { actions: [], pointActions: [] }
+        : await createParamValueActionGroups(app, alternateComponent, target.params, target);
+      const usableGroups = lateGroups.actions.length || lateGroups.pointActions.length ? lateGroups : fallbackGroups;
+      if (!usableGroups.actions.length && !usableGroups.pointActions.length) {
         logBridge("warn", "Preset component has no parameter actions.", {
           storedParams: target.params.length,
           insertIndex: target.insertIndex,
@@ -1254,15 +1255,22 @@
           setupActions: setupActions.length
         });
       }
-      paramActions.push.apply(paramActions, usableActions);
+      paramActions.push.apply(paramActions, usableGroups.actions);
+      finalPointActions.push.apply(finalPointActions, usableGroups.pointActions);
     }
     if (paramActions.length) {
       executeActions(project, paramActions, "Tool Bar: " + button.label + " preset values");
-    } else {
+    } else if (!finalPointActions.length) {
       logBridge("warn", "Preset applied without parameter actions.", { components: pendingParamTargets.length });
     }
+    if (finalPointActions.length) {
+      // Reapply point parameters after scalar Transform settings that can reset Position/Anchor Point to center.
+      await refreshSequenceView(sequence);
+      await waitForHostPaint();
+      executeActions(project, finalPointActions, "Tool Bar: " + button.label + " preset point values");
+    }
     await refreshSequenceView(sequence);
-    logBridge("info", "Preset command completed.", { components: pendingParamTargets.length, keyframeSetupActions: setupActions.length, parameterActions: setupActions.length + paramActions.length });
+    logBridge("info", "Preset command completed.", { components: pendingParamTargets.length, keyframeSetupActions: setupActions.length, parameterActions: setupActions.length + paramActions.length + finalPointActions.length });
     return result;
   }
 
@@ -1305,23 +1313,69 @@
       return value ? value.value : undefined;
     }
     if (value.kind === "point") {
-      try {
-        return new app.PointF(value.x, value.y);
-      } catch (error) {
-        return { x: value.x, y: value.y };
-      }
+      return createPremierePoint(app, value);
     }
     if (value.kind === "color") {
-      try {
-        return new app.Color(value.red, value.green, value.blue, value.alpha);
-      } catch (error) {
-        return { red: value.red, green: value.green, blue: value.blue, alpha: value.alpha };
-      }
+      return createPremiereColor(app, value);
     }
     if (value.kind === "raw") {
       return undefined;
     }
     return value.value;
+  }
+
+  // Build a real Premiere PointF and assign fields explicitly because constructors can ignore arguments.
+  function createPremierePoint(app, value) {
+    const x = Number(value.x);
+    const y = Number(value.y);
+    try {
+      if (app && typeof app.PointF === "function") {
+        const point = new app.PointF();
+        point.x = x;
+        point.y = y;
+        return point;
+      }
+    } catch (error) {
+      try {
+        const point = new app.PointF(x, y);
+        point.x = x;
+        point.y = y;
+        return point;
+      } catch (fallbackError) {
+        // Fall back to a plain point object for older host shims and tests.
+      }
+    }
+    return { x, y };
+  }
+
+  // Build a real Premiere Color and assign fields explicitly to preserve captured channel values.
+  function createPremiereColor(app, value) {
+    const red = Number(value.red);
+    const green = Number(value.green);
+    const blue = Number(value.blue);
+    const alpha = typeof value.alpha === "number" ? value.alpha : 1;
+    try {
+      if (app && typeof app.Color === "function") {
+        const color = new app.Color();
+        color.red = red;
+        color.green = green;
+        color.blue = blue;
+        color.alpha = alpha;
+        return color;
+      }
+    } catch (error) {
+      try {
+        const color = new app.Color(red, green, blue, alpha);
+        color.red = red;
+        color.green = green;
+        color.blue = blue;
+        color.alpha = alpha;
+        return color;
+      } catch (fallbackError) {
+        // Fall back to a plain color object for older host shims and tests.
+      }
+    }
+    return { red, green, blue, alpha };
   }
 
   // Create a TickTime object from a stored keyframe position.
@@ -1433,7 +1487,14 @@
 
   // Create parameter value/keyframe actions after animated parameters have been enabled.
   async function createParamValueActions(app, component, paramSnapshots, timingContext) {
+    const groups = await createParamValueActionGroups(app, component, paramSnapshots, timingContext);
+    return groups.actions.concat(groups.pointActions);
+  }
+
+  // Create regular actions separately from point actions so Transform points can be applied last.
+  async function createParamValueActionGroups(app, component, paramSnapshots, timingContext) {
     const actions = [];
+    const pointActions = [];
     const paramCount = getComponentParamCount(component);
     for (const snapshot of paramSnapshots) {
       if (snapshot.index >= paramCount) {
@@ -1453,7 +1514,7 @@
               continue;
             }
             try {
-              const keyframe = param.createKeyframe(reviveValue(app, keyframeSnapshot.value));
+              const keyframe = createPresetKeyframe(app, param, keyframeSnapshot.value);
               const position = reviveTime(app, keyframeSnapshot, paramTimingContext);
               if (position) {
                 keyframe.position = position;
@@ -1469,7 +1530,18 @@
                   });
                 }
               }
-              actions.push(param.createAddKeyframeAction(keyframe));
+              const action = param.createAddKeyframeAction(keyframe);
+              if (isPointPresetValue(keyframeSnapshot.value)) {
+                logBridge("info", "Queued point preset keyframe.", {
+                  index: snapshot.index,
+                  name: snapshot.displayName,
+                  x: keyframeSnapshot.value.x,
+                  y: keyframeSnapshot.value.y
+                });
+                pointActions.push(action);
+              } else {
+                actions.push(action);
+              }
             } catch (error) {
               logBridge("warn", "Skipped one preset keyframe.", {
                 index: snapshot.index,
@@ -1490,11 +1562,22 @@
             }
             continue;
           }
-          const keyframe = param.createKeyframe(reviveValue(app, snapshot.startValue));
+          const keyframe = createPresetKeyframe(app, param, snapshot.startValue);
           if (snapshot.startTemporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
             await keyframe.setTemporalInterpolationMode(snapshot.startTemporalInterpolation);
           }
-          actions.push(param.createSetValueAction(keyframe, true));
+          const action = param.createSetValueAction(keyframe, true);
+          if (isPointPresetValue(snapshot.startValue)) {
+            logBridge("info", "Queued point preset value.", {
+              index: snapshot.index,
+              name: snapshot.displayName,
+              x: snapshot.startValue.x,
+              y: snapshot.startValue.y
+            });
+            pointActions.push(action);
+          } else {
+            actions.push(action);
+          }
         }
       } catch (error) {
         logBridge("warn", "Skipped preset parameter action.", {
@@ -1504,7 +1587,26 @@
         });
       }
     }
-    return actions;
+    return { actions, pointActions };
+  }
+
+  // Create a Premiere keyframe and explicitly write object values for PointF/Color-backed params.
+  function createPresetKeyframe(app, param, snapshot) {
+    const revivedValue = reviveValue(app, snapshot);
+    const keyframe = param.createKeyframe(revivedValue);
+    if (snapshot && (snapshot.kind === "point" || snapshot.kind === "color")) {
+      try {
+        keyframe.value = revivedValue;
+      } catch (error) {
+        // Some host keyframe proxies only accept the value through createKeyframe.
+      }
+    }
+    return keyframe;
+  }
+
+  // Identify point payloads that need to be replayed after other Transform settings.
+  function isPointPresetValue(snapshot) {
+    return snapshot && snapshot.kind === "point" && isSupportedPresetValue(snapshot);
   }
 
   // Return the source offset of the last keyframe for anchor-out and scale placement.
@@ -1684,16 +1786,22 @@
     }
     const sampledStaticValue = keyframes.length ? undefined : await sampleStaticParamValue(app, param, sourceTiming);
     const staticValue = chooseCapturedStaticValue(startKeyframe && startKeyframe.value, sampledStaticValue);
+    const serializedStartValue = serializeValue(staticValue);
+    if (isPointPresetValue(serializedStartValue)) {
+      logBridge("info", "Captured point preset value.", {
+        index,
+        name: param.displayName || "Param " + (index + 1),
+        x: serializedStartValue.x,
+        y: serializedStartValue.y
+      });
+    }
     return {
       index,
       displayName: param.displayName || "Param " + (index + 1),
       timeVarying,
-      startValue: (() => {
-        const serialized = serializeValue(staticValue);
-        return isSupportedPresetValue(serialized) || serialized.kind === "raw"
-          ? serialized
-          : serializeUnsupportedPresetValue(staticValue, param, "uxp-unsupported-start-value");
-      })(),
+      startValue: isSupportedPresetValue(serializedStartValue) || serializedStartValue.kind === "raw"
+        ? serializedStartValue
+        : serializeUnsupportedPresetValue(staticValue, param, "uxp-unsupported-start-value"),
       startTemporalInterpolation: startKeyframe && typeof startKeyframe.getTemporalInterpolationMode === "function"
         ? await startKeyframe.getTemporalInterpolationMode()
         : null,
