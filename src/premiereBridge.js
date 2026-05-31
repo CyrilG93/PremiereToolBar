@@ -1609,32 +1609,6 @@
     return snapshot && snapshot.kind === "point" && isSupportedPresetValue(snapshot);
   }
 
-  // Keep capture logs focused on Transform point suspects and values that need special replay.
-  function shouldLogPresetParam(displayName, index, serializedValue) {
-    const name = String(displayName || "").toLowerCase();
-    return index < 2 || /anchor|position/.test(name) || isPointPresetValue(serializedValue);
-  }
-
-  // Return compact log details for captured preset values without dumping opaque host objects.
-  function describeSerializedPresetValue(snapshot) {
-    if (!snapshot || typeof snapshot !== "object") {
-      return null;
-    }
-    if (snapshot.kind === "point") {
-      return { x: snapshot.x, y: snapshot.y };
-    }
-    if (snapshot.kind === "primitive") {
-      return snapshot.value;
-    }
-    if (snapshot.kind === "color") {
-      return { red: snapshot.red, green: snapshot.green, blue: snapshot.blue, alpha: snapshot.alpha };
-    }
-    if (snapshot.kind === "raw") {
-      return { encoding: snapshot.encoding || "", valueType: snapshot.valueType || "", objectShape: snapshot.objectShape || null };
-    }
-    return snapshot.kind || null;
-  }
-
   // Return the source offset of the last keyframe for anchor-out and scale placement.
   function getParamKeyframeDuration(snapshot) {
     const values = (snapshot && Array.isArray(snapshot.keyframes) ? snapshot.keyframes : []).map((keyframe) => {
@@ -1852,16 +1826,12 @@
     const sampledStaticValue = keyframes.length ? undefined : await sampleStaticParamValue(app, param, sourceTiming);
     const staticValue = chooseCapturedStaticValue(startKeyframe && startKeyframe.value, sampledStaticValue);
     const serializedStartValue = serializeValue(staticValue);
-    if (shouldLogPresetParam(param.displayName, index, serializedStartValue)) {
-      logBridge("info", "Captured preset parameter value.", {
+    if (isPointPresetValue(serializedStartValue)) {
+      logBridge("info", "Captured point preset value.", {
         index,
         name: param.displayName || "Param " + (index + 1),
-        capturedKind: serializedStartValue.kind,
-        capturedValue: describeSerializedPresetValue(serializedStartValue),
-        startKind: serializeValue(startKeyframe && startKeyframe.value).kind,
-        sampledKind: sampledStaticValue === undefined ? "undefined" : serializeValue(sampledStaticValue).kind,
-        startShape: inspectObjectShape(unwrapParamValue(startKeyframe && startKeyframe.value)),
-        sampledShape: sampledStaticValue === undefined ? null : inspectObjectShape(unwrapParamValue(sampledStaticValue))
+        x: serializedStartValue.x,
+        y: serializedStartValue.y
       });
     }
     return {
