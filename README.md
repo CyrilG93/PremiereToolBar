@@ -102,6 +102,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.5.9 - 2026-06-01
+
+- Made the bar scale fallback controls more discreet.
+- Removed the truncated bar labels from the left side of Bar Controls.
+
 ### 0.5.8 - 2026-06-01
 
 - Replaced the custom drawn scale slider with a cleaner native control when available.
