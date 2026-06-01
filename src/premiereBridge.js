@@ -915,6 +915,9 @@
     if (paramName.includes("rotation") || paramName.includes("antiflicker")) {
       return { kind: "primitive", value: 0 };
     }
+    if (paramName.includes("crop")) {
+      return { kind: "primitive", value: 0 };
+    }
     if (componentKey.includes("opacity") && paramName.includes("blend")) {
       return currentSnapshot && typeof currentSnapshot.value === "string" ? { kind: "primitive", value: "Normal" } : null;
     }
