@@ -1687,9 +1687,10 @@
   // Render compact controls for each dockable toolbar orientation.
   function renderBarControls() {
     const wrap = el("div", "ptb-bar-control-grid");
-    config.bars.forEach((bar) => {
+    config.bars.forEach((bar, index) => {
       const row = el("div", "ptb-bar-control");
-      row.appendChild(selectField(root.PTB_I18N.t("barOrientation"), bar.orientation === "vertical" ? "vertical" : "horizontal", [
+      // Label the orientation select with the exact dockable bar it controls.
+      row.appendChild(selectField("Tool Bar " + (index + 1), bar.orientation === "vertical" ? "vertical" : "horizontal", [
         { value: "horizontal", label: root.PTB_I18N.t("barHorizontal") },
         { value: "vertical", label: root.PTB_I18N.t("barVertical") }
       ], (value) => {

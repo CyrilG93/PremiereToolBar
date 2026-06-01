@@ -102,6 +102,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.6.0 - 2026-06-01
+
+- Replaced the generic Bar Controls orientation labels with `Tool Bar 1` to `Tool Bar 4`.
+- Released the compact, collapsible settings workflow with per-bar button scaling.
+
 ### 0.5.9 - 2026-06-01
 
 - Made the bar scale fallback controls more discreet.
