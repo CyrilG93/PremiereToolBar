@@ -16,9 +16,10 @@
     collapsed: {
       buttonGallery: false,
       buttonEditor: false,
+      barControls: false,
       collections: false,
       data: true,
-      logs: false
+      logs: true
     }
   };
   const mountedPanels = new Map();
@@ -53,8 +54,16 @@
     }
   }
 
+  // Return whether the Logs section is open enough to justify collecting diagnostics.
+  function isLogRecordingEnabled() {
+    return Boolean(settingsState && settingsState.collapsed && settingsState.collapsed.logs === false);
+  }
+
   // Add one internal log entry and update only the log textareas so frequent messages stay cheap.
   function addInternalLog(level, message, details, skipRender) {
+    if (!isLogRecordingEnabled()) {
+      return;
+    }
     const entry = {
       id: String(Date.now()) + "-" + String(internalLogs.length),
       level: level || "info",
@@ -287,19 +296,19 @@
       style.textContent = `
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
-      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:2px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:wrap;align-content:flex-start;width:auto;height:100%;max-height:100%;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-svg-icon svg{display:block;width:22px;height:22px;fill:currentColor}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:900;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
+      .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:2px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:wrap;align-content:flex-start;width:auto;height:100%;max-height:100%;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;overflow:hidden}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-svg-icon svg{display:block;width:22px;height:22px;fill:currentColor}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:900;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
       .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
       .ptb-update-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 12px 0;border:1px solid rgba(121,200,255,.65);border-radius:8px;padding:9px 10px;color:var(--ptb-text);background:#172d3d;cursor:pointer}.ptb-update-banner strong{font-weight:900}.ptb-update-banner small{color:var(--ptb-muted)}
-      .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line)}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
+      .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);cursor:pointer}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section.collapsed .ptb-section-body{display:none;min-height:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
       .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
       .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:flex;flex-direction:column;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text strong{font-weight:900}.ptb-button-card-text small{color:var(--ptb-muted)}
       .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-tool-options{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}.ptb-check-field{display:inline-flex;align-items:center;gap:6px;margin-right:16px;margin-bottom:6px;color:var(--ptb-text);font-weight:700}.ptb-check-field input{width:14px;height:14px}.ptb-fieldset>.ptb-field{flex:0 1 auto}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
       .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;max-height:190px;margin:0;overflow:auto}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
-      .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member.drop-after{box-shadow:5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member-list.drop-tail{box-shadow:inset -5px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
+      .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:260px}.ptb-range-value{color:var(--ptb-muted);font-size:10px;font-weight:800}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;justify-content:center;width:50px;min-width:50px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member.drop-after{box-shadow:5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member-list.drop-tail{box-shadow:inset -5px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
       .ptb-logs-panel{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px}.ptb-log-copy-text{width:100%;min-height:118px;resize:vertical;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;color:var(--ptb-text);background:#101010;font-family:Consolas,monospace;font-size:11px;line-height:1.35;white-space:pre;overflow:auto}
-      @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card,.ptb-collection-member{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
+      @media(max-width:620px){.ptb-settings-header{align-items:stretch;flex-direction:column}.ptb-header-actions,.ptb-card-actions,.ptb-bar-toggles{justify-content:flex-start}.ptb-gallery-card{width:100%;min-width:0}.ptb-collection-name-input,.ptb-field{flex-basis:100%}}
     `;
       if (document.head) {
         document.head.appendChild(style);
@@ -366,11 +375,12 @@
         height: "34px",
         minHeight: "34px",
         margin: "0",
+        overflow: "hidden",
         padding: "0"
       }));
     }
     if (tokens.includes("ptb-button-face")) {
-      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", minWidth: "0" });
+      setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", minWidth: "0", overflow: "hidden" });
     }
     if (tokens.includes("with-caption")) {
       setStyles(node, { flexDirection: "column", gap: "1px" });
@@ -421,7 +431,7 @@
       setStyles(node, { display: "block", width: "100%", minWidth: "0", border: "1px solid var(--ptb-line)", borderRadius: "8px", background: "var(--ptb-panel)" });
     }
     if (tokens.includes("ptb-section-heading")) {
-      setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minHeight: "42px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)" });
+      setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minHeight: "42px", padding: "10px 12px", borderBottom: "1px solid var(--ptb-line)", cursor: "pointer" });
     }
     if (tokens.includes("ptb-section-body")) {
       setStyles(node, { display: "block", minWidth: "0", minHeight: "18px", padding: "0" });
@@ -544,7 +554,10 @@
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", padding: "12px" });
     }
     if (tokens.includes("ptb-bar-control")) {
-      setStyles(node, { display: "flex", alignItems: "end", gap: "8px", minWidth: "210px" });
+      setStyles(node, { display: "flex", alignItems: "end", gap: "8px", minWidth: "260px" });
+    }
+    if (tokens.includes("ptb-range-value")) {
+      setStyles(node, { color: "var(--ptb-muted)", fontSize: "10px", fontWeight: "800" });
     }
     if (tokens.includes("ptb-collection-header-row")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", minWidth: "0" });
@@ -562,7 +575,7 @@
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "6px", minWidth: "0" });
     }
     if (tokens.includes("ptb-collection-member")) {
-      setStyles(node, { position: "relative", width: "150px", minWidth: "150px", padding: "7px" });
+      setStyles(node, { position: "relative", justifyContent: "center", width: "50px", minWidth: "50px", padding: "7px" });
     }
     if (tokens.includes("ptb-multi-member")) {
       setStyles(node, { width: "150px", minWidth: "150px" });
@@ -729,15 +742,21 @@
   }
 
   // Create an inline SVG icon that inherits the selected icon color.
-  function createIconImage(iconId, color, title) {
+  function createIconImage(iconId, color, title, size) {
     const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#f0f0f0";
+    const iconSize = clampNumber(size, 22, 12, 60);
+    const iconPx = String(iconSize) + "px";
     const icon = root.PTB_ICON_LIBRARY.getIcon(iconId);
     const node = el("span", "ptb-svg-icon ptb-image-icon");
     node.title = title || icon.label;
     node.setAttribute("role", "img");
     node.setAttribute("aria-label", title || icon.label);
-    setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "22px", height: "22px", color: safeColor, background: "transparent", pointerEvents: "none" });
+    setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: iconPx, height: iconPx, color: safeColor, background: "transparent", pointerEvents: "none" });
     node.innerHTML = root.PTB_ICON_LIBRARY.getIconSvg(icon.id);
+    Array.from(node.children || []).forEach((child) => {
+      // Keep SVG dimensions tied to the icon slider instead of the button slider.
+      setStyles(child, { width: iconPx, height: iconPx });
+    });
     applySvgColor(node, safeColor);
     return node;
   }
@@ -758,13 +777,13 @@
   }
 
   // Render the actual button face as DOM nodes so UXP receives color styles directly.
-  function renderButtonFaceElement(button) {
+  function renderButtonFaceElement(button, iconSize) {
     const mode = getButtonDisplayMode(button);
     const textColor = getSafeIconColor(button);
     const face = el("span", mode === "both" ? "ptb-button-face with-caption" : "ptb-button-face");
     setStyles(face, { color: textColor });
     if (mode === "icon" || mode === "both") {
-      face.appendChild(createIconImage(button.icon, textColor, getButtonName(button)));
+      face.appendChild(createIconImage(button.icon, textColor, getButtonName(button), iconSize));
     }
     if (mode === "text" || mode === "both") {
       const text = el("span", mode === "both" ? "ptb-tool-caption" : "ptb-tool-text", getButtonShortText(button));
@@ -1188,6 +1207,37 @@
     return wrap;
   }
 
+  // Clamp UI slider values so imported configs cannot make controls unusable.
+  function clampNumber(value, fallback, min, max) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    return Math.min(max, Math.max(min, parsed));
+  }
+
+  // Create a compact range slider with a visible pixel value.
+  function rangeField(label, value, min, max, step, onCommit) {
+    const wrap = el("label", "ptb-field");
+    const labelRow = el("span", "ptb-field-label", label);
+    const valueNode = el("span", "ptb-range-value", String(value) + " px");
+    const input = el("input", "ptb-input");
+    input.type = "range";
+    input.min = String(min);
+    input.max = String(max);
+    input.step = String(step || 1);
+    input.value = String(value);
+    input.addEventListener("input", () => {
+      // Update only the local value display while dragging so settings stays responsive.
+      valueNode.textContent = String(clampNumber(input.value, value, min, max)) + " px";
+    });
+    input.addEventListener("change", () => onCommit(clampNumber(input.value, value, min, max)));
+    wrap.appendChild(labelRow);
+    wrap.appendChild(input);
+    wrap.appendChild(valueNode);
+    return wrap;
+  }
+
   // Create a checkbox row for compact binary tool options.
   function checkboxField(label, checked, onChange) {
     const wrap = el("label", "ptb-check-field");
@@ -1256,14 +1306,14 @@
     } else if (!buttons.length) {
       strip.appendChild(el("div", "ptb-empty", root.PTB_I18N.t("emptyBar")));
     } else {
-      buttons.forEach((button) => strip.appendChild(renderToolButton(button, rootNode.ptbContext)));
+      buttons.forEach((button) => strip.appendChild(renderToolButton(button, bar, rootNode.ptbContext)));
     }
     shell.appendChild(strip);
     rootNode.appendChild(shell);
   }
 
   // Render one clickable toolbar button.
-  function renderToolButton(button, context) {
+  function renderToolButton(button, bar, context) {
     const toolButton = clickControl("ptb-tool-button", async () => {
       if (button.actionType === "tool" && button.tool && button.tool.id === "openSettings") {
         openPanel(context, "ptb-settings");
@@ -1279,8 +1329,31 @@
     toolButton.style.backgroundColor = background;
     toolButton.style.color = button.iconColor || "#f0f0f0";
     toolButton.style.borderColor = isTransparentColor(background) ? "transparent" : "rgba(255,255,255,0.12)";
-    toolButton.appendChild(renderButtonFaceElement(button));
+    applyToolbarButtonSize(toolButton, getBarButtonSize(bar));
+    toolButton.appendChild(renderButtonFaceElement(button, getBarIconSize(bar)));
     return toolButton;
+  }
+
+  // Return the saved toolbar button size for a bar.
+  function getBarButtonSize(bar) {
+    return clampNumber(bar && bar.buttonSize, 34, 24, 72);
+  }
+
+  // Return the saved toolbar icon size for a bar.
+  function getBarIconSize(bar) {
+    return clampNumber(bar && bar.iconSize, 22, 12, 60);
+  }
+
+  // Resize the outer button only; icon/text sizing is controlled separately.
+  function applyToolbarButtonSize(node, size) {
+    const px = String(size) + "px";
+    setStyles(node, {
+      flex: "0 0 " + px,
+      width: px,
+      minWidth: px,
+      height: px,
+      minHeight: px
+    });
   }
 
   // Run an async operation and render status or errors.
@@ -1317,12 +1390,12 @@
     shell.appendChild(content);
     rootNode.appendChild(shell);
     // Append every module after the shell is visible so UXP never leaves the settings panel blank.
-    appendSettingsModule(content, root.PTB_I18N.t("buttonGallery"), fillButtonGallery);
-    appendSettingsModule(content, root.PTB_I18N.t("buttonEditor"), fillButtonEditor);
-    appendSettingsModule(content, root.PTB_I18N.t("barControls"), fillBarControls);
-    appendSettingsModule(content, root.PTB_I18N.t("collections"), fillCollectionsBoard);
-    appendSettingsModule(content, root.PTB_I18N.t("data"), fillImportExportSettings);
-    appendSettingsModule(content, root.PTB_I18N.t("logs"), fillLogsPanel);
+    appendSettingsModule(content, "buttonGallery", root.PTB_I18N.t("buttonGallery"), fillButtonGallery);
+    appendSettingsModule(content, "buttonEditor", root.PTB_I18N.t("buttonEditor"), fillButtonEditor);
+    appendSettingsModule(content, "barControls", root.PTB_I18N.t("barControls"), fillBarControls);
+    appendSettingsModule(content, "collections", root.PTB_I18N.t("collections"), fillCollectionsBoard);
+    appendSettingsModule(content, "data", root.PTB_I18N.t("data"), fillImportExportSettings);
+    appendSettingsModule(content, "logs", root.PTB_I18N.t("logs"), fillLogsPanel);
   }
 
   // Render the compact settings header with version and top actions.
@@ -1381,27 +1454,57 @@
     return actions;
   }
 
-  // Render one always-visible settings module.
-  function renderSettingsModule(title) {
-    const section = el("div", "ptb-section");
+  // Render one settings module with a one-click collapse toggle.
+  function renderSettingsModule(key, title) {
+    const collapsed = Boolean(settingsState.collapsed && settingsState.collapsed[key]);
+    const section = el("div", collapsed ? "ptb-section collapsed" : "ptb-section");
     const header = el("div", "ptb-section-heading");
     const body = el("div", "ptb-section-body");
+    const toggle = actionButton(collapsed ? "+" : "-", "ptb-section-toggle", (event) => {
+      if (event && event.stopPropagation) {
+        event.stopPropagation();
+      }
+      toggleSettingsModule(key);
+    });
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    header.appendChild(toggle);
     header.appendChild(el("h2", "", title));
+    header.addEventListener("click", () => toggleSettingsModule(key));
+    if (collapsed) {
+      header.style.borderBottom = "0";
+    }
+    body.style.display = collapsed ? "none" : "block";
+    body.style.minHeight = collapsed ? "0" : "18px";
     section.appendChild(header);
     section.appendChild(body);
     return { section, body };
   }
 
   // Add one settings module first, then fill it while it is already attached to the UXP DOM.
-  function appendSettingsModule(content, title, fillBody) {
-    const module = renderSettingsModule(title);
+  function appendSettingsModule(content, key, title, fillBody) {
+    const module = renderSettingsModule(key, title);
     content.appendChild(module.section);
+    if (settingsState.collapsed && settingsState.collapsed[key]) {
+      return;
+    }
     try {
       fillBody(module.body);
     } catch (error) {
       clearNode(module.body);
       fillModuleError(module.body, error);
     }
+  }
+
+  // Toggle a settings module and drop stored logs when diagnostics are closed.
+  function toggleSettingsModule(key) {
+    if (!settingsState.collapsed) {
+      settingsState.collapsed = {};
+    }
+    settingsState.collapsed[key] = !settingsState.collapsed[key];
+    if (key === "logs" && settingsState.collapsed.logs) {
+      internalLogs.length = 0;
+    }
+    renderAll();
   }
 
   // Empty a node without replacing the node itself, which is safer in UXP panels.
@@ -1549,6 +1652,14 @@
         { value: "vertical", label: root.PTB_I18N.t("barVertical") }
       ], (value) => {
         bar.orientation = value === "vertical" ? "vertical" : "horizontal";
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+      row.appendChild(rangeField(root.PTB_I18N.t("barButtonSize"), getBarButtonSize(bar), 24, 72, 1, (value) => {
+        bar.buttonSize = value;
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+      row.appendChild(rangeField(root.PTB_I18N.t("barIconSize"), getBarIconSize(bar), 12, 60, 1, (value) => {
+        bar.iconSize = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       }));
       wrap.appendChild(row);
@@ -2528,10 +2639,6 @@
       applyDropEvent(collection, index, event);
     });
     row.appendChild(renderButtonSwatch(button));
-    const text = el("span", "ptb-button-card-text");
-    text.appendChild(el("strong", "", getButtonName(button)));
-    text.style.color = button.iconColor || "var(--ptb-text)";
-    row.appendChild(text);
     return row;
   }
 

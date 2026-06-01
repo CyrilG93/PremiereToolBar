@@ -21,6 +21,8 @@
     bars: "Bars",
     barControls: "Bar Controls",
     barOrientation: "Orientation",
+    barButtonSize: "Button Size",
+    barIconSize: "Icon Size",
     barHorizontal: "Horizontal",
     barVertical: "Vertical",
     collections: "Collections",

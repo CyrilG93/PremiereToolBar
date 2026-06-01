@@ -64,7 +64,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Create buttons from the top action bar, then edit the selected button below the gallery.
 - Drag buttons from the gallery into any collection, or use the add-button menu inside a collection.
 - Rename collections and assign them to bars 1-4 with the compact `B1` to `B4` toggles.
-- Set each bar to horizontal or vertical from the compact bar controls.
+- Set each bar to horizontal or vertical, then adjust its button and icon size independently from the compact bar controls.
 - Choose whether a button shows an icon, a three-letter text shortcut, or both.
 - Assign an icon, icon color, and button color with popover pickers, including a transparent button background when you only want the icon or text.
 - Type either the Premiere effect name or the effect match name in one field. Video effect catalog choices fill the stable match name when Premiere exposes one.
@@ -101,6 +101,12 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.5.6 - 2026-06-01
+
+- Added collapsible Settings sections and paused internal log recording when Logs is closed.
+- Added per-bar button and icon size controls.
+- Made collection buttons more compact by showing only icons.
 
 ### 0.5.5 - 2026-06-01
 

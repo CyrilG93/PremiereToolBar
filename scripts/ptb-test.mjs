@@ -14,6 +14,8 @@ assert.equal(defaultConfig.schemaVersion, 2);
 assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");
 assert.equal(defaultConfig.bars[0].collectionId, "collection-base-effects");
+assert.equal(defaultConfig.bars[0].buttonSize, 34);
+assert.equal(defaultConfig.bars[0].iconSize, 22);
 assert.equal(defaultConfig.collections[0].buttonIds.length, 11);
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-settings"));
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-copy-effects"));
@@ -35,6 +37,11 @@ const scriptButton = schema.createButton({ actionType: "script", script: { name:
 assert.equal(scriptButton.actionType, "script");
 assert.equal(scriptButton.script.sourceFileName, "Sort Project.jsx");
 assert.equal(scriptButton.script.source, "alert('x');");
+const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
+  bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99, iconSize: 5 }]
+}));
+assert.equal(sizedBarConfig.bars[0].buttonSize, 72);
+assert.equal(sizedBarConfig.bars[0].iconSize, 12);
 
 // Verify malformed legacy configs are migrated to the collection model.
 const migratedLegacy = schema.normalizeConfig({
@@ -415,12 +422,15 @@ assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
+assert.ok(settingsRoot.textContent.includes("Button Size"));
+assert.ok(settingsRoot.textContent.includes("Icon Size"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Tools"));
 assert.ok(settingsRoot.textContent.includes("Remove Effects"));
 assert.ok(settingsRoot.textContent.includes("Multi Action"));
 assert.ok(settingsRoot.textContent.includes("Effect Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
+assert.equal(countClass(settingsRoot, "ptb-log-copy-text"), 0);
 
 // Verify a newer GitHub release renders a direct top-header download button.
 async function updateDownloadButtonSmokeTest() {

@@ -14,6 +14,8 @@
   const CONFIG_VERSION = 2;
   const MAX_BARS = 4;
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
+  const DEFAULT_BUTTON_SIZE = 34;
+  const DEFAULT_ICON_SIZE = 22;
   const ACTION_TYPES = ["tool", "effect", "transition", "transitionPreset", "audioTransition", "preset", "multi", "script"];
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
@@ -254,7 +256,10 @@
       id: BAR_IDS.includes(input.id) ? input.id : fallbackId,
       collectionId: safeString(input.collectionId, fallbackCollectionId || ""),
       enabled: input.enabled !== false,
-      orientation: ["auto", "horizontal", "vertical"].includes(input.orientation) ? input.orientation : "auto"
+      orientation: ["auto", "horizontal", "vertical"].includes(input.orientation) ? input.orientation : "auto",
+      // Store visual sizing per dockable bar so each panel can stay independent.
+      buttonSize: safeNumber(input.buttonSize, DEFAULT_BUTTON_SIZE, 24, 72),
+      iconSize: safeNumber(input.iconSize, DEFAULT_ICON_SIZE, 12, 60)
     };
   }
 
@@ -573,7 +578,8 @@
         activeButtonId: parsed.buttons[0] && parsed.buttons[0].id,
         buttons: parsed.buttons,
         collections: parsed.collections,
-        bars: []
+        // Preserve complete-pack bar layout, sizing, and assignments during import normalization.
+        bars: Array.isArray(parsed.bars) ? parsed.bars : []
       });
       return {
         buttons: normalized.buttons,
@@ -694,7 +700,7 @@
       normalized.bars = normalized.bars.map((bar) => {
         const importedBar = imported.bars.find((item) => item.id === bar.id);
         const mappedCollectionId = importedBar && collectionMerge.collectionIdMap[importedBar.collectionId];
-        return mappedCollectionId ? createBar(Object.assign({}, bar, { collectionId: mappedCollectionId }), BAR_IDS.indexOf(bar.id), normalized.collections[0].id) : bar;
+        return mappedCollectionId ? createBar(Object.assign({}, bar, importedBar, { collectionId: mappedCollectionId }), BAR_IDS.indexOf(bar.id), normalized.collections[0].id) : bar;
       });
     }
     normalized.activeCollectionId = collectionMerge.collectionIdMap[imported.activeCollectionId] || normalized.activeCollectionId;
