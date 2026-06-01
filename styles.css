@@ -1316,7 +1316,41 @@ button {
   min-width: 260px;
 }
 
-.ptb-range-value {
+.ptb-slider {
+  position: relative;
+  height: 26px;
+  min-width: 150px;
+  cursor: pointer;
+}
+
+.ptb-slider-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 11px;
+  height: 4px;
+  border-radius: 999px;
+  background: #101010;
+}
+
+.ptb-slider-fill {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--ptb-accent);
+}
+
+.ptb-slider-thumb {
+  position: absolute;
+  top: 5px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border: 1px solid var(--ptb-line);
+  border-radius: 999px;
+  background: #d7dee8;
+}
+
+.ptb-slider-value {
   color: var(--ptb-muted);
   font-size: 10px;
   font-weight: 800;

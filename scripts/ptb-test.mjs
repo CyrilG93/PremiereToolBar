@@ -15,7 +15,6 @@ assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");
 assert.equal(defaultConfig.bars[0].collectionId, "collection-base-effects");
 assert.equal(defaultConfig.bars[0].buttonSize, 34);
-assert.equal(defaultConfig.bars[0].iconSize, 22);
 assert.equal(defaultConfig.collections[0].buttonIds.length, 11);
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-settings"));
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-copy-effects"));
@@ -38,10 +37,10 @@ assert.equal(scriptButton.actionType, "script");
 assert.equal(scriptButton.script.sourceFileName, "Sort Project.jsx");
 assert.equal(scriptButton.script.source, "alert('x');");
 const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
-  bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99, iconSize: 5 }]
+  bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99 }]
 }));
 assert.equal(sizedBarConfig.bars[0].buttonSize, 72);
-assert.equal(sizedBarConfig.bars[0].iconSize, 12);
+assert.equal("iconSize" in sizedBarConfig.bars[0], false);
 
 // Verify malformed legacy configs are migrated to the collection model.
 const migratedLegacy = schema.normalizeConfig({
@@ -422,8 +421,8 @@ assert.ok(settingsRoot.textContent.includes("Collections"));
 assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
-assert.ok(settingsRoot.textContent.includes("Button Size"));
-assert.ok(settingsRoot.textContent.includes("Icon Size"));
+assert.ok(settingsRoot.textContent.includes("Button Scale"));
+assert.equal(countClass(settingsRoot, "ptb-slider"), 4);
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Tools"));
 assert.ok(settingsRoot.textContent.includes("Remove Effects"));
