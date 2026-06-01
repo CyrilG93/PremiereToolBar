@@ -775,7 +775,215 @@
     if (button.tool.id === "pasteClipEffects") {
       return pasteCopiedClipEffects(button);
     }
+    if (button.tool.id === "removeClipEffects") {
+      return removeSelectedClipEffects(button);
+    }
     return false;
+  }
+
+  // Remove selected clip components according to the user's Remove Effects choices.
+  async function removeSelectedClipEffects(button) {
+    const { project, sequence, items } = await getSelectedItems();
+    const options = button.tool && button.tool.removeEffects ? button.tool.removeEffects : {};
+    const includeIntrinsic = options.includeIntrinsic !== false;
+    const includeVideoEffects = options.includeVideoEffects !== false;
+    if (!includeIntrinsic && !includeVideoEffects) {
+      throw new Error("Choose at least one Remove Effects option.");
+    }
+    const actions = [];
+    const summary = { clips: 0, baseParameters: 0, videoEffects: 0, skipped: 0 };
+    const frameSize = await getSequenceFrameSize(sequence);
+    for (const item of items) {
+      if (!isVideoItem(item) || typeof item.getComponentChain !== "function") {
+        summary.skipped += 1;
+        continue;
+      }
+      summary.clips += 1;
+      const chain = await item.getComponentChain();
+      const count = chain && typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+      if (!chain) {
+        summary.skipped += 1;
+        logBridge("warn", "Selected clip does not expose a component chain.");
+        continue;
+      }
+      for (let index = 0; index < count; index += 1) {
+        const component = chain.getComponentAtIndex(index);
+        const displayName = await readComponentDisplayName(component);
+        const isIntrinsic = INTRINSIC_COMPONENTS.includes(displayName);
+        if ((isIntrinsic && !includeIntrinsic) || (!isIntrinsic && !includeVideoEffects)) {
+          continue;
+        }
+        try {
+          if (isIntrinsic) {
+            const resetActions = await createResetIntrinsicComponentActions(app, component, displayName, frameSize);
+            actions.push.apply(actions, resetActions);
+            summary.baseParameters += resetActions.length ? 1 : 0;
+            if (!resetActions.length) {
+              summary.skipped += 1;
+            }
+          } else {
+            if (typeof chain.createRemoveComponentAction !== "function") {
+              summary.skipped += 1;
+              logBridge("warn", "Selected clip does not expose remove component actions.");
+              continue;
+            }
+            actions.push(chain.createRemoveComponentAction(component));
+            summary.videoEffects += 1;
+          }
+        } catch (error) {
+          summary.skipped += 1;
+          logBridge("warn", "Could not queue component removal.", {
+            component: displayName || "Unknown",
+            error: describeBridgeError(error)
+          });
+        }
+      }
+    }
+    const result = executeActions(project, actions, "Tool Bar: Remove Effects");
+    await refreshSequenceView(sequence);
+    logBridge("info", "Remove Effects completed.", summary);
+    return result;
+  }
+
+  // Read a component display name while keeping remove workflows resilient.
+  async function readComponentDisplayName(component) {
+    try {
+      return component && typeof component.getDisplayName === "function" ? await component.getDisplayName() : "";
+    } catch (error) {
+      logBridge("warn", "Could not read component display name.", describeBridgeError(error));
+      return "";
+    }
+  }
+
+  // Reset Motion/Opacity-style intrinsic components without removing the visible base section.
+  async function createResetIntrinsicComponentActions(app, component, componentName, frameSize) {
+    const actions = [];
+    const paramCount = getComponentParamCount(component);
+    for (let index = 0; index < paramCount; index += 1) {
+      try {
+        const param = component.getParam(index);
+        const defaultSnapshot = await getIntrinsicParamDefaultSnapshot(app, param, componentName, frameSize);
+        if (!defaultSnapshot || !param || typeof param.createKeyframe !== "function" || typeof param.createSetValueAction !== "function") {
+          continue;
+        }
+        actions.push.apply(actions, await createClearParamKeyframeActions(param));
+        if (typeof param.createSetTimeVaryingAction === "function") {
+          actions.push(param.createSetTimeVaryingAction(false));
+        }
+        const keyframe = createPresetKeyframe(app, param, defaultSnapshot);
+        actions.push(param.createSetValueAction(keyframe, true));
+      } catch (error) {
+        logBridge("warn", "Skipped intrinsic parameter reset.", {
+          component: componentName,
+          index,
+          error: describeBridgeError(error)
+        });
+      }
+    }
+    return actions;
+  }
+
+  // Remove existing keyframes before writing a static default value.
+  async function createClearParamKeyframeActions(param) {
+    const actions = [];
+    try {
+      const keyframes = typeof param.getKeyframeListAsTickTimes === "function" ? await param.getKeyframeListAsTickTimes() : [];
+      if (!Array.isArray(keyframes) || typeof param.createRemoveKeyframeAction !== "function") {
+        return actions;
+      }
+      keyframes.forEach((time) => {
+        actions.push(param.createRemoveKeyframeAction(time, true));
+      });
+    } catch (error) {
+      logBridge("warn", "Could not queue intrinsic keyframe cleanup.", describeBridgeError(error));
+    }
+    return actions;
+  }
+
+  // Return known Premiere defaults for intrinsic clip parameters exposed through UXP.
+  async function getIntrinsicParamDefaultSnapshot(app, param, componentName, frameSize) {
+    const paramName = normalizeEffectLabel(param && param.displayName);
+    const componentKey = normalizeEffectLabel(componentName);
+    const currentSnapshot = await readCurrentParamSnapshot(param);
+    if (paramName.includes("position") || paramName.includes("anchorpoint")) {
+      return makeDefaultPointSnapshot(currentSnapshot, frameSize);
+    }
+    if (paramName === "scale" || paramName.includes("scalewidth") || paramName.includes("scaleheight")
+      || paramName.includes("opacity") || paramName.includes("speed")) {
+      return { kind: "primitive", value: 100 };
+    }
+    if (paramName.includes("rotation") || paramName.includes("antiflicker")) {
+      return { kind: "primitive", value: 0 };
+    }
+    if (componentKey.includes("opacity") && paramName.includes("blend")) {
+      return currentSnapshot && typeof currentSnapshot.value === "string" ? { kind: "primitive", value: "Normal" } : null;
+    }
+    return null;
+  }
+
+  // Read the current value only to preserve the host's point coordinate shape.
+  async function readCurrentParamSnapshot(param) {
+    try {
+      const startValue = param && typeof param.getStartValue === "function" ? await param.getStartValue() : null;
+      return serializeValue(startValue);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Build a default center point in normalized or pixel space depending on the current value shape.
+  function makeDefaultPointSnapshot(currentSnapshot, frameSize) {
+    const width = frameSize && frameSize.width ? frameSize.width : 1920;
+    const height = frameSize && frameSize.height ? frameSize.height : 1080;
+    if (currentSnapshot && currentSnapshot.kind === "point") {
+      const looksNormalized = Math.abs(Number(currentSnapshot.x)) <= 1.5 && Math.abs(Number(currentSnapshot.y)) <= 1.5;
+      return looksNormalized
+        ? { kind: "point", x: 0.5, y: 0.5 }
+        : { kind: "point", x: width / 2, y: height / 2 };
+    }
+    return { kind: "point", x: 0.5, y: 0.5 };
+  }
+
+  // Read sequence dimensions for pixel-space Motion defaults when Premiere exposes them.
+  async function getSequenceFrameSize(sequence) {
+    const fallbacks = [];
+    try {
+      if (sequence && typeof sequence.getFrameSize === "function") {
+        fallbacks.push(await sequence.getFrameSize());
+      }
+    } catch (error) {
+      logBridge("warn", "Could not read sequence frame size.", describeBridgeError(error));
+    }
+    try {
+      const settings = sequence && typeof sequence.getSettings === "function" ? await sequence.getSettings() : null;
+      if (settings && typeof settings.getVideoFrameRect === "function") {
+        fallbacks.push(await settings.getVideoFrameRect());
+      }
+    } catch (error) {
+      logBridge("warn", "Could not read sequence video frame rect.", describeBridgeError(error));
+    }
+    for (const value of fallbacks) {
+      const size = readRectSize(value);
+      if (size) {
+        return size;
+      }
+    }
+    return { width: 1920, height: 1080 };
+  }
+
+  // Normalize RectF-like values returned by different Premiere UXP builds.
+  function readRectSize(value) {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    const width = Number(value.width || value.w || value.right);
+    const height = Number(value.height || value.h || value.bottom);
+    return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 ? { width, height } : null;
+  }
+
+  // Compare labels while ignoring spaces and punctuation.
+  function normalizeEffectLabel(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
   // Run multiple existing buttons in order, sharing the same current Premiere selection.
@@ -1638,7 +1846,7 @@
       return false;
     }
     if (snapshot.kind === "primitive") {
-      return typeof snapshot.value === "number" || typeof snapshot.value === "boolean";
+      return typeof snapshot.value === "number" || typeof snapshot.value === "boolean" || typeof snapshot.value === "string";
     }
     return false;
   }

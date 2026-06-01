@@ -864,6 +864,26 @@ button {
   margin-top: 12px;
 }
 
+.ptb-tool-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+}
+
+.ptb-check-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ptb-text);
+  font-weight: 700;
+}
+
+.ptb-check-field input {
+  width: 14px;
+  height: 14px;
+}
+
 .ptb-catalog-picker {
   display: flex;
   flex-wrap: wrap;

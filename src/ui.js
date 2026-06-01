@@ -27,7 +27,7 @@
   let catalogLoadStarted = false;
   let updateCheckStarted = false;
   let updateState = { available: false, checking: false, latestVersion: "", downloadUrl: "", error: "" };
-  const maxInternalLogs = 160;
+  const maxInternalLogs = 80;
   const audioTransitionsEnabled = false;
   const githubRepo = "CyrilG93/PremiereToolBar";
   const internalLogs = [];
@@ -53,7 +53,7 @@
     }
   }
 
-  // Add one internal log entry and refresh open panels so debugging stays visible in Premiere.
+  // Add one internal log entry and update only the log textareas so frequent messages stay cheap.
   function addInternalLog(level, message, details, skipRender) {
     const entry = {
       id: String(Date.now()) + "-" + String(internalLogs.length),
@@ -73,7 +73,20 @@
       // Console output is optional in UXP; the in-panel log remains the source of truth.
     }
     if (!skipRender && mountedPanels.size) {
-      renderAll();
+      refreshLogTextareas();
+    }
+  }
+
+  // Refresh existing log copy fields without rebuilding the full settings workspace.
+  function refreshLogTextareas() {
+    try {
+      const fields = document.querySelectorAll ? Array.from(document.querySelectorAll(".ptb-log-copy-text")) : [];
+      const text = formatLogsForCopy();
+      fields.forEach((field) => {
+        field.value = text;
+      });
+    } catch (error) {
+      // Log refresh is best-effort; the next full render will rebuild the field.
     }
   }
 
@@ -90,7 +103,7 @@
     },
     clear() {
       internalLogs.length = 0;
-      renderAll();
+      refreshLogTextareas();
     },
     entries() {
       return internalLogs.slice();
@@ -281,7 +294,7 @@
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
       .ptb-gallery-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-gallery-card,.ptb-collection-member{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;text-align:left}.ptb-gallery-card{width:150px;min-width:150px;padding:9px}.ptb-gallery-card.active,.ptb-collection-member.active,.ptb-collection-drop-card.active{border-color:var(--ptb-accent);background:#223446}
       .ptb-card-icon{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:0 0 34px;border-radius:7px}.ptb-button-card-text{display:flex;flex-direction:column;gap:2px;min-width:0}.ptb-button-card-text strong,.ptb-button-card-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptb-button-card-text strong{font-weight:900}.ptb-button-card-text small{color:var(--ptb-muted)}
-      .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-fieldset>.ptb-field{flex:0 1 auto}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
+      .ptb-editor-shell,.ptb-icon-editor,.ptb-import-export{display:flex;flex-direction:column;gap:12px;min-width:0;padding:12px}.ptb-form-grid{display:flex;flex-wrap:wrap;gap:10px;min-width:0}.ptb-catalog-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px}.ptb-fieldset{display:flex;flex-direction:column;gap:10px;min-width:0}.ptb-tool-options{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}.ptb-check-field{display:inline-flex;align-items:center;gap:6px;color:var(--ptb-text);font-weight:700}.ptb-check-field input{width:14px;height:14px}.ptb-fieldset>.ptb-field{flex:0 1 auto}.ptb-field{display:flex;flex:1 1 190px;flex-direction:column;gap:4px;min-width:0}.ptb-field-label{color:var(--ptb-muted);font-size:10px;font-weight:700;text-transform:uppercase}.ptb-input{width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;outline:none}.ptb-input:focus{border-color:var(--ptb-accent)}
       .ptb-picker{position:relative;display:flex;flex:1 1 220px;flex-direction:column;gap:7px;min-width:0}.ptb-icon-picker{flex:1 1 220px}.ptb-color-row{display:flex;gap:8px;align-items:center}.ptb-icon-button,.ptb-color-button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid var(--ptb-line);border-radius:7px;padding:0;background:transparent;cursor:pointer}.ptb-color-input{width:92px;max-width:92px}.ptb-popover{display:flex;flex-direction:column;gap:8px;width:190px;margin-top:2px;border:1px solid var(--ptb-line);border-radius:8px;padding:8px;background:#181818}.ptb-icon-popover{width:100%;max-height:190px;margin:0;overflow:auto}.ptb-color-grid,.ptb-icon-grid{display:flex;flex-wrap:wrap;gap:5px}.ptb-color-choice,.ptb-icon-choice{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--ptb-line);border-radius:6px;padding:0;color:var(--ptb-text);background:transparent;cursor:pointer}.ptb-icon-choice{width:42px;height:42px}.ptb-color-choice.active,.ptb-icon-choice.active{border-color:var(--ptb-accent);box-shadow:0 0 0 1px var(--ptb-accent)}
       .ptb-collections-board{display:flex;flex-direction:column;gap:10px;padding:12px}.ptb-collection-drop-card{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;padding:10px;background:#242424}.ptb-collection-header-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}.ptb-collection-name-input{width:100%;min-width:160px;flex:1 1 180px;border:1px solid var(--ptb-line);border-radius:6px;padding:7px 8px;color:var(--ptb-text);background:#101010;font-weight:800;outline:none}.ptb-bar-toggles,.ptb-card-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}.ptb-bar-toggle{min-width:30px;min-height:26px;font-size:10px;font-weight:800}.ptb-bar-toggle.active{color:#e9fff3;border-color:#4ade80;background:#14532d}
       .ptb-bar-control-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px}.ptb-bar-control{display:flex;align-items:end;gap:8px;min-width:210px}.ptb-collection-member-list{display:flex;flex-wrap:wrap;gap:6px;min-width:0}.ptb-collection-member{position:relative;width:150px;min-width:150px;padding:7px}.ptb-collection-member.drag-over{border-color:var(--ptb-accent);background:#223446}.ptb-collection-member.drop-before{box-shadow:-5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member.drop-after{box-shadow:5px 0 0 #9fe3c1,0 0 0 1px rgba(159,227,193,.45)}.ptb-collection-member-list.drop-tail{box-shadow:inset -5px 0 0 #9fe3c1}.ptb-icon-action{min-width:26px;min-height:24px;padding:3px 6px;font-size:10px}.ptb-drop-hint{min-height:42px;width:100%;border:1px dashed var(--ptb-line);border-radius:7px;padding:12px;color:var(--ptb-muted);background:rgba(255,255,255,.02);text-align:center}.ptb-add-existing-row{max-width:280px}.ptb-muted{margin:7px 0 0;color:var(--ptb-muted);line-height:1.35}.ptb-module-error,.ptb-render-error{padding:12px;color:#ffd8d5;background:rgba(255,116,107,.08)}
@@ -469,6 +482,12 @@
     }
     if (tokens.includes("ptb-fieldset")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "10px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-tool-options")) {
+      setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px 14px", alignItems: "center" });
+    }
+    if (tokens.includes("ptb-check-field")) {
+      setStyles(node, { display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--ptb-text)", fontWeight: "700" });
     }
     if (tokens.includes("ptb-field")) {
       setStyles(node, { display: "flex", flex: "1 1 190px", flexDirection: "column", gap: "4px", minWidth: "0" });
@@ -1169,6 +1188,19 @@
     return wrap;
   }
 
+  // Create a checkbox row for compact binary tool options.
+  function checkboxField(label, checked, onChange) {
+    const wrap = el("label", "ptb-check-field");
+    const input = el("input");
+    input.type = "checkbox";
+    input.checked = Boolean(checked);
+    input.style.marginRight = "6px";
+    input.addEventListener("change", () => onChange(Boolean(input.checked)));
+    wrap.appendChild(input);
+    wrap.appendChild(el("span", "", label));
+    return wrap;
+  }
+
   // Open a declared UXP panel from another panel.
   function openPanel(context, panelId) {
     try {
@@ -1534,13 +1566,17 @@
       const toolField = selectField(root.PTB_I18N.t("toolAction"), button.tool.id, [
         { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") },
         { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
-        { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") }
+        { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
+        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") }
       ], (value) => {
         button.tool.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       setStyles(toolField, { flex: "0 1 auto" });
       wrap.appendChild(toolField);
+      if (button.tool.id === "removeClipEffects") {
+        wrap.appendChild(renderRemoveEffectsOptions(button));
+      }
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("toolHelp")));
       return wrap;
     }
@@ -1670,6 +1706,28 @@
       wrap.appendChild(catalogPicker);
     }
     return wrap;
+  }
+
+  // Render the options that decide which clip attributes the Remove Effects tool clears.
+  function renderRemoveEffectsOptions(button) {
+    const options = button.tool.removeEffects || {};
+    const panel = el("div", "ptb-tool-options");
+    panel.appendChild(checkboxField(root.PTB_I18N.t("removeIntrinsicEffects"), options.includeIntrinsic !== false, (checked) => {
+      button.tool.removeEffects.includeIntrinsic = checked;
+      if (!button.tool.removeEffects.includeIntrinsic && !button.tool.removeEffects.includeVideoEffects) {
+        button.tool.removeEffects.includeVideoEffects = true;
+      }
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    }));
+    panel.appendChild(checkboxField(root.PTB_I18N.t("removeVideoEffects"), options.includeVideoEffects !== false, (checked) => {
+      button.tool.removeEffects.includeVideoEffects = checked;
+      if (!button.tool.removeEffects.includeIntrinsic && !button.tool.removeEffects.includeVideoEffects) {
+        button.tool.removeEffects.includeIntrinsic = true;
+      }
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    }));
+    panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("removeEffectsHelp")));
+    return panel;
   }
 
   // Render the ordered list of child buttons used by a Multi Action button.

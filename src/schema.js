@@ -18,7 +18,7 @@
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
-  const TOOL_IDS = ["openSettings", "copyClipEffects", "pasteClipEffects"];
+  const TOOL_IDS = ["openSettings", "copyClipEffects", "pasteClipEffects", "removeClipEffects"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -68,7 +68,8 @@
       textOverride: safeString(input.textOverride, safeString(input.label, actionType === "tool" ? "Settings" : (actionType === "script" ? "Script" : "Button"))),
       tool: {
         // Tool buttons run built-in utility commands that can grow over time.
-        id: toolId
+        id: toolId,
+        removeEffects: normalizeRemoveEffectsOptions(input.tool && input.tool.removeEffects)
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
@@ -115,6 +116,17 @@
       }
     }
     return button;
+  }
+
+  // Normalize Remove Effects options and keep at least one removal group active.
+  function normalizeRemoveEffectsOptions(options) {
+    const input = options && typeof options === "object" ? options : {};
+    const includeIntrinsic = input.includeIntrinsic !== false;
+    const includeVideoEffects = input.includeVideoEffects !== false;
+    return {
+      includeIntrinsic: includeIntrinsic || !includeVideoEffects,
+      includeVideoEffects: includeVideoEffects || !includeIntrinsic
+    };
   }
 
   // Normalize a captured effect stack payload.

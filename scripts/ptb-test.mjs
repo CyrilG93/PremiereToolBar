@@ -24,6 +24,13 @@ assert.ok(defaultConfig.buttons.some((button) => button.effect && button.effect.
 assert.ok(defaultConfig.buttons.some((button) => button.actionType === "transition" && button.transition.matchName === "AE.AE_Impact_Pop"));
 assert.equal(schema.createButton({ actionType: "settings" }).actionType, "tool");
 assert.equal(schema.createButton({ actionType: "settings" }).tool.id, "openSettings");
+const removeEffectsButton = schema.createButton({
+  actionType: "tool",
+  tool: { id: "removeClipEffects", removeEffects: { includeIntrinsic: false, includeVideoEffects: true } }
+});
+assert.equal(removeEffectsButton.tool.id, "removeClipEffects");
+assert.equal(removeEffectsButton.tool.removeEffects.includeIntrinsic, false);
+assert.equal(removeEffectsButton.tool.removeEffects.includeVideoEffects, true);
 const scriptButton = schema.createButton({ actionType: "script", script: { name: "Sort Project", sourceFileName: "Sort Project.jsx", source: "alert('x');" } });
 assert.equal(scriptButton.actionType, "script");
 assert.equal(scriptButton.script.sourceFileName, "Sort Project.jsx");
@@ -410,6 +417,7 @@ assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Tools"));
+assert.ok(settingsRoot.textContent.includes("Remove Effects"));
 assert.ok(settingsRoot.textContent.includes("Multi Action"));
 assert.ok(settingsRoot.textContent.includes("Effect Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
