@@ -102,12 +102,12 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
-### 0.5.4 - 2026-06-01
+### 0.5.5 - 2026-06-01
 
 - Added a Remove Effects tool with separate choices for base parameters and video effects.
 - Reset base parameters, including Motion crop controls, to defaults instead of removing the Motion or Opacity sections.
 - Fixed base-parameter reset execution and spaced the Remove Effects options.
-- Opened Settings at a larger default size and made logs lighter during long sessions.
+- Restored the stable Settings default size and made logs lighter during long sessions.
 
 ### 0.5.0 - 2026-05-31
 
