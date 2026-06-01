@@ -875,6 +875,8 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-right: 16px;
+  margin-bottom: 6px;
   color: var(--ptb-text);
   font-weight: 700;
 }

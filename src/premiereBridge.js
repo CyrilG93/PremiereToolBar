@@ -783,7 +783,7 @@
 
   // Remove selected clip components according to the user's Remove Effects choices.
   async function removeSelectedClipEffects(button) {
-    const { project, sequence, items } = await getSelectedItems();
+    const { app, project, sequence, items } = await getSelectedItems();
     const options = button.tool && button.tool.removeEffects ? button.tool.removeEffects : {};
     const includeIntrinsic = options.includeIntrinsic !== false;
     const includeVideoEffects = options.includeVideoEffects !== false;
