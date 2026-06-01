@@ -401,7 +401,7 @@ function renderSettingsHarness(initialConfig, options = {}) {
   });
   const rootNode = document.createElement("div");
   document.body.appendChild(rootNode);
-  context.PTB_UI.mountPanel(rootNode, "ptb-settings", {});
+  context.PTB_UI.mountPanel(rootNode, options.panelId || "ptb-settings", {});
   return { context, document, rootNode, getSavedConfig: () => savedConfig, getCopiedText: () => copiedText };
 }
 
@@ -422,7 +422,7 @@ assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Scale"));
-assert.equal(countClass(settingsRoot, "ptb-slider"), 4);
+assert.equal(countClass(settingsRoot, "ptb-scale-stepper"), 4);
 assert.ok(settingsRoot.textContent.includes("Button Display"));
 assert.ok(settingsRoot.textContent.includes("Tools"));
 assert.ok(settingsRoot.textContent.includes("Remove Effects"));
@@ -430,6 +430,17 @@ assert.ok(settingsRoot.textContent.includes("Multi Action"));
 assert.ok(settingsRoot.textContent.includes("Effect Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
 assert.equal(countClass(settingsRoot, "ptb-log-copy-text"), 0);
+
+// Verify each toolbar bar applies its saved button scale to the whole button face.
+const scaledBarConfig = schema.createDefaultConfig();
+scaledBarConfig.bars[0].buttonSize = 48;
+const scaledBarRoot = renderSettingsHarness(scaledBarConfig, { panelId: "ptb-bar-1" }).rootNode;
+const scaledButton = findByPredicate(scaledBarRoot, (node) => String(node.className || "").split(/\s+/).includes("ptb-tool-button"));
+assert.equal(scaledButton.style.width, "48px");
+assert.equal(scaledButton.style.height, "48px");
+const scaledIcon = findByPredicate(scaledButton, (node) => String(node.className || "").split(/\s+/).includes("ptb-image-icon"));
+assert.equal(scaledIcon.style.width, "31px");
+assert.equal(scaledIcon.style.height, "31px");
 
 // Verify a newer GitHub release renders a direct top-header download button.
 async function updateDownloadButtonSmokeTest() {

@@ -1316,44 +1316,28 @@ button {
   min-width: 260px;
 }
 
-.ptb-slider {
-  position: relative;
-  height: 26px;
+.ptb-scale-field {
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.ptb-scale-native {
+  width: 100%;
   min-width: 150px;
-  cursor: pointer;
 }
 
-.ptb-slider-track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 11px;
-  height: 4px;
-  border-radius: 999px;
-  background: #101010;
+.ptb-scale-stepper {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
-.ptb-slider-fill {
-  height: 4px;
-  border-radius: 999px;
-  background: var(--ptb-accent);
-}
-
-.ptb-slider-thumb {
-  position: absolute;
-  top: 5px;
-  width: 16px;
-  height: 16px;
-  margin-left: -8px;
-  border: 1px solid var(--ptb-line);
-  border-radius: 999px;
-  background: #d7dee8;
-}
-
-.ptb-slider-value {
+.ptb-scale-value {
+  min-width: 42px;
   color: var(--ptb-muted);
   font-size: 10px;
   font-weight: 800;
+  text-align: center;
 }
 
 .ptb-collection-member-list {

@@ -102,6 +102,11 @@ The built-in icon gallery is bundled locally so Tool Bar does not need internet 
 
 ## Changelog
 
+### 0.5.8 - 2026-06-01
+
+- Replaced the custom drawn scale slider with a cleaner native control when available.
+- Fixed bar scaling so toolbar icons scale with the button size.
+
 ### 0.5.7 - 2026-06-01
 
 - Replaced the separate size controls with one per-bar button scale slider.
