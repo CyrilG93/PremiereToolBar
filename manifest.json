@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.cyrilplugin.toolbar",
   "name": "Tool Bar",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "main": "index.html",
   "host": {
     "app": "premierepro",
@@ -91,15 +91,15 @@
         "default": "Tool Bar Settings"
       },
       "minimumSize": {
-        "width": 720,
-        "height": 560
+        "width": 1000,
+        "height": 1000
       },
       "preferredDockedSize": {
         "width": 1400,
         "height": 940
       },
       "preferredFloatingSize": {
-        "width": 1500,
+        "width": 1000,
         "height": 1000
       }
     }

@@ -3,6 +3,15 @@
 
   // Keep render state shared across all dockable panels.
   let config = root.PTB_STORAGE.loadConfig();
+  const defaultSettingsCollapsed = {
+    buttonGallery: false,
+    buttonEditor: false,
+    barControls: false,
+    collections: false,
+    data: true,
+    logs: true
+  };
+  const savedUiState = root.PTB_STORAGE.loadUiState ? root.PTB_STORAGE.loadUiState() : { collapsed: {}, scrollState: {} };
   let catalogs = { videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [] };
   let statusMessage = root.PTB_I18N.t("statusReady");
   let settingsState = {
@@ -13,14 +22,8 @@
     dragActive: false,
     openColorPicker: "",
     openIconPicker: "",
-    collapsed: {
-      buttonGallery: false,
-      buttonEditor: false,
-      barControls: false,
-      collections: false,
-      data: true,
-      logs: true
-    }
+    collapsed: Object.assign({}, defaultSettingsCollapsed, savedUiState.collapsed || {}),
+    scrollState: Object.assign({}, savedUiState.scrollState || {})
   };
   const mountedPanels = new Map();
   let globalDragEndBound = false;
@@ -28,6 +31,7 @@
   let catalogLoadStarted = false;
   let updateCheckStarted = false;
   let updateState = { available: false, checking: false, latestVersion: "", downloadUrl: "", error: "" };
+  let settingsUiSaveTimer = null;
   const maxInternalLogs = 80;
   const audioTransitionsEnabled = false;
   const githubRepo = "CyrilG93/PremiereToolBar";
@@ -863,6 +867,9 @@
     const scrollStates = new Map();
     mountedPanels.forEach((panelId, rootNode) => {
       if (rootNode && rootNode.ownerDocument) {
+        if (panelId === "ptb-settings") {
+          rememberSettingsPanelState(rootNode, false);
+        }
         scrollStates.set(rootNode, getPanelScrollState(rootNode));
       }
     });
@@ -921,6 +928,80 @@
     restore();
     if (typeof setTimeout === "function") {
       [0, 50, 180].forEach((delay) => setTimeout(restore, delay));
+    }
+  }
+
+  // Keep only finite scroll numbers before reusing a saved Settings panel state.
+  function sanitizeScrollState(scrollState) {
+    const source = scrollState && typeof scrollState === "object" ? scrollState : {};
+    const keys = ["rootTop", "rootLeft", "shellTop", "shellLeft", "documentTop", "documentLeft", "bodyTop", "bodyLeft"];
+    return keys.reduce((result, key) => {
+      result[key] = clampNumber(source[key], 0, 0, 1000000);
+      return result;
+    }, {});
+  }
+
+  // Return the last saved Settings scroll state for a fresh panel opening.
+  function getSavedSettingsScrollState() {
+    return sanitizeScrollState(settingsState.scrollState);
+  }
+
+  // Persist Settings UI preferences without touching the toolbar button config.
+  function persistSettingsUiState(immediate) {
+    if (!root.PTB_STORAGE.saveUiState) {
+      return;
+    }
+    const save = () => {
+      try {
+        root.PTB_STORAGE.saveUiState({
+          collapsed: settingsState.collapsed,
+          scrollState: sanitizeScrollState(settingsState.scrollState)
+        });
+      } catch (error) {
+        console.warn("Tool Bar UI state save failed:", error);
+      }
+    };
+    if (settingsUiSaveTimer && typeof clearTimeout === "function") {
+      clearTimeout(settingsUiSaveTimer);
+      settingsUiSaveTimer = null;
+    }
+    if (immediate || typeof setTimeout !== "function") {
+      save();
+      return;
+    }
+    settingsUiSaveTimer = setTimeout(() => {
+      settingsUiSaveTimer = null;
+      save();
+    }, 250);
+  }
+
+  // Remember scroll while the user is still interacting with Settings.
+  function rememberSettingsPanelState(rootNode, immediate) {
+    settingsState.scrollState = getPanelScrollState(rootNode);
+    persistSettingsUiState(immediate);
+  }
+
+  // Bind live persistence because Premiere panel hide/destroy hooks are not reliable enough for final saves.
+  function bindSettingsUiPersistence(rootNode) {
+    const remember = () => rememberSettingsPanelState(rootNode, false);
+    if (rootNode && typeof rootNode.removeEventListener === "function" && rootNode.ptbSettingsScrollListener) {
+      rootNode.removeEventListener("scroll", rootNode.ptbSettingsScrollListener);
+    }
+    if (rootNode && typeof rootNode.addEventListener === "function") {
+      rootNode.ptbSettingsScrollListener = remember;
+      rootNode.addEventListener("scroll", remember);
+    }
+    const shell = rootNode && rootNode.querySelector ? rootNode.querySelector(".ptb-settings-shell") : null;
+    if (shell && typeof shell.addEventListener === "function") {
+      shell.addEventListener("scroll", remember);
+    }
+    const view = rootNode && rootNode.ownerDocument ? rootNode.ownerDocument.defaultView : root;
+    if (view && typeof view.removeEventListener === "function" && rootNode.ptbSettingsResizeListener) {
+      view.removeEventListener("resize", rootNode.ptbSettingsResizeListener);
+    }
+    if (view && typeof view.addEventListener === "function") {
+      rootNode.ptbSettingsResizeListener = remember;
+      view.addEventListener("resize", remember);
     }
   }
 
@@ -1323,8 +1404,10 @@
     ensureHeadStyles();
     try {
       if (panelId === "ptb-settings") {
+        const settingsScrollState = scrollState || getSavedSettingsScrollState();
         renderSettingsPanel(rootNode);
-        restorePanelScrollState(rootNode, scrollState);
+        bindSettingsUiPersistence(rootNode);
+        restorePanelScrollState(rootNode, settingsScrollState);
         return;
       }
       renderBarPanel(rootNode, panelId);
@@ -1547,6 +1630,7 @@
     if (key === "logs" && settingsState.collapsed.logs) {
       internalLogs.length = 0;
     }
+    persistSettingsUiState(true);
     renderAll();
   }
 

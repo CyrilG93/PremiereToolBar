@@ -4,9 +4,15 @@
   // Store settings under a namespaced key to avoid conflicts with other plugins.
   const STORAGE_KEY = "com.cyrilplugin.toolbar.config.v2";
   const LEGACY_STORAGE_KEY = "com.cyrilplugin.toolbar.config.v1";
+  const UI_STATE_KEY = "com.cyrilplugin.toolbar.uiState.v1";
   const BACKUP_FILE_NAME = "ToolBar-config-backup.json";
   const EXTERNAL_CONFIG_FOLDER_NAME = "Tool Bar";
   const EXTERNAL_CONFIG_FILE_NAME = "ToolBar-config.json";
+
+  // Return plain objects only so corrupted localStorage values cannot leak into UI state.
+  function asPlainObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
 
   // Load the toolbar configuration from persistent UXP localStorage.
   function loadConfig() {
@@ -32,6 +38,33 @@
   function readLocalStorageConfig() {
     const raw = root.localStorage && (root.localStorage.getItem(STORAGE_KEY) || root.localStorage.getItem(LEGACY_STORAGE_KEY));
     return raw ? JSON.parse(raw) : null;
+  }
+
+  // Load Settings panel UI preferences that should follow the user across projects.
+  function loadUiState() {
+    try {
+      const raw = root.localStorage && root.localStorage.getItem(UI_STATE_KEY);
+      const parsed = raw ? asPlainObject(JSON.parse(raw)) : {};
+      return {
+        collapsed: asPlainObject(parsed.collapsed),
+        scrollState: asPlainObject(parsed.scrollState)
+      };
+    } catch (error) {
+      console.warn("Tool Bar UI state load failed:", error);
+      return { collapsed: {}, scrollState: {} };
+    }
+  }
+
+  // Save Settings panel UI preferences separately from user buttons and collections.
+  function saveUiState(uiState) {
+    const existing = loadUiState();
+    const incoming = asPlainObject(uiState);
+    const next = {
+      collapsed: Object.assign({}, existing.collapsed, asPlainObject(incoming.collapsed)),
+      scrollState: Object.assign({}, existing.scrollState, asPlainObject(incoming.scrollState))
+    };
+    root.localStorage.setItem(UI_STATE_KEY, JSON.stringify(next));
+    return next;
   }
 
   // Access UXP's file picker APIs only when running inside Premiere.
@@ -241,6 +274,8 @@
   root.PTB_STORAGE = {
     loadConfig,
     saveConfig,
+    loadUiState,
+    saveUiState,
     restoreConfigBackup,
     exportJsonFile,
     importJsonFile,
