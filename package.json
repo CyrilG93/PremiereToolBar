@@ -1,6 +1,6 @@
 {
   "name": "premiere-tool-bar",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "description": "Tool Bar - Adobe Premiere Pro UXP plugin for compact effect and transition shortcuts.",
   "scripts": {

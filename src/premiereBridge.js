@@ -1,7 +1,7 @@
 (function (root) {
   "use strict";
 
-  // Names for intrinsic components that should not be captured as reusable effect presets.
+  // Names for intrinsic components that Premiere exposes as built-in clip parameters.
   const INTRINSIC_COMPONENTS = [
     "Motion",
     "Opacity",
@@ -10,6 +10,11 @@
     "Volume",
     "Channel Volume",
     "Panner"
+  ];
+  const CAPTURABLE_PRESET_INTRINSICS = [
+    "Motion",
+    "Opacity",
+    "Vector Motion"
   ];
   const FALLBACK_AUDIO_TRANSITIONS = [
     "Constant Gain",
@@ -1406,36 +1411,52 @@
     for (const item of items) {
       let appendOffset = 0;
       const targetTiming = await getItemTimingSnapshot(item);
+      const targetChain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : null;
       for (const componentSnapshot of stack.components) {
+        if (componentSnapshot.intrinsic) {
+          if (componentSnapshot.mediaType === "video" && isVideoItem(item) && targetChain) {
+            // Intrinsic snapshots write to the existing Motion/Opacity component on the target clip.
+            const component = await resolveIntrinsicPresetComponent(targetChain, componentSnapshot);
+            if (component) {
+              pendingParamTargets.push({ component, chain: targetChain, insertIndex: 0, intrinsic: true, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
+            }
+          }
+          continue;
+        }
         if (componentSnapshot.mediaType === "video" && isVideoItem(item)) {
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
-          const chain = await item.getComponentChain();
+          const chain = targetChain || await item.getComponentChain();
           appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
           pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
           appendOffset += 1;
         }
         if (componentSnapshot.mediaType === "audio" && isAudioItem(item)) {
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
-          const chain = await item.getComponentChain();
+          const chain = targetChain || await item.getComponentChain();
           appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
           pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
           appendOffset += 1;
         }
       }
     }
-    const result = executeActions(project, appendActions, "Tool Bar: " + button.label + " components");
-    await refreshSequenceView(sequence);
-    await waitForHostPaint();
+    const result = appendActions.length ? executeActions(project, appendActions, "Tool Bar: " + button.label + " components") : null;
+    if (!pendingParamTargets.length) {
+      throw new Error("No compatible selected clips for this preset.");
+    }
+    if (appendActions.length) {
+      await refreshSequenceView(sequence);
+      await waitForHostPaint();
+    }
     const resolvedTargets = pendingParamTargets.map((target) => Object.assign({}, target, {
-      resolvedComponent: resolveInsertedComponent(target.chain, target.insertIndex) || target.component
+      resolvedComponent: target.intrinsic ? target.component : (resolveInsertedComponent(target.chain, target.insertIndex) || target.component)
     }));
     const setupActions = [];
     for (const target of resolvedTargets) {
-      let actions = await createParamSetupActions(app, target.resolvedComponent, target.params);
+      let actions = await createParamSetupActions(app, target.resolvedComponent, target.params, { clearExistingKeyframes: target.intrinsic });
       target.valueComponent = target.resolvedComponent;
       if (!actions.length && target.resolvedComponent !== target.component) {
         // Use the original component proxy when the inserted component is not exposing params yet.
-        const fallbackSetupActions = await createParamSetupActions(app, target.component, target.params);
+        const fallbackSetupActions = await createParamSetupActions(app, target.component, target.params, { clearExistingKeyframes: target.intrinsic });
         if (fallbackSetupActions.length) {
           actions = fallbackSetupActions;
           target.valueComponent = target.component;
@@ -1670,9 +1691,10 @@
   }
 
   // Create only the actions that turn parameter keyframing on before keyframes are added.
-  async function createParamSetupActions(app, component, paramSnapshots) {
+  async function createParamSetupActions(app, component, paramSnapshots, options) {
     const actions = [];
     const paramCount = getComponentParamCount(component);
+    const clearExistingKeyframes = Boolean(options && options.clearExistingKeyframes);
     for (const snapshot of paramSnapshots) {
       if (snapshot.index >= paramCount) {
         continue;
@@ -1680,6 +1702,14 @@
       try {
         const param = component.getParam(snapshot.index);
         if (!param) {
+          continue;
+        }
+        if (clearExistingKeyframes) {
+          // Intrinsic clip parameters already exist on the target, so clear their old animation first.
+          actions.push.apply(actions, await createClearParamKeyframeActions(param));
+          if (typeof param.createSetTimeVaryingAction === "function") {
+            actions.push(param.createSetTimeVaryingAction(Boolean(snapshot.timeVarying && Array.isArray(snapshot.keyframes) && snapshot.keyframes.length)));
+          }
           continue;
         }
         if (snapshot.timeVarying && Array.isArray(snapshot.keyframes) && snapshot.keyframes.length) {
@@ -2059,9 +2089,36 @@
     };
   }
 
-  // Capture a selected clip's non-intrinsic effect stack for reuse by a toolbar button.
-  async function captureSelectedStack() {
+  // Return the normalized preset capture options used by UI buttons and the clipboard tool.
+  function normalizePresetCaptureOptions(options) {
+    return root.PTB_SCHEMA && typeof root.PTB_SCHEMA.normalizePresetCaptureOptions === "function"
+      ? root.PTB_SCHEMA.normalizePresetCaptureOptions(options)
+      : { includeIntrinsic: false, includeVideoEffects: true };
+  }
+
+  // Return whether a built-in clip component should be captured as base media parameters.
+  function isCapturablePresetIntrinsic(displayName, mediaType) {
+    return mediaType === "video" && CAPTURABLE_PRESET_INTRINSICS.includes(displayName);
+  }
+
+  // Resolve a stored intrinsic component snapshot against the target clip's existing component chain.
+  async function resolveIntrinsicPresetComponent(chain, snapshot) {
+    const componentCount = chain && typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+    const expectedDisplayName = normalizeEffectLabel(snapshot.displayName);
+    for (let index = 0; index < componentCount; index += 1) {
+      const component = chain.getComponentAtIndex(index);
+      const displayName = await readComponentDisplayName(component);
+      if (normalizeEffectLabel(displayName) === expectedDisplayName && isCapturablePresetIntrinsic(displayName, snapshot.mediaType)) {
+        return component;
+      }
+    }
+    return null;
+  }
+
+  // Capture a selected clip's requested base parameters and/or effect stack for reuse by a toolbar button.
+  async function captureSelectedStack(options) {
     const { app, items } = await getSelectedItems();
+    const captureOptions = normalizePresetCaptureOptions(options);
     const item = items[0];
     const mediaType = isVideoItem(item) ? "video" : "audio";
     const itemName = typeof item.getName === "function" ? await item.getName() : "";
@@ -2073,7 +2130,11 @@
       const component = chain.getComponentAtIndex(index);
       const displayName = typeof component.getDisplayName === "function" ? await component.getDisplayName() : "";
       const matchName = typeof component.getMatchName === "function" ? await component.getMatchName() : "";
-      if (INTRINSIC_COMPONENTS.includes(displayName)) {
+      const isIntrinsic = INTRINSIC_COMPONENTS.includes(displayName);
+      if (isIntrinsic && (!captureOptions.includeIntrinsic || !isCapturablePresetIntrinsic(displayName, mediaType))) {
+        continue;
+      }
+      if (!isIntrinsic && !captureOptions.includeVideoEffects) {
         continue;
       }
       const paramCount = typeof component.getParamCount === "function" ? component.getParamCount() : 0;
@@ -2085,13 +2146,15 @@
           console.warn("Tool Bar skipped unsupported parameter:", error);
         }
       }
-      components.push({ mediaType, matchName, displayName, params });
+      components.push({ mediaType, matchName, displayName, intrinsic: isIntrinsic, params });
     }
     if (!components.length) {
       throw new Error(root.PTB_I18N.t("noStackCaptured"));
     }
     logBridge("info", "Captured Tool Bar preset.", {
       components: components.length,
+      baseParameters: components.filter((component) => component.intrinsic).length,
+      clipEffects: components.filter((component) => !component.intrinsic).length,
       params: components.reduce((count, component) => count + component.params.length, 0),
       keyframes: components.reduce((count, component) => count + component.params.reduce((total, param) => total + param.keyframes.length, 0), 0)
     });

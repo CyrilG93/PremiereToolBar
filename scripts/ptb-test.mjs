@@ -32,6 +32,12 @@ const removeEffectsButton = schema.createButton({
 assert.equal(removeEffectsButton.tool.id, "removeClipEffects");
 assert.equal(removeEffectsButton.tool.removeEffects.includeIntrinsic, false);
 assert.equal(removeEffectsButton.tool.removeEffects.includeVideoEffects, true);
+const presetCaptureButton = schema.createButton({
+  actionType: "preset",
+  preset: { captureOptions: { includeIntrinsic: true, includeVideoEffects: false } }
+});
+assert.equal(presetCaptureButton.preset.captureOptions.includeIntrinsic, true);
+assert.equal(presetCaptureButton.preset.captureOptions.includeVideoEffects, false);
 const scriptButton = schema.createButton({ actionType: "script", script: { name: "Sort Project", sourceFileName: "Sort Project.jsx", source: "alert('x');" } });
 assert.equal(scriptButton.actionType, "script");
 assert.equal(scriptButton.script.sourceFileName, "Sort Project.jsx");
@@ -82,6 +88,18 @@ const button = schema.createButton({
   stack: {
     sourceInPointSeconds: 100,
     components: [{
+      intrinsic: true,
+      mediaType: "video",
+      matchName: "",
+      displayName: "Motion",
+      params: [{
+        index: 0,
+        displayName: "Position",
+        timeVarying: false,
+        startValue: { kind: "point", x: 0.5, y: 0.5 },
+        keyframes: []
+      }]
+    }, {
       mediaType: "video",
       matchName: "AE.ADBE Mosaic",
       displayName: "Mosaic",
@@ -101,10 +119,11 @@ const button = schema.createButton({
     }]
   }
 });
-assert.equal(button.stack.components[0].params[0].keyframes[0].seconds, 1);
+assert.equal(button.stack.components[1].params[0].keyframes[0].seconds, 1);
 assert.equal(button.stack.sourceInPointSeconds, 100);
-assert.equal(button.stack.components[0].params[1].startValue.kind, "raw");
-assert.equal(button.stack.components[0].params[1].startValue.encoding, "base64");
+assert.equal(button.stack.components[0].intrinsic, true);
+assert.equal(button.stack.components[1].params[1].startValue.kind, "raw");
+assert.equal(button.stack.components[1].params[1].startValue.encoding, "base64");
 
 // Verify legacy captured-stack buttons migrate to the user-facing preset action.
 const legacyStackButton = schema.createButton({ actionType: "stack" });
@@ -434,7 +453,32 @@ assert.ok(settingsRoot.textContent.includes("Remove Effects"));
 assert.ok(settingsRoot.textContent.includes("Multi Action"));
 assert.ok(settingsRoot.textContent.includes("Effect Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
+assert.equal(settingsRoot.textContent.includes("Import .prfpset"), false);
 assert.equal(countClass(settingsRoot, "ptb-log-copy-text"), 0);
+
+// Verify Effect Preset buttons expose capture group choices while .prfpset import stays hidden.
+function presetCaptureOptionsRenderSmokeTest() {
+  const presetButton = schema.createButton({
+    id: "btn-preset-options",
+    label: "Preset Options",
+    actionType: "preset",
+    preset: { name: "Preset Options" }
+  });
+  const config = schema.normalizeConfig({
+    schemaVersion: 2,
+    activeCollectionId: "collection-preset-options",
+    activeButtonId: presetButton.id,
+    buttons: [presetButton],
+    collections: [{ id: "collection-preset-options", name: "Presets", buttonIds: [presetButton.id] }],
+    bars: []
+  });
+  const harness = renderSettingsHarness(config);
+  assert.ok(harness.rootNode.textContent.includes("Base parameters"));
+  assert.ok(harness.rootNode.textContent.includes("Clip effects"));
+  assert.equal(harness.rootNode.textContent.includes("Import .prfpset"), false);
+}
+
+presetCaptureOptionsRenderSmokeTest();
 
 // Verify each toolbar bar applies its saved button scale to the whole button face.
 const scaledBarConfig = schema.createDefaultConfig();
@@ -635,6 +679,21 @@ async function capturePresetSmokeTest() {
         getKeyframeListAsTickTimes: async () => [],
         getValueAtTime: async () => ({ 0: 960, 1: 540 })
       };
+      const motionPositionParam = {
+        displayName: "Position",
+        async getStartValue() {
+          return { value: { x: 0.25, y: 0.75 }, getTemporalInterpolationMode: async () => 1 };
+        },
+        isTimeVarying: () => false,
+        getKeyframeListAsTickTimes: async () => [],
+        getValueAtTime: async () => ({ x: 0.5, y: 0.5 })
+      };
+      const motionComponent = {
+        getDisplayName: async () => "Motion",
+        getMatchName: async () => "",
+        getParamCount: () => 1,
+        getParam: () => motionPositionParam
+      };
       const component = {
         getDisplayName: async () => "Custom Blur",
         getMatchName: async () => "AE.ADBE Custom Blur",
@@ -646,8 +705,8 @@ async function capturePresetSmokeTest() {
         getName: async () => "Preset Source Clip",
         getInPoint: async () => ({ seconds: 100, ticks: "100" }),
         getComponentChain: async () => ({
-          getComponentCount: () => 1,
-          getComponentAtIndex: () => component
+          getComponentCount: () => 2,
+          getComponentAtIndex: (index) => (index === 0 ? motionComponent : component)
         })
       };
       return {
@@ -668,6 +727,7 @@ async function capturePresetSmokeTest() {
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
   const stack = await context.PTB_PREMIERE.captureSelectedStack();
   assert.equal(stack.sourceName, "Preset Source Clip");
+  assert.equal(stack.components.some((component) => component.intrinsic), false);
   assert.equal(stack.components[0].params[0].keyframes.length, 2);
   assert.equal(stack.components[0].params[0].keyframes[0].value.value, 25);
   assert.equal(stack.components[0].params[0].keyframes[1].ticks, "508032000000");
@@ -676,6 +736,11 @@ async function capturePresetSmokeTest() {
   assert.equal(stack.components[0].params[2].startValue.y, 538);
   assert.equal(stack.components[0].params[3].startValue.x, 936);
   assert.equal(stack.components[0].params[3].startValue.y, 514);
+  const stackWithBaseParameters = await context.PTB_PREMIERE.captureSelectedStack({ includeIntrinsic: true, includeVideoEffects: true });
+  assert.equal(stackWithBaseParameters.components[0].intrinsic, true);
+  assert.equal(stackWithBaseParameters.components[0].displayName, "Motion");
+  assert.equal(stackWithBaseParameters.components[0].params[0].startValue.x, 0.25);
+  assert.equal(stackWithBaseParameters.components[1].displayName, "Custom Blur");
 }
 
 // Traverse a fake DOM tree and return every matching node.
@@ -923,6 +988,96 @@ async function applyPresetPointValueSmokeTest() {
 }
 
 await applyPresetPointValueSmokeTest();
+
+// Verify intrinsic preset replay updates the target's existing Motion component instead of inserting an effect.
+async function applyIntrinsicPresetSmokeTest() {
+  const transactions = [];
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const param = {
+        getKeyframeListAsTickTimes: async () => [{ ticks: "old", seconds: 1 }],
+        createRemoveKeyframeAction: () => ({ type: "removeKeyframe" }),
+        createSetTimeVaryingAction: (enabled) => ({ type: enabled ? "timeVaryingOn" : "timeVaryingOff" }),
+        createKeyframe(value) {
+          return { value };
+        },
+        createSetValueAction(keyframe) {
+          return { type: "setValue", keyframe };
+        }
+      };
+      const motionComponent = {
+        getDisplayName: async () => "Motion",
+        getParamCount: () => 1,
+        getParam: () => param
+      };
+      const chain = {
+        getComponentCount: () => 1,
+        getComponentAtIndex: () => motionComponent,
+        createInsertComponentAction: () => ({ type: "insert" })
+      };
+      const item = {
+        createAddVideoTransitionAction() {},
+        getComponentChain: async () => chain
+      };
+      return {
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              const actionTypes = [];
+              handler({
+                addAction(action) {
+                  actionTypes.push(action && action.type ? action.type : "unknown");
+                }
+              });
+              transactions.push(actionTypes);
+              return true;
+            }
+          })
+        },
+        VideoFilterFactory: {
+          createComponent: async () => ({})
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    label: "Base Preset",
+    actionType: "preset",
+    stack: {
+      components: [{
+        intrinsic: true,
+        mediaType: "video",
+        matchName: "",
+        displayName: "Motion",
+        params: [{
+          index: 0,
+          displayName: "Scale",
+          timeVarying: false,
+          startValue: { kind: "primitive", value: 125 },
+          keyframes: []
+        }]
+      }]
+    }
+  }));
+  assert.deepEqual(transactions, [["removeKeyframe", "timeVaryingOff"], ["setValue"]]);
+}
+
+await applyIntrinsicPresetSmokeTest();
 
 // Verify effect buttons target Premiere's reverse UI order so they appear at the bottom.
 async function applyEffectOrderSmokeTest() {

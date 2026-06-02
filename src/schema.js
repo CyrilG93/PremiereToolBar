@@ -88,7 +88,9 @@
         // Store how captured/imported keyframes should be placed on the target clip.
         keyframeTiming: PRESET_TIMING_MODES.includes(input.preset && input.preset.keyframeTiming)
           ? input.preset.keyframeTiming
-          : "anchorIn"
+          : "anchorIn",
+        // Store which clip groups are captured when the user records a Tool Bar preset.
+        captureOptions: normalizePresetCaptureOptions(input.preset && input.preset.captureOptions)
       },
       multi: {
         // Multi-action buttons reference other library buttons in execution order.
@@ -130,6 +132,17 @@
     };
   }
 
+  // Normalize preset capture options while preserving the previous effect-only default.
+  function normalizePresetCaptureOptions(options) {
+    const input = options && typeof options === "object" ? options : {};
+    const includeIntrinsic = input.includeIntrinsic === true;
+    const includeVideoEffects = input.includeVideoEffects !== false;
+    return {
+      includeIntrinsic: includeIntrinsic || !includeVideoEffects,
+      includeVideoEffects: includeVideoEffects || !includeIntrinsic
+    };
+  }
+
   // Normalize a captured effect stack payload.
   function normalizeStack(stack) {
     const input = stack && typeof stack === "object" ? stack : {};
@@ -156,7 +169,8 @@
     const mediaType = MEDIA_TYPES.includes(component.mediaType) ? component.mediaType : "video";
     const matchName = safeString(component.matchName, "");
     const displayName = safeString(component.displayName, matchName || "Component");
-    if (!matchName && mediaType === "video") {
+    const intrinsic = Boolean(component.intrinsic);
+    if (!matchName && mediaType === "video" && !intrinsic) {
       return null;
     }
     const params = Array.isArray(component.params) ? component.params : [];
@@ -164,6 +178,7 @@
       mediaType,
       matchName,
       displayName,
+      intrinsic,
       params: params.map(normalizeParamSnapshot).filter(Boolean)
     };
   }
@@ -721,6 +736,7 @@
     createPresetButtons,
     createDefaultConfig,
     normalizeConfig,
+    normalizePresetCaptureOptions,
     normalizeStack,
     getCollection,
     getCollectionButtons,

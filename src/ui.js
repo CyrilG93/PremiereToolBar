@@ -34,6 +34,8 @@
   let settingsUiSaveTimer = null;
   const maxInternalLogs = 80;
   const audioTransitionsEnabled = false;
+  // Keep the .prfpset importer code available, but hide it while the internal capture workflow is preferred.
+  const presetFileImportEnabled = false;
   const githubRepo = "CyrilG93/PremiereToolBar";
   const internalLogs = [];
   const colorPalette = [
@@ -1866,7 +1868,7 @@
       }));
       wrap.appendChild(grid);
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(button.actionType === "transitionPreset" ? "transitionPresetHelp" : (catalogKind === "audioTransition" ? "audioTransitionHelp" : "transitionHelp"))));
-      if (button.actionType === "transitionPreset" && root.PTB_PRESET_IMPORT && root.PTB_STORAGE.importTextFile) {
+      if (presetFileImportEnabled && button.actionType === "transitionPreset" && root.PTB_PRESET_IMPORT && root.PTB_STORAGE.importTextFile) {
         wrap.appendChild(actionButton(root.PTB_I18N.t("importTransitionPresetFile"), "ptb-button compact", async () => {
           await importTransitionPresetFileIntoButton(button);
         }));
@@ -1904,13 +1906,14 @@
       // Keep preset-specific fields compact inside the vertical fieldset.
       setStyles(presetTimingField, { flex: "0 1 auto" });
       wrap.appendChild(presetTimingField);
+      wrap.appendChild(renderPresetCaptureOptions(button));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("presetHelp")));
       wrap.appendChild(el("p", "ptb-muted", summary));
       wrap.appendChild(actionButton(root.PTB_I18N.t("capturePreset"), "ptb-button primary", async () => {
         await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
           const presetName = button.preset.name || getButtonName(button);
           button.preset.name = presetName;
-          button.stack = await root.PTB_PREMIERE.captureSelectedStack();
+          button.stack = await root.PTB_PREMIERE.captureSelectedStack(button.preset.captureOptions);
           button.stack.sourceName = presetName;
           if (!presetName && button.stack.components[0]) {
             setButtonName(button, button.stack.components[0].displayName);
@@ -1918,7 +1921,7 @@
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         });
       }));
-      if (root.PTB_PRESET_IMPORT && root.PTB_STORAGE.importTextFile) {
+      if (presetFileImportEnabled && root.PTB_PRESET_IMPORT && root.PTB_STORAGE.importTextFile) {
         wrap.appendChild(actionButton(root.PTB_I18N.t("importPresetFile"), "ptb-button compact", async () => {
           await importPresetFileIntoButton(button);
         }));
@@ -1963,6 +1966,29 @@
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("removeEffectsHelp")));
+    return panel;
+  }
+
+  // Render the options that decide which selected clip values the preset capture stores.
+  function renderPresetCaptureOptions(button) {
+    button.preset.captureOptions = root.PTB_SCHEMA.normalizePresetCaptureOptions(button.preset.captureOptions);
+    const options = button.preset.captureOptions;
+    const panel = el("div", "ptb-tool-options");
+    panel.appendChild(checkboxField(root.PTB_I18N.t("captureIntrinsicEffects"), options.includeIntrinsic === true, (checked) => {
+      button.preset.captureOptions.includeIntrinsic = checked;
+      if (!button.preset.captureOptions.includeIntrinsic && !button.preset.captureOptions.includeVideoEffects) {
+        button.preset.captureOptions.includeVideoEffects = true;
+      }
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    }));
+    panel.appendChild(checkboxField(root.PTB_I18N.t("captureVideoEffects"), options.includeVideoEffects !== false, (checked) => {
+      button.preset.captureOptions.includeVideoEffects = checked;
+      if (!button.preset.captureOptions.includeIntrinsic && !button.preset.captureOptions.includeVideoEffects) {
+        button.preset.captureOptions.includeIntrinsic = true;
+      }
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    }));
+    panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("presetCaptureHelp")));
     return panel;
   }
 

@@ -71,8 +71,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 - Assign video transition match names from Premiere.
 - Create a `Tools` action for built-in utilities such as opening settings, copying or pasting a selected clip's effect stack, resetting base parameters, or removing video effects from selected clips.
 - Create a `Multi Action` button that runs several existing Tool Bar buttons in order, with drag and drop ordering like collections.
-- Create an `Effect Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`; choose whether keyframes anchor to the clip in/out, scale to clip duration, or keep original times.
-- Try `Import .prfpset (Experimental)` on a `Preset` button when you want Tool Bar to parse a Premiere effect preset file directly. It works best with native video effects whose match names and parameter values are visible in the XML.
+- Create an `Effect Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`; choose whether to capture base parameters, clip effects, or both, and whether keyframes anchor to the clip in/out, scale to clip duration, or keep original times.
 - Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
 - Reopen settings with the same open sections, selected button/collection, and scroll position across Premiere sessions and projects.
 - Use the update button at the top of settings when Tool Bar detects a newer GitHub release.
@@ -83,7 +82,7 @@ Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from th
 
 Adobe's documented UXP API supports adding native video/audio effects, editing exposed clip parameters, removing exposed clip components, and adding video transitions to selected timeline clips. Video effects expose stable match names, while audio effects currently expose display names for creation in the documented UXP API. Audio transition creation is not currently documented by Adobe and did not apply reliably in current tests, so Tool Bar keeps that code disabled for now. Premiere UXP does not currently expose a documented way to send host keyboard shortcuts, so Tool Bar does not offer a keyboard-shortcut button action. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
 
-Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed effects, parameters, and keyframes from a selected clip and replays them later. The experimental `.prfpset` importer reads XML and rebuilds a Tool Bar preset when possible, but Premiere UXP still does not expose stable parameter IDs, so some third-party effects, duplicated parameter names, or protected parameters may not replay perfectly. JSX scripts are also not directly runnable through a documented Premiere UXP API today; Tool Bar can store imported `.jsx` files on Script buttons and will try compatible host runner methods if Adobe exposes them later. Lumetri curve blobs and other opaque preset payloads are preserved in exported Tool Bar JSON for future compatibility, but Premiere UXP cannot replay those raw values yet.
+Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed base parameters, effects, parameters, and keyframes from a selected clip and replays them later. The experimental `.prfpset` importer is currently disabled in the UI while Tool Bar focuses on the internal capture workflow. JSX scripts are also not directly runnable through a documented Premiere UXP API today; Tool Bar can store imported `.jsx` files on Script buttons and will try compatible host runner methods if Adobe exposes them later. Lumetri curve blobs and other opaque preset payloads are preserved in exported Tool Bar JSON for future compatibility, but Premiere UXP cannot replay those raw values yet.
 
 Premiere controls the physical size and position of UXP panels through its workspace system. Tool Bar saves the Settings panel's internal layout state, but exact floating-window placement must still be handled by Premiere's saved workspace.
 
@@ -104,6 +103,11 @@ npm run ptb:verify
 The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
 
 ## Changelog
+
+### 0.6.2 - 2026-06-02
+
+- Added preset capture choices for base parameters, clip effects, or both.
+- Disabled the `.prfpset` import buttons while keeping the internal capture preset workflow.
 
 ### 0.6.1 - 2026-06-02
 
