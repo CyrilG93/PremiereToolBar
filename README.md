@@ -52,6 +52,7 @@ Open `Tool Bar Settings` to manage everything:
 
 - Create and edit buttons.
 - Drag buttons into collections.
+- Right-click a button inside a collection to remove it from that collection.
 - Assign collections to `Tool Bar 1` through `Tool Bar 4`.
 - Choose icon, text, color, and background style for each button.
 - Set each toolbar to horizontal, vertical, or automatic layout.
@@ -77,21 +78,15 @@ Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
 - macOS: `~/Library/Application Support/Tool Bar/ToolBar-config.json`
 - Windows: `%APPDATA%\Tool Bar\ToolBar-config.json`
 
-## Notes
+## Limitations
 
-Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. Some Premiere preset data, Lumetri curve data, audio transitions, and direct `.jsx` script execution are not fully exposed by Adobe's documented UXP API yet, so Tool Bar keeps those areas limited or experimental.
+Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. These areas are still limited for now:
 
-Premiere controls the physical size and position of docked panels through its workspace system. Tool Bar saves its internal settings layout, but Premiere manages the panel window placement.
-
-## Development
-
-Useful project commands:
-
-```bash
-npm run ptb:lint
-npm run ptb:test
-npm run ptb:verify
-```
+- Audio transitions are not exposed through a reliable documented UXP action.
+- Transition preset files can be parsed in part, but full transition preset application is not reliable enough for normal use.
+- Lumetri curve data can be preserved in exported Tool Bar JSON, but Premiere UXP does not expose a documented way to replay it.
+- Bezier keyframe interpolation is not fully recreated when applying captured presets.
+- Script buttons can store `.jsx` source, but direct script execution is not currently available through a documented Premiere UXP API.
 
 ## Changelog
 
@@ -99,7 +94,7 @@ npm run ptb:verify
 
 - Updated the first-run `Base Effects` collection from the bundled starter JSON.
 - Added more spacing between gallery button previews and their names.
-- Simplified the README and compacted the changelog.
+- Simplified the README, clarified collection removal, and compacted the changelog.
 
 ### 0.6.0 - 2026-06-01
 
