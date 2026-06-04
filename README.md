@@ -50,13 +50,11 @@ Each Tool Bar panel can be docked wherever you want in Premiere.
 
 Open `Tool Bar Settings` to manage everything:
 
-- Create and edit buttons.
-- Drag buttons into collections.
+- Create and edit buttons apparence and functions.
+- Drag buttons into collections or use the dropdown menu from the collection section.
 - Right-click a button inside a collection to remove it from that collection.
 - Assign collections to `Tool Bar 1` through `Tool Bar 4`.
-- Choose icon, text, color, and background style for each button.
-- Set each toolbar to horizontal, vertical, or automatic layout.
-- Adjust toolbar button size per panel.
+- Set each toolbar to horizontal, vertical, and change the overall size per bar.
 - Export or import complete button packs.
 
 New installations start with the bundled `Base Effects` collection. Updates and reinstallations keep existing buttons when Tool Bar can restore the saved configuration from local storage or its external backup file.
