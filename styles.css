@@ -1154,6 +1154,7 @@ button {
 }
 
 .ptb-gallery-card {
+  gap: 12px;
   width: 150px;
   min-width: 150px;
   padding: 9px;

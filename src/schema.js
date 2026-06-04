@@ -276,7 +276,7 @@
     };
   }
 
-  // Define starter buttons using stable ids so collections can reference them.
+  // Define starter buttons from the Base Effects collection so fresh installs match the bundled starter pack.
   function createPresetButtons() {
     return [
       createButton({
@@ -289,28 +289,6 @@
         accentColor: "#ffffff",
         displayMode: "both",
         textOverride: "SETTINGS"
-      }),
-      createButton({
-        id: "btn-copy-effects",
-        label: "Copy FX",
-        actionType: "tool",
-        tool: { id: "copyClipEffects" },
-        icon: "copy",
-        iconColor: "#000000",
-        accentColor: "#9fe3c1",
-        displayMode: "both",
-        textOverride: "Copy FX"
-      }),
-      createButton({
-        id: "btn-paste-effects",
-        label: "Paste FX",
-        actionType: "tool",
-        tool: { id: "pasteClipEffects" },
-        icon: "clipboard2-check",
-        iconColor: "#000000",
-        accentColor: "#ffb986",
-        displayMode: "both",
-        textOverride: "Paste FX"
       }),
       createButton({
         id: "btn-transform",
@@ -343,7 +321,7 @@
         accentColor: "#ff9aa2",
         displayMode: "both",
         textOverride: "Gaussian Blur",
-        effect: { matchName: "AE.ADBE Gaussian Blur 2", displayName: "Gaussian Blur" }
+        effect: { matchName: "AE.Impact_Blur_FX", displayName: "Gaussian Blur" }
       }),
       createButton({
         id: "btn-drop-shadow",
@@ -406,6 +384,178 @@
           forceSingleSided: false,
           alignment: 0
         }
+      }),
+      createButton({
+        id: "button-mpmb1gg4-t1d74x5l",
+        label: "Z5%",
+        actionType: "preset",
+        mediaType: "video",
+        icon: "camera-video-fill",
+        iconColor: "#8fd6ff",
+        accentColor: "#313840",
+        displayMode: "both",
+        textOverride: "Z5%",
+        preset: {
+          name: "ZOOM Progressif 5%",
+          keyframeTiming: "scale",
+          captureOptions: { includeIntrinsic: false, includeVideoEffects: true }
+        },
+        stack: {
+          sourceName: "ZOOM Progressif 5%",
+          capturedAt: "2026-05-26T12:08:50.337Z",
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 128.88,
+          sourceInPointSeconds: 3600,
+          sourceOutPointSeconds: 3728.88,
+          sourceDurationSeconds: 128.88,
+          importSource: "",
+          components: [{
+            mediaType: "video",
+            matchName: "AE.ADBE Geometry2",
+            displayName: "Transform",
+            intrinsic: false,
+            params: [
+              {
+                index: 2,
+                displayName: "Param 3",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: true },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 3,
+                displayName: "Scale",
+                parameterId: "",
+                timeVarying: true,
+                startValue: { kind: "primitive", value: 100 },
+                startTemporalInterpolation: 0,
+                keyframes: [
+                  {
+                    ticks: "914457600000000",
+                    seconds: 3600,
+                    relativeSeconds: 0,
+                    temporalInterpolation: 0,
+                    value: { kind: "primitive", value: 100 }
+                  },
+                  {
+                    ticks: "947195182080000",
+                    seconds: 3728.88,
+                    relativeSeconds: 128.8800000000001,
+                    temporalInterpolation: 0,
+                    value: { kind: "primitive", value: 105 }
+                  }
+                ]
+              },
+              {
+                index: 4,
+                displayName: "Param",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: 100 },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 5,
+                displayName: "Skew",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: 0 },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 6,
+                displayName: "Skew Axis",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: 0 },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 7,
+                displayName: "Rotation",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: 0 },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 8,
+                displayName: "Opacity",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: 100 },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 9,
+                displayName: "Param 10",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: true },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 10,
+                displayName: "Shutter Angle",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: 0 },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              },
+              {
+                index: 11,
+                displayName: "Sampling",
+                parameterId: "",
+                timeVarying: false,
+                startValue: { kind: "primitive", value: 0 },
+                startTemporalInterpolation: 0,
+                keyframes: []
+              }
+            ]
+          }]
+        }
+      }),
+      createButton({
+        id: "button-mpmo8f1s-l684ylss",
+        label: "Copy Effects",
+        actionType: "tool",
+        tool: { id: "copyClipEffects" },
+        icon: "flask",
+        iconColor: "#e11d48",
+        accentColor: "#f4f4f5",
+        displayMode: "both",
+        textOverride: "Copy Effects"
+      }),
+      createButton({
+        id: "button-mpmo9to4-ksq3d5xt",
+        label: "Paste Effects",
+        actionType: "tool",
+        tool: { id: "pasteClipEffects" },
+        icon: "flask-fill",
+        iconColor: "#e11d48",
+        accentColor: "#f4f4f5",
+        displayMode: "both",
+        textOverride: "Paste Effects"
+      }),
+      createButton({
+        id: "button-mpuvg1ck-fx86h10z",
+        label: "Remove Effects",
+        actionType: "tool",
+        tool: { id: "removeClipEffects", removeEffects: { includeIntrinsic: false, includeVideoEffects: true } },
+        icon: "bootstrap-reboot",
+        iconColor: "#e11d48",
+        accentColor: "#f4f4f5",
+        displayMode: "icon",
+        textOverride: "Remove Effects"
       })
     ];
   }
@@ -417,7 +567,21 @@
       createCollection({
         id: "collection-base-effects",
         name: "Base Effects",
-        buttonIds: buttons.map((button) => button.id)
+        buttonIds: [
+          "btn-settings",
+          "btn-transform",
+          "btn-gaussian-blur",
+          "btn-drop-shadow",
+          "btn-flip-horizontal",
+          "btn-flip-vertical",
+          "btn-ultra-key",
+          "btn-crop",
+          "button-mpjho02m-ogjvvn76",
+          "button-mpmb1gg4-t1d74x5l",
+          "button-mpmo8f1s-l684ylss",
+          "button-mpmo9to4-ksq3d5xt",
+          "button-mpuvg1ck-fx86h10z"
+        ]
       }),
       createCollection({ id: "collection-empty-2", name: "Collection 2", buttonIds: ["btn-settings"] }),
       createCollection({ id: "collection-empty-3", name: "Collection 3", buttonIds: ["btn-settings"] }),

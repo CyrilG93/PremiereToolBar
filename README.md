@@ -1,57 +1,42 @@
 # Tool Bar
 
-Tool Bar is a compact Adobe Premiere Pro UXP plugin for creating dockable shortcut bars. Each button can apply a configured native effect, a video transition, or a captured Tool Bar preset to the clips currently selected in the timeline.
+Tool Bar is an Adobe Premiere Pro UXP extension that adds compact dockable shortcut bars for common editing actions.
+
+Create buttons for native effects, video transitions, captured presets, and utility actions, then place them in one or more toolbar collections.
 
 ## Requirements
 
 - Adobe Premiere Pro 25.6 or later.
-- Adobe Creative Cloud Desktop for `.ccx` installation.
-- UXP Developer Tool 2.2 or later for development loading and packaging.
-- Premiere Developer Mode enabled in `Preferences > Plugins`.
-- Local file access permission, used to keep buttons and collections in a Windows user data folder that survives plugin updates.
+- Adobe Creative Cloud Desktop, used to install the `.ccx` package.
+- Premiere plugin permissions enabled when Premiere asks for them.
 
 ## Install
 
-The easiest user install method is to use the installers provided. The installers also build a `.ccx` package, that you can install with Adobe's Unified Plugin Installer Agent.
-You can also use extenal ZXP/UXP installer like [this one.](https://aescripts.com/learn/post/zxp-installer?srsltid=AfmBOooDDsd7L4wQn5h1OmGuJOTGiIilBJE7gAMMv228W99OHFv0YtaG)
-
-### macOS
-
 1. Quit Premiere Pro.
-2. Open Terminal in the Tool Bar folder.
-3. Run:
+2. Download or open the Tool Bar folder.
+3. Run the installer for your system:
 
 ```bash
 bash installers/ptb_install_macos.sh
 ```
 
-### Windows
+On Windows, double-click:
 
-1. Quit Premiere Pro.
-2. Open the Tool Bar folder.
-3. Double-click `installers\ptb_install_windows.bat`.
+```text
+installers\ptb_install_windows.bat
+```
 
-The Windows installer window stays open after it finishes so you can read any Creative Cloud or UPIA message. For packaging workflows that should not wait for a key press, run `installers\ptb_install_windows.bat --package-only`.
+The installer builds the `.ccx` package and tries to install it with Adobe's installer tool. If that does not open automatically, the `.ccx` file is created in `.ptb-installer-build`; double-click it while Creative Cloud Desktop is running.
 
-If Adobe UPIA is not found, the scripts still create a `.ccx` file in `.ptb-installer-build`. Double-clicking that `.ccx` file still requires Adobe Creative Cloud Desktop.
+## Open Tool Bar
 
-If Adobe UPIA reports a failed install status, open Creative Cloud Desktop first, then run the installer again. For development loading, add this project folder or `manifest.json` in UXP Developer Tool instead of using the `.ccx` installer.
+In Premiere Pro, open:
 
-Some third-party CCX installers may warn that no compatible application was found even when the plugin installs correctly. Tool Bar's manifest targets Premiere Pro 25.6 or later.
+```text
+Window > UXP Plugins
+```
 
-On Windows, Tool Bar also keeps buttons and collections in `%APPDATA%\Tool Bar\ToolBar-config.json`, outside Adobe's UXP plugin storage. On macOS, it uses `~/Library/Application Support/Tool Bar/ToolBar-config.json`. The included installers back up existing data before packaging or installing, then restore the UXP backup mirror after installation.
-
-### Development Loading
-
-1. Open Premiere Pro.
-2. Open the UXP Developer Tool.
-3. Add this folder as an existing plugin.
-4. Click `Load` or `Load & Watch`.
-5. In Premiere, open `Window > UXP Plugins > Tool Bar`.
-
-## Use
-
-Open one or more bars from `Window > UXP Plugins > Tool Bar`:
+Available panels:
 
 - `Tool Bar 1`
 - `Tool Bar 2`
@@ -59,438 +44,93 @@ Open one or more bars from `Window > UXP Plugins > Tool Bar`:
 - `Tool Bar 4`
 - `Tool Bar Settings`
 
-Each bar is a separate dockable Premiere panel. Open `Tool Bar Settings` from the UXP Plugins menu, or add the built-in Settings button to any collection. In settings you can:
+Each Tool Bar panel can be docked wherever you want in Premiere.
 
-- Create buttons from the top action bar, then edit the selected button below the gallery.
-- Drag buttons from the gallery into any collection, or use the add-button menu inside a collection.
-- Rename collections and assign them to bars 1-4 with the compact `B1` to `B4` toggles.
-- Set each bar to horizontal or vertical, then adjust its button scale from the compact bar controls.
-- Choose whether a button shows an icon, a three-letter text shortcut, or both.
-- Assign an icon, icon color, and button color with popover pickers, including a transparent button background when you only want the icon or text.
-- Type either the Premiere effect name or the effect match name in one field. Video effect catalog choices fill the stable match name when Premiere exposes one.
-- Assign video transition match names from Premiere.
-- Create a `Tools` action for built-in utilities such as opening settings, copying or pasting a selected clip's effect stack, resetting base parameters, or removing video effects from selected clips.
-- Create a `Multi Action` button that runs several existing Tool Bar buttons in order, with drag and drop ordering like collections.
-- Create an `Effect Preset` action by naming the preset, applying it to one clip, selecting that clip, then using `Capture Selected Preset`; choose whether to capture base parameters, clip effects, or both, and whether keyframes anchor to the clip in/out, scale to clip duration, or keep original times.
-- Read the `Logs` section at the bottom of settings when a Premiere action fails or needs debugging.
-- Reopen settings with the same open sections, selected button/collection, and scroll position across Premiere sessions and projects.
-- Use the update button at the top of settings when Tool Bar detects a newer GitHub release.
-- Use `Backup Buttons` before updating if you want a JSON copy outside Premiere's plugin storage, then use `Restore Buttons` after reinstalling if needed.
-- Export a complete pack with buttons, collections, and bar assignments, or export one collection from that collection's own card. Complete imports merge into the current setup instead of replacing everything.
+## Use
 
-## Important API Notes
+Open `Tool Bar Settings` to manage everything:
 
-Adobe's documented UXP API supports adding native video/audio effects, editing exposed clip parameters, removing exposed clip components, and adding video transitions to selected timeline clips. Video effects expose stable match names, while audio effects currently expose display names for creation in the documented UXP API. Audio transition creation is not currently documented by Adobe and did not apply reliably in current tests, so Tool Bar keeps that code disabled for now. Premiere UXP does not currently expose a documented way to send host keyboard shortcuts, so Tool Bar does not offer a keyboard-shortcut button action. The documented API also supports multiple dockable panels, so Tool Bar includes four bars.
+- Create and edit buttons.
+- Drag buttons into collections.
+- Assign collections to `Tool Bar 1` through `Tool Bar 4`.
+- Choose icon, text, color, and background style for each button.
+- Set each toolbar to horizontal, vertical, or automatic layout.
+- Adjust toolbar button size per panel.
+- Export or import complete button packs.
 
-Directly applying Premiere `.prfpset` effect or transition preset files is not exposed in the documented UXP DOM API at this time. Tool Bar therefore includes a `Preset` action that captures exposed base parameters, effects, parameters, and keyframes from a selected clip and replays them later. The experimental `.prfpset` importer is currently disabled in the UI while Tool Bar focuses on the internal capture workflow. JSX scripts are also not directly runnable through a documented Premiere UXP API today; Tool Bar can store imported `.jsx` files on Script buttons and will try compatible host runner methods if Adobe exposes them later. Lumetri curve blobs and other opaque preset payloads are preserved in exported Tool Bar JSON for future compatibility, but Premiere UXP cannot replay those raw values yet.
+New installations start with the bundled `Base Effects` collection. Updates and reinstallations keep existing buttons when Tool Bar can restore the saved configuration from local storage or its external backup file.
 
-Premiere controls the physical size and position of UXP panels through its workspace system. Tool Bar saves the Settings panel's internal layout state, but exact floating-window placement must still be handled by Premiere's saved workspace.
+## Button Types
+
+- `Native Effect`: add a Premiere effect to selected clips.
+- `Video Transition`: add a video transition to selected clips or an edit point.
+- `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later.
+- `Multi Action`: run several existing Tool Bar buttons in order.
+- `Tools`: open settings, copy effects, paste effects, or remove selected clip effects.
+
+## Backup
+
+Use `Backup Buttons` in settings before major updates if you want a manual JSON copy.
+
+Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
+
+- macOS: `~/Library/Application Support/Tool Bar/ToolBar-config.json`
+- Windows: `%APPDATA%\Tool Bar\ToolBar-config.json`
+
+## Notes
+
+Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. Some Premiere preset data, Lumetri curve data, audio transitions, and direct `.jsx` script execution are not fully exposed by Adobe's documented UXP API yet, so Tool Bar keeps those areas limited or experimental.
+
+Premiere controls the physical size and position of docked panels through its workspace system. Tool Bar saves its internal settings layout, but Premiere manages the panel window placement.
 
 ## Development
 
-Use the project-prefixed commands:
+Useful project commands:
 
 ```bash
-npm run ptb:install:mac
-npm run ptb:install:windows
 npm run ptb:lint
 npm run ptb:test
 npm run ptb:verify
 ```
 
-## Icon Notes
-
-The built-in icon gallery is bundled locally so Tool Bar does not need internet access inside Premiere. The current test pack uses inline SVG files from `assets/SVG`, and Tool Bar paints the SVG shapes directly so `Icon Color` can recolor icons in bars and settings.
-
 ## Changelog
 
-### 0.6.2 - 2026-06-02
+### 0.7.0 - 2026-06-04
 
-- Added preset capture choices for base parameters, clip effects, or both.
-- Disabled the `.prfpset` import buttons while keeping the internal capture preset workflow.
-
-### 0.6.1 - 2026-06-02
-
-- Settings now reopens with the same sections, active selection, and scroll position across Premiere sessions and projects.
-- Clarified that Premiere itself controls the physical Settings panel size and placement.
+- Updated the first-run `Base Effects` collection from the bundled starter JSON.
+- Added more spacing between gallery button previews and their names.
+- Simplified the README and compacted the changelog.
 
 ### 0.6.0 - 2026-06-01
 
-- Replaced the generic Bar Controls orientation labels with `Tool Bar 1` to `Tool Bar 4`.
-- Released the compact, collapsible settings workflow with per-bar button scaling.
-
-### 0.5.9 - 2026-06-01
-
-- Made the bar scale fallback controls more discreet.
-- Removed the truncated bar labels from the left side of Bar Controls.
-
-### 0.5.8 - 2026-06-01
-
-- Replaced the custom drawn scale slider with a cleaner native control when available.
-- Fixed bar scaling so toolbar icons scale with the button size.
-
-### 0.5.7 - 2026-06-01
-
-- Replaced the separate size controls with one per-bar button scale slider.
-- Made the slider scale the whole toolbar button, including icon and text.
-
-### 0.5.6 - 2026-06-01
-
-- Added collapsible Settings sections and paused internal log recording when Logs is closed.
-- Added per-bar button and icon size controls.
-- Made collection buttons more compact by showing only icons.
-
-### 0.5.5 - 2026-06-01
-
-- Added a Remove Effects tool with separate choices for base parameters and video effects.
-- Reset base parameters, including Motion crop controls, to defaults instead of removing the Motion or Opacity sections.
-- Fixed base-parameter reset execution and spaced the Remove Effects options.
-- Restored the stable Settings default size and made logs lighter during long sessions.
+- Added a cleaner Settings workflow with remembered open sections, selection, and scroll position.
+- Added preset capture options for base parameters, clip effects, or both.
+- Kept `.prfpset` import experimental while focusing on the internal preset capture workflow.
 
 ### 0.5.0 - 2026-05-31
 
-- Released improved Tool Bar preset capture and replay for Transform Anchor Point and Position values.
-- Kept preset point values stable when applying presets with scale and other Transform settings.
-
-### 0.4.5 - 2026-05-31
-
-- Improved capture and logging for Transform Anchor Point and Position presets.
-
-### 0.4.4 - 2026-05-31
-
-- Fixed captured Transform Anchor Point and Position values so they paste back with their edited coordinates.
-
-### 0.4.3 - 2026-05-28
-
-- Fixed static point parameters such as Transform Position so they keep their captured values.
-
-### 0.4.2 - 2026-05-28
-
-- Increased the default Settings panel size so the button editor and collections are usable immediately.
-
-### 0.4.1 - 2026-05-28
-
-- Fixed captured presets so edited non-keyframed parameters keep their real value instead of falling back to `0`.
-- Improved `.prfpset` parsing for static edited values stored in `CurrentValue`.
+- Improved captured preset replay for Transform values, keyframes, and point parameters.
+- Added per-bar button scaling and compact Settings controls.
+- Added Remove Effects options for base parameters and video effects.
 
 ### 0.4.0 - 2026-05-26
 
-- Renamed the action labels to `Effect Preset` and `Tools`.
-- Hid Script buttons from the visible action list until Premiere exposes a usable JSX runner.
-- Published the first `0.4.x` beta release package.
-- Added the visible update download button and the Premiere UXP permission required to open the GitHub release `.zip`.
-
-### 0.3.11 - 2026-05-26
-
-- Reordered button action types to Native Effect, Preset, Transition, Multi Action, Script, then Tool.
-- Hid the experimental Transition Preset action from new button setup while keeping its code path for later.
-- Added Script buttons with `.jsx` import and clear logging for the current Premiere UXP JSX limitation.
-
-### 0.3.10 - 2026-05-26
-
-- Replayed compatible parameters from imported transition `.prfpset` files after adding the transition.
-- Logged clear warnings when Premiere does not expose the created transition item for parameter replay.
-
-### 0.3.9 - 2026-05-26
-
-- Added `Transition Preset` buttons with `.prfpset` import for transition match name and duration.
-- Stored imported transition preset data in Tool Bar so the original preset file is not required after import.
-
-### 0.3.8 - 2026-05-26
-
-- Fixed Multi Action drag and drop from the gallery and between Multi Action buttons.
-- Removed the extra empty space in the Multi Action button editor.
-
-### 0.3.7 - 2026-05-26
-
-- Made Multi Action editing compact and drag/drop based, with right-click removal like collections.
-- Moved collection export onto each collection card.
-- Simplified the global import/export panel to complete export and merge import only.
-
-### 0.3.6 - 2026-05-26
-
-- Added Tool buttons for settings, copy clip effects, and paste clip effects.
-- Added Multi Action buttons that run several existing buttons in order.
-- Added complete pack export/import with merge behavior for buttons, collections, and bar assignments.
-
-### 0.3.5 - 2026-05-26
-
-- Rebased preset keyframes on the selected clip in/out point so they appear on macOS instead of applying only one static value.
-
-### 0.3.4 - 2026-05-26
-
-- Split preset keyframe replay into a dedicated setup step before adding keyframes, improving macOS reliability.
-- Removed the extra empty space in the Preset button editor layout.
-
-### 0.3.3 - 2026-05-26
-
-- Fixed macOS installer backups so valid Tool Bar JSON is no longer rejected by `plutil`.
-- Preserved unsupported captured preset values as raw entries so Lumetri-like parameters remain visible in exported JSON.
-
-### 0.3.2 - 2026-05-26
-
-- Preserved raw Lumetri curve and selector payloads when importing `.prfpset` files.
-- Preserved opaque captured parameter objects in Tool Bar preset JSON for future replay support.
-- Skipped raw preset values cleanly when Premiere UXP cannot apply their parameter type.
-
-### 0.3.1 - 2026-05-26
-
-- Improved macOS packaging so local Finder metadata files are excluded from the generated `.ccx`.
-- Extended local verification to cover the preset import module loaded by the plugin.
+- Renamed the main actions to clearer user-facing labels.
+- Added the visible update download button.
+- Published the first `0.4.x` beta package.
 
 ### 0.3.0 - 2026-05-25
 
 - Added reliable captured video presets with keyframe timing modes.
-- Added experimental `.prfpset` import for native video effect presets.
-- Improved preset replay so static values and keyframes are preserved more consistently.
-- Kept update checks quieter when Premiere blocks network access.
+- Added Multi Action buttons and complete pack import/export.
+- Improved preset and transition preset parsing for compatible Premiere data.
 
 ### 0.2.0 - 2026-05-25
 
-- Added a GitHub release update check with a settings banner when a newer version is available.
-- Updated the first-run default buttons and collections with the bundled Base Effects setup.
-- Made video effect catalog selections fill the stable Premiere match name in the editor.
-
-### 0.1.44 - 2026-05-25
-
-- Made video effect catalog selections fill the stable Premiere match name in the editor.
-- Clarified that audio effects use display names because Premiere UXP does not expose audio effect match names in the documented factory API.
-
-### 0.1.43 - 2026-05-25
-
-- Improved collection drag and drop so buttons can be reordered at the beginning, middle, or end.
-- Made the insertion preview clearer while dragging inside a collection.
-
-### 0.1.42 - 2026-05-25
-
-- Centered detected edit-point video transitions on the shared cut between adjacent clips.
-- Hid and disabled audio transition buttons until Premiere exposes reliable support.
-
-### 0.1.41 - 2026-05-24
-
-- Applied video transitions only once at the shared cut when two adjacent clips are selected.
-- Kept settings scroll position stable when toolbar buttons update status or logs.
-
-### 0.1.40 - 2026-05-24
-
-- Removed the built-in match-name analyzer button from settings.
-- Improved transition picker labels and simplified audio transition selection.
-- Added edit-point video transition handling when a selected timeline edit point can be mapped to an adjacent clip.
-
-### 0.1.37 - 2026-05-24
-
-- Added `Inspect Selection Match Names` to log selected clip effect match names and nearby transition match names.
-- Expanded transition diagnostics to scan all exposed video and audio tracks when no nearby transition is found.
-- Added raw object-shape diagnostics for transition objects that do not expose normal match-name methods.
-- Kept the settings scroll position stable when logs refresh after an inspection.
-
-### 0.1.36 - 2026-05-24
-
-- Added a separate `Audio Transition` action for audio crossfades when Premiere exposes compatible UXP methods.
-- Added audio-transition catalog entries for common crossfades and clearer logs when the host cannot apply them.
-
-### 0.1.35 - 2026-05-24
-
-- Removed the oversized empty space in the preset editor.
-- Added a small gap between toolbar buttons.
-- Allowed comma decimals such as `0,5` for transition duration.
-
-### 0.1.34 - 2026-05-24
-
-- Kept only the copyable log view in settings.
-- Added staged redraws when opening settings to avoid the occasional broken first layout.
-- Retried video transitions with close Premiere match-name suggestions, such as `AE.ADBE Dip To White`.
-- Improved empty captured-preset errors so they no longer look like clip-selection failures.
-
-### 0.1.33 - 2026-05-24
-
-- Made logs read from oldest to newest and added a selectable text copy area.
-- Added `Copy Logs` for easier debugging reports.
-- Added transition match-name copy support and closer error suggestions when a transition cannot be created.
-
-### 0.1.32 - 2026-05-24
-
-- Added a `Logs` section at the bottom of settings for internal messages and Premiere errors.
-- Made SVG icon coloring apply in the settings view as well as the docked bars.
-- Reduced the initial icon gallery render by loading the large SVG list progressively.
-- Added detailed transition diagnostics to show why a transition action fails or is ignored.
-
-### 0.1.31 - 2026-05-24
-
-- Loaded the expanded SVG icon pack and kept the icon picker scrollable.
-- Removed icon-color borders from toolbar and collection buttons.
-- Added clip start plus end transition placement and a timeline repaint nudge after applying actions.
-
-### 0.1.30 - 2026-05-24
-
-- Switched the icon test pack to inline SVG icons for more reliable coloring.
-- Kept one automatic backup file per version instead of creating a new timestamped copy every run.
-- Cleaned old package staging folders before creating a new installer package.
-
-### 0.1.29 - 2026-05-24
-
-- Improved icon recoloring by tinting the loaded PNG element through canvas.
-- Changed effect insertion to target Premiere's reverse component-chain order.
-- Increased the preferred Tool Bar Settings panel size for floating and docked openings.
-
-### 0.1.28 - 2026-05-23
-
-- Added the same automatic update backup flow to the macOS installer.
-- Changed effect application to use Premiere's native append action.
-- Improved icon and button text recoloring inside Premiere panels.
-
-### 0.1.27 - 2026-05-23
-
-- Added automatic Windows installer backup for buttons and collections before updates.
-- Stored buttons and collections in a user-level Tool Bar config file outside Adobe's UXP plugin storage.
-- Restored the internal UXP backup mirror after Windows installer runs.
-
-### 0.1.26 - 2026-05-23
-
-- Restored visible PNG icons in Premiere panels.
-- Improved vertical bar layout consistency.
-- Added quick button backup and restore actions for update-safe JSON copies.
-
-### 0.1.25 - 2026-05-23
-
-- Improved icon color rendering, icon gallery placement, vertical bar wrapping, and text weight consistency.
-
-### 0.1.24 - 2026-05-23
-
-- Added compact horizontal/vertical controls for bars 1-4.
-- Improved icon editing, icon/text coloring, collection drag previews, and active bar assignment highlights.
-- Added a backup mirror for saved buttons to better survive installer updates.
-- Added new effects at the bottom of the existing effect stack.
-
-### 0.1.23 - 2026-05-23
-
-- Improved preset capture so exposed keyframes are preserved more reliably.
-- Added a preset name field for `Preset` buttons.
-
-### 0.1.22 - 2026-05-23
-
-- Added a user-facing `Preset` button action that captures and reapplies exposed effect stacks from selected clips.
-- Documented the third-party CCX installer compatibility warning.
-
-### 0.1.21 - 2026-05-23
-
-- Clarified the Windows installer messages when CCX installation depends on Creative Cloud Desktop.
-
-### 0.1.20 - 2026-05-23
-
-- Made the Windows installer report Adobe UPIA failed-install statuses clearly instead of showing a success message.
-
-### 0.1.19 - 2026-05-23
-
-- Fixed Windows packaging on PowerShell versions that only allow `.zip` archive output.
-
-### 0.1.18 - 2026-05-23
-
-- Kept the Windows installer window open after user launches so installation messages are visible.
-
-### 0.1.17 - 2026-05-22
-
-- Switched the icon gallery and toolbar buttons to the bundled PNG icon pack.
-- Replaced picker previews with custom controls to avoid gray native button squares in Premiere.
-
-### 0.1.16 - 2026-05-22
-
-- Rebuilt icon rendering with real HTML shape elements instead of pseudo-elements.
-- Added a mouseup fallback for collection drag and drop so the hovered target applies even when UXP skips native drop events.
-- Clarified that transparent PNG icon packs are safer than SVG packs for this panel.
-
-### 0.1.15 - 2026-05-22
-
-- Moved the icon gallery into an on-demand picker next to the color controls.
-- Replaced text glyph icons with CSS-shape icons to avoid missing-font squares in Premiere.
-- Normalized compact toolbar spacing across all four bars.
-
-### 0.1.14 - 2026-05-22
-
-- Added an `Icon + Text` button display mode.
-- Replaced the native color input with a built-in color picker that works inside Premiere UXP.
-- Restored visible icons with UXP-safe graphic glyphs and kept icon colors editable.
-- Removed the collection name from compact toolbar panels and kept the bars distinct as Tool Bar 1-4 panels.
-- Improved collection drag and drop feedback with an insertion marker.
-
-### 0.1.13 - 2026-05-22
-
-- Added separate icon-only and text-only display modes for buttons.
-- Reworked icon rendering so toolbar buttons and collection cards show graphic icons without fallback initials.
-- Replaced color swatch rows with native color pickers for icon and button colors.
-- Merged effect display name and match name into one effect lookup field.
-- Improved collection drag and drop behavior and showed the assigned collection name in each toolbar panel.
-
-### 0.1.12 - 2026-05-21
-
-- Simplified button gallery and collection labels to show only the editable button name.
-- Added a graphical SVG icon gallery and visual color swatches for icon and button colors.
-- Added drag and drop reordering inside collections plus right-click removal from a collection.
-- Kept video effect display-name lookup, while match names remain the most reliable Premiere identifier.
-- Icon shapes use an internal SVG set compatible with Lucide-style open icons; Lucide is available under the ISC license.
-
-### 0.1.11 - 2026-05-21
-
-- Changed the Settings modules so their contents are filled only after each section is mounted in Premiere.
-- Kept module bodies open with a stable minimum height to prevent UXP from showing title-only sections.
-- Replaced nested grid layouts in Settings with flex layouts for better Premiere UXP rendering.
-
-### 0.1.10 - 2026-05-21
-
-- Made the Settings modules render as a stable visible column in Premiere UXP.
-- Added per-module render fallbacks so Button Gallery, Button Editor, Collections, and Import / Export do not disappear silently.
-- Removed the remaining visible dependency on the Premiere list refresh workflow.
-
-### 0.1.9 - 2026-05-13
-
-- Made all settings modules visible immediately instead of relying on collapsible sections.
-- Removed the visible `Refresh Premiere Lists` buttons while the effect list workflow is still being refined.
-- Unified toolbar spacing to the tighter compact style across all dockable bars.
-
-### 0.1.8 - 2026-05-13
-
-- Removed the panel-root style injection that UXP rendered as visible CSS text.
-- Added inline critical styling to the toolbar and settings UI so redraws keep the intended layout.
-
-### 0.1.7 - 2026-05-13
-
-- Fixed settings redraws so the panel keeps its styled sections after pressing buttons.
-- Ensured the button gallery and collections render immediately when the settings panel opens.
-- Made toolbar strips choose vertical layout only when the docked panel is genuinely tall and narrow.
-
-### 0.1.6 - 2026-05-13
-
-- Added cache-busting for UXP assets so Premiere does not keep an old stylesheet while loading newer JavaScript.
-- Added built-in critical styles to keep the settings panel readable even if UXP caches external CSS.
-- Updated the panel background to follow Premiere/UXP theme colors when available.
-
-### 0.1.5 - 2026-05-13
-
-- Simplified settings into collapsible sections for button gallery, button editor, collections, and import/export.
-- Added drag and drop from the button gallery into collections.
-- Added compact `B1` to `B4` toggles on collections for assigning dockable bars.
-
-### 0.1.4 - 2026-05-13
-
-- Replaced bar names with a collection system: global buttons can be assigned to collections, and collections can be assigned to bars 1-4.
-- Added a default Base Effects collection with Settings, Transform, Crop, Gaussian Blur, Drop Shadow, Horizontal Flip, Vertical Flip, and Ultra Key buttons.
-- Updated import/export to target collections instead of bars and unified the compact bar appearance.
-
-### 0.1.3 - 2026-05-13
-
-- Rebuilt the settings panel as a wider workspace with clear bar and button selection.
-- Fixed bar renaming, button creation, duplication, deletion, and reordering.
-- Replaced the invalid Solarize starter button with Gaussian Blur and added safer effect lookup.
-
-### 0.1.2 - 2026-05-13
-
-- Improved the settings panel so Add Button and edit controls are visible immediately in Premiere UXP.
-- Replaced SVG toolbar icons with compact text icons for better UXP compatibility.
-
-### 0.1.1 - 2026-05-13
-
-- Added macOS and Windows installer scripts that build a `.ccx` package and install it through Adobe UPIA when available.
+- Added the GitHub update check.
+- Added the bundled Base Effects starter setup.
+- Improved video effect lookup with stable Premiere match names.
 
 ### 0.1.0 - 2026-05-13
 
-- Initial Tool Bar plugin with four dockable bars, configurable buttons, icon gallery, Premiere effect/transition actions, captured-stack presets, and bar import/export.
+- Initial Tool Bar extension with four dockable bars, configurable buttons, icon editing, collections, installers, backups, and import/export.

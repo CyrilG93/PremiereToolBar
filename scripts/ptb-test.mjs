@@ -8,19 +8,21 @@ import schema from "../src/schema.js";
 // Resolve project files from this test script location.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// Verify the first-run configuration always contains four dockable bars and one base collection.
+// Verify the first-run configuration always contains four dockable bars and the bundled Base Effects collection.
 const defaultConfig = schema.createDefaultConfig();
 assert.equal(defaultConfig.schemaVersion, 2);
 assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");
 assert.equal(defaultConfig.bars[0].collectionId, "collection-base-effects");
 assert.equal(defaultConfig.bars[0].buttonSize, 34);
-assert.equal(defaultConfig.collections[0].buttonIds.length, 11);
+assert.equal(defaultConfig.collections[0].buttonIds.length, 13);
 assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-settings"));
-assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-copy-effects"));
-assert.ok(defaultConfig.collections[0].buttonIds.includes("btn-paste-effects"));
-assert.ok(defaultConfig.buttons.every((item) => item.displayMode === "both"));
+assert.ok(defaultConfig.collections[0].buttonIds.includes("button-mpmo8f1s-l684ylss"));
+assert.ok(defaultConfig.collections[0].buttonIds.includes("button-mpmo9to4-ksq3d5xt"));
+assert.ok(defaultConfig.collections[0].buttonIds.includes("button-mpuvg1ck-fx86h10z"));
+assert.ok(defaultConfig.buttons.some((item) => item.displayMode === "icon"));
 assert.ok(defaultConfig.buttons.some((button) => button.actionType === "tool" && button.tool.id === "openSettings"));
+assert.ok(defaultConfig.buttons.some((button) => button.actionType === "preset" && button.preset.name === "ZOOM Progressif 5%"));
 assert.ok(defaultConfig.buttons.some((button) => button.effect && button.effect.displayName === "Ultra Key"));
 assert.ok(defaultConfig.buttons.some((button) => button.actionType === "transition" && button.transition.matchName === "AE.AE_Impact_Pop"));
 assert.equal(schema.createButton({ actionType: "settings" }).actionType, "tool");
@@ -70,7 +72,7 @@ const importedConfig = schema.importJson(customConfig, exportedCollection, {
 });
 const replacedCollection = schema.getCollection(importedConfig, "collection-empty-3");
 assert.equal(replacedCollection.id, "collection-empty-3");
-assert.equal(replacedCollection.buttonIds.length, 11);
+assert.equal(replacedCollection.buttonIds.length, 13);
 assert.equal(schema.getCollection(importedConfig, "collection-empty-2").buttonIds.length, 1);
 
 // Verify complete import merges conflicts instead of replacing the user's current setup.
