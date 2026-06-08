@@ -475,6 +475,8 @@ function presetCaptureOptionsRenderSmokeTest() {
     bars: []
   });
   const harness = renderSettingsHarness(config);
+  // Keep preset naming tied to capture instead of exposing an ineffective text field.
+  assert.equal(harness.rootNode.textContent.includes("Preset Name"), false);
   assert.ok(harness.rootNode.textContent.includes("Base parameters"));
   assert.ok(harness.rootNode.textContent.includes("Clip effects"));
   assert.equal(harness.rootNode.textContent.includes("Import .prfpset"), false);

@@ -63,7 +63,7 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 
 - `Native Effect`: add a Premiere effect to selected clips.
 - `Video Transition`: add a video transition to selected clips or an edit point.
-- `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later.
+- `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later. The standard button name is used, so no separate preset name is required.
 - `Multi Action`: run several existing Tool Bar buttons in order.
 - `Tools`: open settings, copy effects, paste effects, or remove selected clip effects.
 

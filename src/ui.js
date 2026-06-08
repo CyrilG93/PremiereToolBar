@@ -1886,14 +1886,6 @@
       const summary = button.stack.components.length
         ? button.stack.components.map((component) => component.displayName).join(", ")
         : root.PTB_I18N.t("noPresetCaptured");
-      const presetNameField = textField(root.PTB_I18N.t("presetName"), button.preset.name || getButtonName(button), (value) => {
-        button.preset.name = value;
-        if (value) {
-          setButtonName(button, value);
-        }
-      });
-      setStyles(presetNameField, { flex: "0 1 auto" });
-      wrap.appendChild(presetNameField);
       const presetTimingField = selectField(root.PTB_I18N.t("presetTiming"), button.preset.keyframeTiming || "anchorIn", [
         { value: "anchorIn", label: root.PTB_I18N.t("presetTimingAnchorIn") },
         { value: "anchorOut", label: root.PTB_I18N.t("presetTimingAnchorOut") },
@@ -1911,6 +1903,7 @@
       wrap.appendChild(el("p", "ptb-muted", summary));
       wrap.appendChild(actionButton(root.PTB_I18N.t("capturePreset"), "ptb-button primary", async () => {
         await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
+          // Use the standard button name because preset naming is determined during capture.
           const presetName = button.preset.name || getButtonName(button);
           button.preset.name = presetName;
           button.stack = await root.PTB_PREMIERE.captureSelectedStack(button.preset.captureOptions);
