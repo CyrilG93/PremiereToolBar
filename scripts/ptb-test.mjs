@@ -484,6 +484,68 @@ function presetCaptureOptionsRenderSmokeTest() {
 
 presetCaptureOptionsRenderSmokeTest();
 
+// Verify captured effects with native or opaque color parameters display the red UXP limitation warning.
+function presetColorPickerWarningRenderSmokeTest() {
+  const presetButton = schema.createButton({
+    id: "btn-preset-color-warning",
+    label: "Color Warning",
+    actionType: "preset",
+    stack: {
+      components: [{
+        mediaType: "video",
+        matchName: "AE.ADBE Ultra Key",
+        displayName: "Ultra Key",
+        params: [{
+          index: 0,
+          displayName: "Key Color",
+          startValue: { kind: "raw", encoding: "uxp-object", value: "" }
+        }]
+      }, {
+        mediaType: "video",
+        matchName: "AE.Custom Color Effect",
+        displayName: "Custom Color Effect",
+        params: [{
+          index: 0,
+          displayName: "Sample",
+          startValue: {
+            kind: "raw",
+            encoding: "uxp-object",
+            value: "",
+            objectShape: { constructorName: "Color", ownKeys: [], enumerableKeys: [] }
+          }
+        }]
+      }, {
+        mediaType: "video",
+        matchName: "AE.ADBE Gaussian Blur 2",
+        displayName: "Gaussian Blur",
+        params: [{
+          index: 0,
+          displayName: "Blurriness",
+          startValue: { kind: "primitive", value: 25 }
+        }]
+      }]
+    }
+  });
+  const config = schema.normalizeConfig({
+    schemaVersion: 2,
+    activeCollectionId: "collection-preset-color-warning",
+    activeButtonId: presetButton.id,
+    buttons: [presetButton],
+    collections: [{ id: "collection-preset-color-warning", name: "Presets", buttonIds: [presetButton.id] }],
+    bars: []
+  });
+  const harness = renderSettingsHarness(config);
+  const warnings = findAllByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-preset-color-warning"));
+  assert.equal(warnings.length, 2);
+  assert.ok(warnings.every((warning) => warning.textContent === "Color picker limitation"));
+  assert.ok(warnings.every((warning) => warning.style.color === "var(--ptb-danger)"));
+  assert.ok(harness.rootNode.textContent.includes("Ultra KeyColor picker limitation"));
+  assert.ok(harness.rootNode.textContent.includes("Custom Color EffectColor picker limitation"));
+  assert.equal(harness.rootNode.textContent.includes("Gaussian BlurColor picker limitation"), false);
+}
+
+presetColorPickerWarningRenderSmokeTest();
+
 // Verify each toolbar bar applies its saved button scale to the whole button face.
 const scaledBarConfig = schema.createDefaultConfig();
 scaledBarConfig.bars[0].buttonSize = 48;

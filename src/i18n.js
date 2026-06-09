@@ -134,6 +134,8 @@
     noButtonSelected: "Select or create a button.",
     noStackCaptured: "No capturable preset values found on the selected clip.",
     noPresetCaptured: "No captured preset yet.",
+    colorPickerWarning: "Color picker limitation",
+    colorPickerWarningHelp: "Premiere UXP may keep the default color or restore an incorrect color for this effect.",
     presetHelp: "Name the preset, apply it to one clip in Premiere, select that clip, then capture it here. Tool Bar replays the selected exposed parameters and keyframes.",
     presetImportNoEffects: "No usable video effects were found in that .prfpset file.",
     presetImportNoTransitions: "No usable video transition was found in that .prfpset file.",

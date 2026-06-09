@@ -619,6 +619,18 @@
     if (tokens.includes("ptb-muted")) {
       setStyles(node, { margin: "7px 0 0", color: "var(--ptb-muted)", lineHeight: "1.35" });
     }
+    if (tokens.includes("ptb-preset-component-list")) {
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "4px", marginTop: "7px" });
+    }
+    if (tokens.includes("ptb-preset-component-row")) {
+      setStyles(node, { display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "6px", minWidth: "0" });
+    }
+    if (tokens.includes("ptb-preset-component-name")) {
+      setStyles(node, { color: "var(--ptb-muted)" });
+    }
+    if (tokens.includes("ptb-preset-color-warning")) {
+      setStyles(node, { color: "var(--ptb-danger)", fontSize: "10px", fontWeight: "800" });
+    }
     if (tokens.includes("ptb-module-error") || tokens.includes("ptb-render-error")) {
       setStyles(node, { padding: "12px", color: "#ffd8d5", background: "rgba(255, 116, 107, 0.08)" });
     }
@@ -688,6 +700,67 @@
       return [];
     }
     return collection.buttonIds.map(getButton).filter(Boolean);
+  }
+
+  // Return whether a captured value contains a Premiere color or an opaque Color-like UXP object.
+  function isCapturedColorValue(value) {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+    if (value.kind === "color") {
+      return true;
+    }
+    if (value.kind !== "raw") {
+      return false;
+    }
+    const shape = value.objectShape && typeof value.objectShape === "object" ? value.objectShape : {};
+    const constructorName = String(shape.constructorName || "").toLowerCase();
+    const propertyNames = [].concat(shape.ownKeys || [], shape.enumerableKeys || []).map((name) => String(name).toLowerCase());
+    return constructorName.includes("color") || ["red", "green", "blue"].every((name) => propertyNames.includes(name));
+  }
+
+  // Identify color picker parameters even when Premiere exposes their current value as opaque data.
+  function isCapturedColorParam(param) {
+    if (!param || typeof param !== "object") {
+      return false;
+    }
+    const compactName = String(param.displayName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const nameLooksLikeColor = /colou?r|couleur|keycolor|mapblackto|mapwhiteto/.test(compactName);
+    const values = [param.startValue].concat((param.keyframes || []).map((keyframe) => keyframe && keyframe.value));
+    return nameLooksLikeColor || values.some(isCapturedColorValue);
+  }
+
+  // Flag known color effects as a fallback when their UXP proxies expose no readable color metadata.
+  function componentHasColorPickerLimitation(component) {
+    if (!component || component.intrinsic) {
+      return false;
+    }
+    const identity = (String(component.matchName || "") + " " + String(component.displayName || "")).toLowerCase();
+    const knownColorEffect = identity.includes("adbe ultra key")
+      || identity.includes("adbe tint")
+      || identity.includes("impact_glint_fx")
+      || identity.includes("glint");
+    return knownColorEffect || (component.params || []).some(isCapturedColorParam);
+  }
+
+  // Render captured effect names with a compact warning beside effects whose color pickers are unreliable in UXP.
+  function renderPresetComponentSummary(stack) {
+    const components = stack && Array.isArray(stack.components) ? stack.components : [];
+    if (!components.length) {
+      return el("p", "ptb-muted", root.PTB_I18N.t("noPresetCaptured"));
+    }
+    const list = el("div", "ptb-preset-component-list");
+    components.forEach((component) => {
+      const row = el("div", "ptb-preset-component-row");
+      row.appendChild(el("span", "ptb-preset-component-name", component.displayName || component.matchName || "Effect"));
+      if (componentHasColorPickerLimitation(component)) {
+        const warning = el("span", "ptb-preset-color-warning", root.PTB_I18N.t("colorPickerWarning"));
+        warning.title = root.PTB_I18N.t("colorPickerWarningHelp");
+        row.appendChild(warning);
+      }
+      list.appendChild(row);
+    });
+    return list;
   }
 
   // Return the user-facing button name shown in galleries, collections, and tooltips.
@@ -1883,9 +1956,6 @@
       return wrap;
     }
     if (button.actionType === "preset") {
-      const summary = button.stack.components.length
-        ? button.stack.components.map((component) => component.displayName).join(", ")
-        : root.PTB_I18N.t("noPresetCaptured");
       const presetTimingField = selectField(root.PTB_I18N.t("presetTiming"), button.preset.keyframeTiming || "anchorIn", [
         { value: "anchorIn", label: root.PTB_I18N.t("presetTimingAnchorIn") },
         { value: "anchorOut", label: root.PTB_I18N.t("presetTimingAnchorOut") },
@@ -1900,7 +1970,7 @@
       wrap.appendChild(presetTimingField);
       wrap.appendChild(renderPresetCaptureOptions(button));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("presetHelp")));
-      wrap.appendChild(el("p", "ptb-muted", summary));
+      wrap.appendChild(renderPresetComponentSummary(button.stack));
       wrap.appendChild(actionButton(root.PTB_I18N.t("capturePreset"), "ptb-button primary", async () => {
         await runWithStatus(root.PTB_I18N.t("statusApplying"), async () => {
           // Use the standard button name because preset naming is determined during capture.

@@ -1024,6 +1024,31 @@ button {
   font-size: 11px;
 }
 
+.ptb-preset-component-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.ptb-preset-component-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ptb-preset-component-name {
+  color: var(--ptb-muted);
+}
+
+.ptb-preset-color-warning {
+  color: var(--ptb-danger);
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .ptb-span-all {
   grid-column: 1 / -1;
 }
