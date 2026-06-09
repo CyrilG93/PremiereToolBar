@@ -83,7 +83,7 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 - Audio transitions are not exposed through a reliable documented UXP action.
 - Transition preset files can be parsed in part, but full transition preset application is not reliable enough for normal use.
 - Lumetri curve data can be preserved in exported Tool Bar JSON, but Premiere UXP does not expose a documented way to replay it.
-- Some third-party effects, including Glint (`AE.Impact_Glint_FX`), expose color picker values as opaque data. Captured presets may therefore keep the effect's default color instead of restoring the selected color.
+- Premiere UXP does not reliably capture or restore effect color picker values. This affects native effects such as Ultra Key and Tint, as well as third-party effects such as Glint (`AE.Impact_Glint_FX`); a captured preset may keep the default color or restore an incorrect color.
 - Bezier keyframe interpolation is not fully recreated when applying captured presets.
 - Script buttons can store `.jsx` source, but direct script execution is not currently available through a documented Premiere UXP API.
 
