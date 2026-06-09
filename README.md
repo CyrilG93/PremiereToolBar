@@ -89,6 +89,12 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.0.0 - 2026-06-09
+
+- Published the first stable Tool Bar release.
+- Simplified captured preset naming by using the button name directly.
+- Added a visible warning when captured effects may be affected by Premiere's color picker limitation.
+
 ### 0.7.0 - 2026-06-04
 
 - Updated the first-run `Base Effects` collection from the bundled starter JSON.
