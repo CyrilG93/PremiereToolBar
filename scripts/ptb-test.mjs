@@ -1145,6 +1145,94 @@ async function applyIntrinsicPresetSmokeTest() {
 
 await applyIntrinsicPresetSmokeTest();
 
+// Verify Remove Effects preserves Essential Graphics layers and removes only registered video filters.
+async function removeEffectsPreservesGraphicsSmokeTest() {
+  const removedComponents = [];
+  const transactions = [];
+  const logs = [];
+  const component = (displayName, matchName = "") => ({
+    getDisplayName: async () => displayName,
+    getMatchName: async () => matchName
+  });
+  const components = [
+    component("Vector Motion"),
+    component("Text (New Text Layer)", "Graphic.Text"),
+    component("Shape (Shape 02)", "Graphic.Shape"),
+    component("Clip (texture_icon)", "Graphic.Clip"),
+    component("Group (Title)", "Graphic.Group"),
+    component("Mosaic", "AE.ADBE Mosaic"),
+    component("Glint", "AE.Impact_Glint_FX"),
+    component("Unknown Internal Component", "Premiere.Internal")
+  ];
+  const chain = {
+    getComponentCount: () => components.length,
+    getComponentAtIndex: (index) => components[index],
+    createRemoveComponentAction(selectedComponent) {
+      removedComponents.push(selectedComponent);
+      return { type: "removeEffect" };
+    }
+  };
+  const item = {
+    createAddVideoTransitionAction() {},
+    getComponentChain: async () => chain
+  };
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    PTB_LOGGER: {
+      info: (message, details) => logs.push({ level: "info", message, details }),
+      warn: (message, details) => logs.push({ level: "warn", message, details })
+    },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      return {
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              const actionTypes = [];
+              handler({
+                addAction(action) {
+                  actionTypes.push(action && action.type ? action.type : "unknown");
+                }
+              });
+              transactions.push(actionTypes);
+              return true;
+            }
+          })
+        },
+        VideoFilterFactory: {
+          getMatchNames: async () => ["AE.ADBE Mosaic", "AE.Impact_Glint_FX"],
+          getDisplayNames: async () => ["Mosaic", "Glint"]
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "tool",
+    tool: { id: "removeClipEffects", removeEffects: { includeIntrinsic: false, includeVideoEffects: true } }
+  }));
+  assert.equal(removedComponents.length, 2);
+  assert.deepEqual(transactions, [["removeEffect", "removeEffect"]]);
+  const summary = logs.find((entry) => entry.message === "Remove Effects completed.").details;
+  assert.equal(summary.videoEffects, 2);
+  assert.equal(summary.graphicsLayersPreserved, 4);
+  assert.equal(summary.skipped, 1);
+}
+
+await removeEffectsPreservesGraphicsSmokeTest();
+
 // Verify effect buttons target Premiere's reverse UI order so they appear at the bottom.
 async function applyEffectOrderSmokeTest() {
   let appended = false;

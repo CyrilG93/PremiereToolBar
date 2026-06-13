@@ -796,7 +796,8 @@
       throw new Error("Choose at least one Remove Effects option.");
     }
     const actions = [];
-    const summary = { clips: 0, baseParameters: 0, videoEffects: 0, skipped: 0 };
+    const summary = { clips: 0, baseParameters: 0, videoEffects: 0, graphicsLayersPreserved: 0, skipped: 0 };
+    const videoEffectCatalog = includeVideoEffects ? await loadVideoEffectIdentityCatalog(app) : null;
     const frameSize = await getSequenceFrameSize(sequence);
     for (const item of items) {
       if (!isVideoItem(item) || typeof item.getComponentChain !== "function") {
@@ -815,7 +816,13 @@
         const component = chain.getComponentAtIndex(index);
         const displayName = await readComponentDisplayName(component);
         const isIntrinsic = INTRINSIC_COMPONENTS.includes(displayName);
-        if ((isIntrinsic && !includeIntrinsic) || (!isIntrinsic && !includeVideoEffects)) {
+        if (isIntrinsic && !includeIntrinsic) {
+          continue;
+        }
+        if (!isIntrinsic && (!includeVideoEffects || isEssentialGraphicsLayerComponent(displayName))) {
+          if (includeVideoEffects && isEssentialGraphicsLayerComponent(displayName)) {
+            summary.graphicsLayersPreserved += 1;
+          }
           continue;
         }
         try {
@@ -827,6 +834,15 @@
               summary.skipped += 1;
             }
           } else {
+            const matchName = await readComponentMatchName(component);
+            if (!isCatalogVideoEffect(videoEffectCatalog, matchName, displayName)) {
+              summary.skipped += 1;
+              logBridge("info", "Preserved non-effect clip component.", {
+                component: displayName || "Unknown",
+                matchName: matchName || ""
+              });
+              continue;
+            }
             if (typeof chain.createRemoveComponentAction !== "function") {
               summary.skipped += 1;
               logBridge("warn", "Selected clip does not expose remove component actions.");
@@ -858,6 +874,54 @@
       logBridge("warn", "Could not read component display name.", describeBridgeError(error));
       return "";
     }
+  }
+
+  // Read a component match name so removal can be limited to registered video filters.
+  async function readComponentMatchName(component) {
+    try {
+      return component && typeof component.getMatchName === "function" ? await component.getMatchName() : "";
+    } catch (error) {
+      logBridge("warn", "Could not read component match name.", describeBridgeError(error));
+      return "";
+    }
+  }
+
+  // Load the registered Premiere video-filter identities used to distinguish effects from Graphics layers.
+  async function loadVideoEffectIdentityCatalog(app) {
+    const catalog = { matchNames: {}, displayNames: {} };
+    try {
+      const factory = app && app.VideoFilterFactory;
+      const matchNames = factory && typeof factory.getMatchNames === "function" ? await factory.getMatchNames() : [];
+      const displayNames = factory && typeof factory.getDisplayNames === "function" ? await factory.getDisplayNames() : [];
+      // Store normalized identities because display names can vary in punctuation and spacing.
+      (matchNames || []).forEach((matchName) => {
+        catalog.matchNames[normalizeCatalogName(matchName)] = true;
+      });
+      (displayNames || []).forEach((displayName) => {
+        catalog.displayNames[normalizeCatalogName(displayName)] = true;
+      });
+    } catch (error) {
+      logBridge("warn", "Could not load the video effect catalog; unknown components will be preserved.", describeBridgeError(error));
+    }
+    return catalog;
+  }
+
+  // Identify editable Essential Graphics layer components that must never be removed as clip effects.
+  function isEssentialGraphicsLayerComponent(displayName) {
+    return /^(text|shape|clip|group)(?:\s|\(|$)/i.test(String(displayName || "").trim());
+  }
+
+  // Return true only for components that Premiere's VideoFilterFactory recognizes as video effects.
+  function isCatalogVideoEffect(catalog, matchName, displayName) {
+    if (!catalog) {
+      return false;
+    }
+    const normalizedMatchName = normalizeCatalogName(matchName);
+    if (normalizedMatchName && catalog.matchNames[normalizedMatchName]) {
+      return true;
+    }
+    const normalizedDisplayName = normalizeCatalogName(displayName);
+    return !normalizedMatchName && Boolean(normalizedDisplayName && catalog.displayNames[normalizedDisplayName]);
   }
 
   // Reset Motion/Opacity-style intrinsic components without removing the visible base section.
