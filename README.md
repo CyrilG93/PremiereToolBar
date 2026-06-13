@@ -90,6 +90,10 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.0.1 - 2026-06-13
+
+- Fixed `Remove Effects` so text, shape, group, image, and video layers inside Essential Graphics clips are preserved.
+
 ### 1.0.0 - 2026-06-09
 
 - Published the first stable Tool Bar release.
