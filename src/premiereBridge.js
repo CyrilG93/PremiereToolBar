@@ -800,10 +800,6 @@
     if (button.tool.id === "addAdjustmentLayer") {
       return addAdjustmentLayer(button);
     }
-    if (button.tool.id === "addGraphicShape") {
-      const shapeType = button.tool.timelineItem && button.tool.timelineItem.shapeType === "circle" ? "circle" : "rectangle";
-      return addShapeGraphic(button, shapeType);
-    }
     return false;
   }
 
@@ -901,42 +897,6 @@
     return { trackIndex: trackCount, createsTrack: true };
   }
 
-  // Resolve a bundled plugin asset to a native path accepted by Premiere's MOGRT importer.
-  async function getBundledAssetPath(relativePath) {
-    const localFileSystem = require("uxp").storage.localFileSystem;
-    const pluginFolder = await localFileSystem.getPluginFolder();
-    const entry = await pluginFolder.getEntry(relativePath);
-    if (!entry || !entry.nativePath) {
-      throw new Error("Tool Bar asset is unavailable: " + relativePath);
-    }
-    return entry.nativePath;
-  }
-
-  // Set the generated track item's exact timeline range in a separate undoable action.
-  async function setGeneratedItemRange(app, project, sequence, item, placement, undoName) {
-    if (!item || typeof item.createSetEndAction !== "function") {
-      throw new Error("Premiere did not return the generated timeline item.");
-    }
-    const timing = await getTrackItemTiming(item);
-    const actions = [];
-    if (!nearlyEqualTime(timing.startNumber, placement.startSeconds) && typeof item.createSetStartAction === "function") {
-      actions.push(item.createSetStartAction(app.TickTime.createWithSeconds(placement.startSeconds)));
-    }
-    if (!nearlyEqualTime(timing.endNumber, placement.endSeconds)) {
-      actions.push(item.createSetEndAction(app.TickTime.createWithSeconds(placement.endSeconds)));
-    }
-    if (actions.length) {
-      await runTimelineStage("Setting generated item range", {
-        startSeconds: placement.startSeconds,
-        endSeconds: placement.endSeconds,
-        currentStartSeconds: timing.startNumber,
-        currentEndSeconds: timing.endNumber
-      }, () => Promise.resolve(executeActions(project, actions, undoName)));
-    }
-    await refreshSequenceView(sequence);
-    return item;
-  }
-
   // Find a video ProjectItem that can temporarily bootstrap a new empty video track.
   async function findTrackCreationSource(app, sequence, preferredItems) {
     const candidates = (preferredItems || []).filter(isVideoItem);
@@ -1019,73 +979,49 @@
     return { trackIndex, createdTrack: true };
   }
 
-  // Insert one bundled rectangle or circle MOGRT without touching occupied timeline media.
-  async function addShapeGraphic(button, shapeType) {
-    const { app, project, sequence, items } = await getTimelineContext();
-    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
-      throw new Error("Premiere does not expose the SequenceEditor API in this build.");
-    }
-    const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
-    const placement = await getTimelinePlacement(app, sequence, items, options);
-    const target = await findSafeVideoTrackIndex(app, sequence, placement, {
-      // Bundled shape MOGRTs have a five-second source duration before the final trim action.
-      endSeconds: placement.startSeconds + Math.max(placement.durationSeconds, 5),
-      avoidLaterItems: true
-    });
-    const editor = app.SequenceEditor.getEditor(sequence);
-    const destination = await resolveVideoDestination(app, project, sequence, editor, items, placement, target);
-    const assetName = shapeType === "circle" ? "Tool Bar Circle.mogrt" : "Tool Bar Rectangle.mogrt";
-    const assetPath = await getBundledAssetPath("assets/MOGRT/" + assetName);
-    const insertedItems = await runTimelineStage("Inserting the " + shapeType + " graphic", {
-      assetPath,
-      trackIndex: destination.trackIndex,
-      startSeconds: placement.startSeconds
-    }, () => Promise.resolve(editor.insertMogrtFromPath(
-      assetPath,
-      app.TickTime.createWithSeconds(placement.startSeconds),
-      destination.trackIndex,
-      0
-    )));
-    const item = Array.isArray(insertedItems) ? insertedItems.find(isVideoItem) : null;
-    logBridge("info", "Inserted Tool Bar shape graphic.", {
-      shapeType,
-      trackIndex: destination.trackIndex,
-      createdTrack: destination.createdTrack,
-      startSeconds: placement.startSeconds,
-      endSeconds: placement.endSeconds
-    });
-    return setGeneratedItemRange(app, project, sequence, item, placement, "Tool Bar: Add " + capitalize(shapeType) + " Graphic");
-  }
-
-  // Find a reusable Adjustment Layer source, preferring the active sequence for native cloning.
-  async function findAdjustmentLayerSource(app, project, activeSequence) {
-    const sequences = project && typeof project.getSequences === "function" ? await project.getSequences() : [];
-    const orderedSequences = [activeSequence].concat((sequences || []).filter((sequence) => sequence !== activeSequence));
-    for (const sequence of orderedSequences) {
-      if (!sequence) {
-        continue;
-      }
-      const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
-      for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
-        const clips = await getTrackClips(app, sequence, "video", trackIndex);
-        for (const clip of clips) {
-          if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
-            const timing = await getTrackItemTiming(clip);
-            return {
-              item: clip,
-              sequence,
-              trackIndex,
-              startSeconds: timing.startNumber,
-              projectItem: await readOptionalMethod(clip, "getProjectItem", null),
-              durationSeconds: timing.startNumber !== null && timing.endNumber !== null
-                ? Math.max(0, timing.endNumber - timing.startNumber)
-                : null
-            };
-          }
+  // Find a reusable Adjustment Layer track item in the active sequence.
+  async function findAdjustmentLayerSource(app, sequence) {
+    const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
+    for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+      const clips = await getTrackClips(app, sequence, "video", trackIndex);
+      for (const clip of clips) {
+        if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
+          const timing = await getTrackItemTiming(clip);
+          return {
+            item: clip,
+            trackIndex,
+            startSeconds: timing.startNumber,
+            projectItem: await readOptionalMethod(clip, "getProjectItem", null),
+            durationSeconds: timing.startNumber !== null && timing.endNumber !== null
+              ? Math.max(0, timing.endNumber - timing.startNumber)
+              : null
+          };
         }
       }
     }
     return null;
+  }
+
+  // Match an Adjustment Layer duration through its media Out Point instead of the unreliable sequence End action.
+  async function setAdjustmentLayerDuration(app, project, sequence, item, placement) {
+    if (!item || typeof item.getInPoint !== "function" || typeof item.createSetOutPointAction !== "function") {
+      throw new Error("Premiere did not return an Adjustment Layer with editable In/Out points.");
+    }
+    const inPoint = await item.getInPoint();
+    const inPointSeconds = timeToNumber(inPoint);
+    if (inPointSeconds === null) {
+      throw new Error("Premiere did not expose the Adjustment Layer In Point.");
+    }
+    const outPointSeconds = inPointSeconds + placement.durationSeconds;
+    const action = item.createSetOutPointAction(app.TickTime.createWithSeconds(outPointSeconds));
+    await runTimelineStage("Setting Adjustment Layer duration", {
+      inPointSeconds,
+      outPointSeconds,
+      durationSeconds: placement.durationSeconds,
+      expectedEndSeconds: placement.endSeconds
+    }, () => Promise.resolve(executeActions(project, [action], "Tool Bar: Set Adjustment Layer Duration")));
+    await refreshSequenceView(sequence);
+    return item;
   }
 
   // Locate the inserted Adjustment Layer after Premiere completes the timeline action.
@@ -1112,9 +1048,9 @@
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
       throw new Error("Premiere does not expose the SequenceEditor API in this build.");
     }
-    const sourceInfo = await findAdjustmentLayerSource(app, project, sequence);
+    const sourceInfo = await findAdjustmentLayerSource(app, sequence);
     if (!sourceInfo || !sourceInfo.projectItem) {
-      throw new Error("Create and place one Adjustment Layer in this project first. Premiere UXP cannot create the source item yet.");
+      throw new Error("Place one Adjustment Layer in the active sequence first. Premiere UXP cannot create or identify it from the Project panel.");
     }
     const source = sourceInfo.projectItem;
     const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
@@ -1128,25 +1064,24 @@
     });
     const editor = app.SequenceEditor.getEditor(sequence);
     const destination = await resolveVideoDestination(app, project, sequence, editor, items, placement, target);
-    const time = app.TickTime.createWithSeconds(placement.startSeconds);
-    const canCloneActiveItem = sourceInfo.sequence === sequence
-      && sourceInfo.item
+    const canCloneActiveItem = sourceInfo.item
       && Number.isFinite(Number(sourceInfo.startSeconds))
       && typeof editor.createCloneTrackItemAction === "function";
-    const action = canCloneActiveItem
-      ? editor.createCloneTrackItemAction(
-        sourceInfo.item,
-        app.TickTime.createWithSeconds(placement.startSeconds - sourceInfo.startSeconds),
-        destination.trackIndex - sourceInfo.trackIndex,
-        0,
-        true,
-        false
-      )
-      : editor.createOverwriteItemAction(source, time, destination.trackIndex, 0);
-    await runTimelineStage(canCloneActiveItem ? "Cloning the Adjustment Layer" : "Inserting the Adjustment Layer", {
+    if (!canCloneActiveItem) {
+      throw new Error("Premiere does not expose Adjustment Layer cloning in this build.");
+    }
+    const action = editor.createCloneTrackItemAction(
+      sourceInfo.item,
+      app.TickTime.createWithSeconds(placement.startSeconds - sourceInfo.startSeconds),
+      destination.trackIndex - sourceInfo.trackIndex,
+      0,
+      true,
+      false
+    );
+    await runTimelineStage("Cloning the Adjustment Layer", {
       trackIndex: destination.trackIndex,
       createdTrack: destination.createdTrack,
-      sourceSequenceIsActive: sourceInfo.sequence === sequence,
+      sourceSequenceIsActive: true,
       startSeconds: placement.startSeconds
     }, () => Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer")));
     const item = await findInsertedProjectItem(app, sequence, destination.trackIndex, source, placement.startSeconds);
@@ -1156,7 +1091,7 @@
       startSeconds: placement.startSeconds,
       endSeconds: placement.endSeconds
     });
-    return setGeneratedItemRange(app, project, sequence, item, placement, "Tool Bar: Set Adjustment Layer Range");
+    return setAdjustmentLayerDuration(app, project, sequence, item, placement);
   }
 
   // Remove selected clip components according to the user's Remove Effects choices.

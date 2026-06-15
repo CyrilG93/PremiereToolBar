@@ -14,6 +14,7 @@
   const savedUiState = root.PTB_STORAGE.loadUiState ? root.PTB_STORAGE.loadUiState() : { collapsed: {}, scrollState: {} };
   let catalogs = { videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [] };
   let statusMessage = root.PTB_I18N.t("statusReady");
+  let statusIsError = false;
   let settingsState = {
     selectedCollectionId: config.activeCollectionId,
     selectedButtonId: config.activeButtonId,
@@ -304,6 +305,7 @@
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
       .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:2px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:wrap;align-content:flex-start;width:auto;height:100%;max-height:100%;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;overflow:hidden}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-svg-icon svg{display:block;width:22px;height:22px;fill:currentColor}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:900;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
       .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
+      .ptb-title-line{overflow:hidden}.ptb-version{border-radius:999px}.ptb-status-badge{max-width:140px;overflow:hidden;border-radius:4px;text-overflow:ellipsis}.ptb-status-badge.error{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
       .ptb-update-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 12px 0;border:1px solid rgba(121,200,255,.65);border-radius:8px;padding:9px 10px;color:var(--ptb-text);background:#172d3d;cursor:pointer}.ptb-update-banner strong{font-weight:900}.ptb-update-banner small{color:var(--ptb-muted)}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);cursor:pointer}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section.collapsed .ptb-section-body{display:none;min-height:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
       .ptb-button,.ptb-icon-action,.ptb-bar-toggle{border:1px solid var(--ptb-line);border-radius:7px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button{min-height:30px;padding:6px 10px;font-weight:700}.ptb-button.primary{border-color:rgba(121,200,255,.7);background:#224259}.ptb-button.compact{min-height:26px;padding:5px 8px;white-space:nowrap}.ptb-button.danger,.ptb-icon-action.danger{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
@@ -413,13 +415,19 @@
       setStyles(node, { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", margin: "12px 12px 0", border: "1px solid rgba(121, 200, 255, 0.65)", borderRadius: "8px", padding: "9px 10px", color: "var(--ptb-text)", background: "#172d3d", cursor: "pointer" });
     }
     if (tokens.includes("ptb-title-line")) {
-      setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minWidth: "0" });
+      setStyles(node, { display: "flex", alignItems: "center", gap: "8px", minWidth: "0", overflow: "hidden" });
     }
     if (tokens.includes("ptb-version") || tokens.includes("ptb-status-badge")) {
-      setStyles(node, { display: "inline-flex", alignItems: "center", minHeight: "20px", border: "1px solid var(--ptb-line)", borderRadius: "999px", padding: "2px 7px", color: "var(--ptb-muted)", background: "#1a1a1a", fontSize: "10px", fontWeight: "700", whiteSpace: "nowrap" });
+      setStyles(node, { display: "inline-flex", alignItems: "center", minHeight: "20px", border: "1px solid var(--ptb-line)", padding: "2px 7px", color: "var(--ptb-muted)", background: "#1a1a1a", fontSize: "10px", fontWeight: "700", whiteSpace: "nowrap" });
+    }
+    if (tokens.includes("ptb-version")) {
+      setStyles(node, { borderRadius: "999px" });
     }
     if (tokens.includes("ptb-status-badge")) {
-      setStyles(node, { color: "var(--ptb-accent)" });
+      setStyles(node, { maxWidth: "140px", overflow: "hidden", borderRadius: "4px", color: "var(--ptb-accent)", textOverflow: "ellipsis" });
+    }
+    if (tokens.includes("error")) {
+      setStyles(node, { color: "#ffd8d5", borderColor: "rgba(255, 116, 107, 0.45)" });
     }
     if (tokens.includes("ptb-header-actions") || tokens.includes("ptb-action-row") || tokens.includes("ptb-card-actions") || tokens.includes("ptb-bar-toggles")) {
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "7px" });
@@ -1560,6 +1568,7 @@
   // Run an async operation and render status or errors.
   async function runWithStatus(workingMessage, operation) {
     statusMessage = workingMessage;
+    statusIsError = false;
     addInternalLog("info", workingMessage, "", true);
     renderAll();
     try {
@@ -1567,9 +1576,11 @@
       if (statusMessage === workingMessage) {
         statusMessage = root.PTB_I18N.t("statusReady");
       }
+      statusIsError = false;
       addInternalLog("info", root.PTB_I18N.t("statusReady"), "", true);
     } catch (error) {
       statusMessage = error && error.message ? error.message : String(error);
+      statusIsError = true;
       addInternalLog("error", statusMessage, error, true);
     }
     renderAll();
@@ -1636,7 +1647,9 @@
     if (!statusMessage || statusMessage === root.PTB_I18N.t("statusReady") || statusMessage === root.PTB_I18N.t("statusSaved")) {
       return null;
     }
-    return el("span", "ptb-status-badge", statusMessage);
+    const badge = el("span", "ptb-status-badge" + (statusIsError ? " error" : ""), statusIsError ? root.PTB_I18N.t("statusErrorSeeLogs") : statusMessage);
+    badge.title = statusMessage;
+    return badge;
   }
 
   // Render always-visible settings actions in the header.
@@ -1879,8 +1892,7 @@
         { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
         { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
         { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
-        { value: "addAdjustmentLayer", label: root.PTB_I18N.t("toolAddAdjustmentLayer") },
-        { value: "addGraphicShape", label: root.PTB_I18N.t("toolAddGraphicShape") }
+        { value: "addAdjustmentLayer", label: root.PTB_I18N.t("toolAddAdjustmentLayer") }
       ], (value) => {
         button.tool.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
@@ -1890,7 +1902,7 @@
       if (button.tool.id === "removeClipEffects") {
         wrap.appendChild(renderRemoveEffectsOptions(button));
       }
-      if (["addAdjustmentLayer", "addGraphicShape"].includes(button.tool.id)) {
+      if (button.tool.id === "addAdjustmentLayer") {
         wrap.appendChild(renderTimelineItemOptions(button));
       }
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("toolHelp")));
@@ -2042,15 +2054,6 @@
     button.tool.timelineItem = root.PTB_SCHEMA.normalizeTimelineItemOptions(button.tool.timelineItem);
     const options = button.tool.timelineItem;
     const panel = el("div", "ptb-tool-options");
-    if (button.tool.id === "addGraphicShape") {
-      panel.appendChild(selectField(root.PTB_I18N.t("graphicShape"), options.shapeType, [
-        { value: "rectangle", label: root.PTB_I18N.t("graphicRectangle") },
-        { value: "circle", label: root.PTB_I18N.t("graphicCircle") }
-      ], (value) => {
-        button.tool.timelineItem.shapeType = value === "circle" ? "circle" : "rectangle";
-        saveAndRender(root.PTB_I18N.t("statusSaved"));
-      }));
-    }
     panel.appendChild(checkboxField(root.PTB_I18N.t("useSelectedClipRange"), options.useSelectedRange !== false, (checked) => {
       button.tool.timelineItem.useSelectedRange = checked;
       saveAndRender(root.PTB_I18N.t("statusSaved"));

@@ -1075,6 +1075,7 @@ button {
   align-items: center;
   min-width: 0;
   gap: 8px;
+  overflow: hidden;
 }
 
 .ptb-title-line h1 {
@@ -1097,7 +1098,16 @@ button {
 }
 
 .ptb-status-badge {
+  max-width: 140px;
+  overflow: hidden;
+  border-radius: 4px;
   color: var(--ptb-accent);
+  text-overflow: ellipsis;
+}
+
+.ptb-status-badge.error {
+  color: #ffd8d5;
+  border-color: rgba(255, 116, 107, 0.45);
 }
 
 .ptb-section {

@@ -24,8 +24,7 @@
     "copyClipEffects",
     "pasteClipEffects",
     "removeClipEffects",
-    "addAdjustmentLayer",
-    "addGraphicShape"
+    "addAdjustmentLayer"
   ];
 
   // Create stable ids without relying on external dependencies.
@@ -140,13 +139,12 @@
     };
   }
 
-  // Normalize timeline item placement options shared by Adjustment Layer and Graphic tools.
+  // Normalize timeline item placement options used by the Adjustment Layer tool.
   function normalizeTimelineItemOptions(options) {
     const input = options && typeof options === "object" ? options : {};
     return {
       useSelectedRange: input.useSelectedRange !== false,
-      defaultDurationSeconds: safeNumber(input.defaultDurationSeconds, 5, 0.1, 3600),
-      shapeType: input.shapeType === "circle" ? "circle" : "rectangle"
+      defaultDurationSeconds: safeNumber(input.defaultDurationSeconds, 5, 0.1, 3600)
     };
   }
 
@@ -623,7 +621,10 @@
   function normalizeButtons(inputButtons) {
     const source = Array.isArray(inputButtons) ? inputButtons : [];
     const usedIds = [];
-    return source.map((button) => {
+    return source.filter((button) => {
+      // Remove the retired MOGRT-based Graphic tool from saved configurations.
+      return !(button && button.actionType === "tool" && button.tool && button.tool.id === "addGraphicShape");
+    }).map((button) => {
       const normalized = createButton(button);
       if (usedIds.includes(normalized.id)) {
         normalized.id = createId("button");

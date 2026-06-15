@@ -41,11 +41,19 @@ const adjustmentLayerButton = schema.createButton({
 assert.equal(adjustmentLayerButton.tool.id, "addAdjustmentLayer");
 assert.equal(adjustmentLayerButton.tool.timelineItem.useSelectedRange, false);
 assert.equal(adjustmentLayerButton.tool.timelineItem.defaultDurationSeconds, 7.5);
-const circleGraphicButton = schema.createButton({ actionType: "tool", tool: { id: "addGraphicShape", timelineItem: { shapeType: "circle" } } });
-assert.equal(circleGraphicButton.tool.id, "addGraphicShape");
-assert.equal(circleGraphicButton.tool.timelineItem.useSelectedRange, true);
-assert.equal(circleGraphicButton.tool.timelineItem.defaultDurationSeconds, 5);
-assert.equal(circleGraphicButton.tool.timelineItem.shapeType, "circle");
+const retiredGraphicButton = schema.createButton({ actionType: "tool", tool: { id: "addGraphicShape" } });
+assert.equal(retiredGraphicButton.tool.id, "openSettings");
+const configWithRetiredGraphic = JSON.parse(JSON.stringify(defaultConfig));
+configWithRetiredGraphic.buttons.push({
+  id: "retired-graphic",
+  label: "Graphic",
+  actionType: "tool",
+  tool: { id: "addGraphicShape" }
+});
+configWithRetiredGraphic.collections[0].buttonIds.push("retired-graphic");
+const normalizedWithoutGraphic = schema.normalizeConfig(configWithRetiredGraphic);
+assert.equal(normalizedWithoutGraphic.buttons.some((button) => button.id === "retired-graphic"), false);
+assert.equal(normalizedWithoutGraphic.collections[0].buttonIds.includes("retired-graphic"), false);
 const presetCaptureButton = schema.createButton({
   actionType: "preset",
   preset: { captureOptions: { includeIntrinsic: true, includeVideoEffects: false } }
@@ -1856,139 +1864,6 @@ async function inspectSelectionMatchNamesSmokeTest() {
 
 await inspectSelectionMatchNamesSmokeTest();
 
-// Verify Graphic insertion creates an empty top track before passing a valid existing index to the MOGRT API.
-async function addGraphicShapeTrackCreationSmokeTest() {
-  const projectItem = { getId: () => "source-project-item" };
-  const selectedItem = {
-    createAddVideoTransitionAction() {},
-    getStartTime: async () => ({ seconds: 10 }),
-    getEndTime: async () => ({ seconds: 15 }),
-    getTrackIndex: async () => 0,
-    getProjectItem: async () => projectItem
-  };
-  const tracks = [[selectedItem]];
-  const insertArguments = [];
-  const mogrtItem = {
-    createAddVideoTransitionAction() {},
-    getStartTime: async () => ({ seconds: 10 }),
-    getEndTime: async () => ({ seconds: 15 }),
-    getTrackIndex: async () => 1,
-    createSetEndAction: () => ({ type: "setEnd" })
-  };
-  const editor = {
-    createInsertProjectItemAction(source, time, videoTrackIndex, audioTrackIndex) {
-      insertArguments.push({ source, time, videoTrackIndex, audioTrackIndex });
-      return {
-        apply() {
-          const temporaryItem = {
-            createAddVideoTransitionAction() {},
-            getStartTime: async () => ({ seconds: time.seconds }),
-            getEndTime: async () => ({ seconds: time.seconds + 5 }),
-            getTrackIndex: async () => 1,
-            getProjectItem: async () => source
-          };
-          tracks.push([temporaryItem]);
-        }
-      };
-    },
-    createRemoveItemsAction(selection, ripple, mediaType, shiftOverlapping) {
-      return {
-        apply() {
-          assert.equal(ripple, false);
-          assert.equal(mediaType, 2);
-          assert.equal(shiftOverlapping, false);
-          tracks[1] = tracks[1].filter((item) => !selection.items.includes(item));
-        }
-      };
-    },
-    insertMogrtFromPath(assetPath, time, videoTrackIndex, audioTrackIndex) {
-      insertArguments.push({ assetPath, time, videoTrackIndex, audioTrackIndex, mogrt: true });
-      tracks[videoTrackIndex].push(mogrtItem);
-      return [mogrtItem];
-    }
-  };
-  const sequence = {
-    getSelection: async () => ({ getTrackItems: async () => [selectedItem] }),
-    getVideoTrackCount: async () => tracks.length,
-    getVideoTrack: async (trackIndex) => ({ getTrackItems: async () => tracks[trackIndex] || [] }),
-    getPlayerPosition: () => ({ seconds: 10 }),
-    setPlayerPosition() {}
-  };
-  const project = {
-    getActiveSequence: async () => sequence,
-    executeTransaction(handler) {
-      const actions = [];
-      handler({ addAction: (action) => actions.push(action) });
-      actions.forEach((action) => action.apply && action.apply());
-      return true;
-    }
-  };
-  const context = {
-    console,
-    window: null,
-    PTB_SCHEMA: schema,
-    PTB_I18N: { t: (key) => key },
-    require(name) {
-      if (name === "uxp") {
-        return {
-          storage: {
-            localFileSystem: {
-              getPluginFolder: async () => ({
-                getEntry: async () => ({ nativePath: "/plugin/assets/MOGRT/Tool Bar Rectangle.mogrt" })
-              })
-            }
-          }
-        };
-      }
-      if (name !== "premierepro") {
-        throw new Error("Unexpected module: " + name);
-      }
-      return {
-        Constants: {
-          MediaType: { VIDEO: 2 },
-          TrackItemType: { CLIP: 1 }
-        },
-        TickTime: {
-          createWithSeconds: (seconds) => ({ seconds })
-        },
-        TrackItemSelection: {
-          createEmptySelection(callback) {
-            const selection = {
-              items: [],
-              addItem(item) {
-                this.items.push(item);
-                return true;
-              }
-            };
-            callback(selection);
-            return true;
-          }
-        },
-        SequenceEditor: {
-          getEditor: () => editor
-        },
-        Project: {
-          getActiveProject: async () => project
-        }
-      };
-    }
-  };
-  context.window = context;
-  vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
-  await context.PTB_PREMIERE.applyButton(schema.createButton({
-    actionType: "tool",
-    tool: { id: "addGraphicShape", timelineItem: { shapeType: "rectangle", useSelectedRange: true } }
-  }));
-  assert.equal(insertArguments[0].videoTrackIndex, 2);
-  assert.equal(insertArguments[0].audioTrackIndex, -1);
-  assert.equal(insertArguments[1].mogrt, true);
-  assert.equal(insertArguments[1].videoTrackIndex, 1);
-  assert.deepEqual(tracks[1], [mogrtItem]);
-}
-
-await addGraphicShapeTrackCreationSmokeTest();
-
 // Verify an Adjustment Layer in the active sequence is duplicated with overwrite semantics.
 async function addAdjustmentLayerCloneSmokeTest() {
   const projectItem = { getId: () => "adjustment-project-item" };
@@ -2008,19 +1883,28 @@ async function addAdjustmentLayerCloneSmokeTest() {
   };
   const tracks = [[selectedItem], [adjustmentItem]];
   let cloneArguments = null;
+  let outPointSeconds = null;
   const editor = {
     createCloneTrackItemAction(item, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert) {
       cloneArguments = { item, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert };
       return {
         apply() {
-          tracks[1].push({
+          const clonedItem = {
             createAddVideoTransitionAction() {},
             getStartTime: async () => ({ seconds: 10 }),
-            getEndTime: async () => ({ seconds: 15 }),
+            getEndTime: async () => ({ seconds: 10 + (outPointSeconds === null ? 5 : outPointSeconds - 2) }),
             getTrackIndex: async () => 1,
             getProjectItem: async () => projectItem,
-            createSetEndAction: () => ({ type: "setEnd" })
-          });
+            getInPoint: async () => ({ seconds: 2 }),
+            createSetOutPointAction(time) {
+              return {
+                apply() {
+                  outPointSeconds = time.seconds;
+                }
+              };
+            }
+          };
+          tracks[1].push(clonedItem);
         }
       };
     }
@@ -2080,6 +1964,7 @@ async function addAdjustmentLayerCloneSmokeTest() {
   assert.equal(cloneArguments.audioTrackVerticalOffset, 0);
   assert.equal(cloneArguments.alignToVideo, true);
   assert.equal(cloneArguments.isInsert, false);
+  assert.equal(outPointSeconds, 7);
 }
 
 await addAdjustmentLayerCloneSmokeTest();
