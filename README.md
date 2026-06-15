@@ -83,7 +83,7 @@ Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
 Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. These areas are still limited for now:
 
 - `Remove Effects` removes only registered video effects. Text, shape, group, image, and video layers inside Essential Graphics clips are preserved.
-- Premiere UXP cannot create a new Adjustment Layer source. The Adjustment Layer tool reuses one already placed in any sequence of the current project; create and place one manually once if the project does not contain one yet.
+- Premiere UXP cannot identify or create a new Adjustment Layer from the Project panel alone. The Adjustment Layer tool reuses one already placed in any sequence of the current project; it does not have to be in the active sequence.
 - Audio transitions are not exposed through a reliable documented UXP action.
 - Transition preset files can be parsed in part, but full transition preset application is not reliable enough for normal use.
 - Lumetri curve data can be preserved in exported Tool Bar JSON, but Premiere UXP does not expose a documented way to replay it.

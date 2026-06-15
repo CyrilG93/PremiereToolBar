@@ -69,7 +69,7 @@
     useSelectedClipRange: "Use selected clip time range",
     defaultTimelineItemDuration: "Default Duration Seconds",
     timelineItemHelp: "When enabled, the new item uses the selected video clip's exact start and end. Otherwise it starts at the playhead with the default duration. Tool Bar uses a free track above the clip or creates a new top track.",
-    adjustmentLayerHelp: "Premiere UXP cannot create an Adjustment Layer source. Tool Bar reuses an Adjustment Layer already placed in any sequence of the current project.",
+    adjustmentLayerHelp: "Premiere UXP cannot identify or create an Adjustment Layer from the Project panel alone. Tool Bar reuses one already placed in any sequence of the current project.",
     removeIntrinsicEffects: "Base parameters",
     removeVideoEffects: "Video effects",
     removeEffectsHelp: "Choose whether Remove Effects affects intrinsic clip parameters such as Motion or Opacity, added video effects such as Transform or Blur, or both.",
