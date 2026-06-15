@@ -1878,7 +1878,9 @@
         { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") },
         { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
         { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
-        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") }
+        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
+        { value: "addAdjustmentLayer", label: root.PTB_I18N.t("toolAddAdjustmentLayer") },
+        { value: "addGraphicShape", label: root.PTB_I18N.t("toolAddGraphicShape") }
       ], (value) => {
         button.tool.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
@@ -1887,6 +1889,9 @@
       wrap.appendChild(toolField);
       if (button.tool.id === "removeClipEffects") {
         wrap.appendChild(renderRemoveEffectsOptions(button));
+      }
+      if (["addAdjustmentLayer", "addGraphicShape"].includes(button.tool.id)) {
+        wrap.appendChild(renderTimelineItemOptions(button));
       }
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("toolHelp")));
       return wrap;
@@ -2029,6 +2034,36 @@
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("removeEffectsHelp")));
+    return panel;
+  }
+
+  // Render shared duration and placement settings for generated timeline items.
+  function renderTimelineItemOptions(button) {
+    button.tool.timelineItem = root.PTB_SCHEMA.normalizeTimelineItemOptions(button.tool.timelineItem);
+    const options = button.tool.timelineItem;
+    const panel = el("div", "ptb-tool-options");
+    if (button.tool.id === "addGraphicShape") {
+      panel.appendChild(selectField(root.PTB_I18N.t("graphicShape"), options.shapeType, [
+        { value: "rectangle", label: root.PTB_I18N.t("graphicRectangle") },
+        { value: "circle", label: root.PTB_I18N.t("graphicCircle") }
+      ], (value) => {
+        button.tool.timelineItem.shapeType = value === "circle" ? "circle" : "rectangle";
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+    }
+    panel.appendChild(checkboxField(root.PTB_I18N.t("useSelectedClipRange"), options.useSelectedRange !== false, (checked) => {
+      button.tool.timelineItem.useSelectedRange = checked;
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    }));
+    if (!options.useSelectedRange) {
+      panel.appendChild(numberField(root.PTB_I18N.t("defaultTimelineItemDuration"), options.defaultDurationSeconds, (value) => {
+        button.tool.timelineItem.defaultDurationSeconds = clampNumber(value, 5, 0.1, 3600);
+      }));
+    }
+    panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("timelineItemHelp")));
+    if (button.tool.id === "addAdjustmentLayer") {
+      panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("adjustmentLayerHelp")));
+    }
     return panel;
   }
 

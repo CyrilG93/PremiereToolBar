@@ -34,6 +34,18 @@ const removeEffectsButton = schema.createButton({
 assert.equal(removeEffectsButton.tool.id, "removeClipEffects");
 assert.equal(removeEffectsButton.tool.removeEffects.includeIntrinsic, false);
 assert.equal(removeEffectsButton.tool.removeEffects.includeVideoEffects, true);
+const adjustmentLayerButton = schema.createButton({
+  actionType: "tool",
+  tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: false, defaultDurationSeconds: 7.5 } }
+});
+assert.equal(adjustmentLayerButton.tool.id, "addAdjustmentLayer");
+assert.equal(adjustmentLayerButton.tool.timelineItem.useSelectedRange, false);
+assert.equal(adjustmentLayerButton.tool.timelineItem.defaultDurationSeconds, 7.5);
+const circleGraphicButton = schema.createButton({ actionType: "tool", tool: { id: "addGraphicShape", timelineItem: { shapeType: "circle" } } });
+assert.equal(circleGraphicButton.tool.id, "addGraphicShape");
+assert.equal(circleGraphicButton.tool.timelineItem.useSelectedRange, true);
+assert.equal(circleGraphicButton.tool.timelineItem.defaultDurationSeconds, 5);
+assert.equal(circleGraphicButton.tool.timelineItem.shapeType, "circle");
 const presetCaptureButton = schema.createButton({
   actionType: "preset",
   preset: { captureOptions: { includeIntrinsic: true, includeVideoEffects: false } }

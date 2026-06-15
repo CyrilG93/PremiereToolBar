@@ -783,7 +783,244 @@
     if (button.tool.id === "removeClipEffects") {
       return removeSelectedClipEffects(button);
     }
+    if (button.tool.id === "addAdjustmentLayer") {
+      return addAdjustmentLayer(button);
+    }
+    if (button.tool.id === "addGraphicShape") {
+      const shapeType = button.tool.timelineItem && button.tool.timelineItem.shapeType === "circle" ? "circle" : "rectangle";
+      return addShapeGraphic(button, shapeType);
+    }
     return false;
+  }
+
+  // Load the active timeline while allowing tools that start at the playhead to work without a selection.
+  async function getTimelineContext() {
+    const app = getPremiere();
+    if (!app) {
+      throw new Error(root.PTB_I18N.t("noPremiereApi"));
+    }
+    const project = await app.Project.getActiveProject();
+    const sequence = project ? await project.getActiveSequence() : null;
+    if (!sequence) {
+      throw new Error("Open a Premiere sequence first.");
+    }
+    const selection = await sequence.getSelection();
+    const items = selection ? await selection.getTrackItems() : [];
+    return { app, project, sequence, items: items || [] };
+  }
+
+  // Resolve the start, end, and reference track requested by a generated timeline item button.
+  async function getTimelinePlacement(app, sequence, items, options) {
+    const useSelectedRange = !options || options.useSelectedRange !== false;
+    const selectedVideoItem = items.find((item) => isVideoItem(item) && typeof item.getStartTime === "function");
+    if (useSelectedRange && !selectedVideoItem) {
+      throw new Error("Select a video clip to use its time range.");
+    }
+    if (selectedVideoItem && useSelectedRange) {
+      const timing = await getTrackItemTiming(selectedVideoItem);
+      if (timing.startNumber === null || timing.endNumber === null || timing.endNumber <= timing.startNumber) {
+        throw new Error("The selected clip does not expose a usable time range.");
+      }
+      return {
+        startSeconds: timing.startNumber,
+        endSeconds: timing.endNumber,
+        durationSeconds: timing.endNumber - timing.startNumber,
+        referenceTrackIndex: typeof timing.trackIndex === "number" ? timing.trackIndex : null
+      };
+    }
+    const playerPosition = await readOptionalMethod(sequence, "getPlayerPosition", null);
+    const startSeconds = timeToNumber(playerPosition);
+    const durationSeconds = Math.max(0.1, Number(options && options.defaultDurationSeconds) || 5);
+    return {
+      startSeconds: startSeconds === null ? 0 : startSeconds,
+      endSeconds: (startSeconds === null ? 0 : startSeconds) + durationSeconds,
+      durationSeconds,
+      referenceTrackIndex: selectedVideoItem ? await readOptionalMethod(selectedVideoItem, "getTrackIndex", null) : null
+    };
+  }
+
+  // Return true when an existing clip would collide with the requested timeline interval.
+  async function trackHasOverlap(app, sequence, trackIndex, startSeconds, endSeconds) {
+    const clips = await getTrackClips(app, sequence, "video", trackIndex);
+    for (const clip of clips) {
+      const timing = await getTrackItemTiming(clip);
+      if (timing.startNumber !== null && timing.endNumber !== null
+        && timing.startNumber < endSeconds - 0.0001
+        && timing.endNumber > startSeconds + 0.0001) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Return true when an insert edit could shift an existing clip later on the destination track.
+  async function trackHasClipAtOrAfter(app, sequence, trackIndex, startSeconds) {
+    const clips = await getTrackClips(app, sequence, "video", trackIndex);
+    for (const clip of clips) {
+      const timing = await getTrackItemTiming(clip);
+      if (timing.endNumber !== null && timing.endNumber > startSeconds + 0.0001) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Prefer a free video track above the reference clip, then return the next top-track index.
+  async function findSafeVideoTrackIndex(app, sequence, placement, safetyOptions) {
+    const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
+    const firstCandidate = typeof placement.referenceTrackIndex === "number"
+      ? placement.referenceTrackIndex + 1
+      : Math.max(0, trackCount - 1);
+    const safeEndSeconds = safetyOptions && Number.isFinite(Number(safetyOptions.endSeconds))
+      ? Number(safetyOptions.endSeconds)
+      : placement.endSeconds;
+    const avoidLaterItems = Boolean(safetyOptions && safetyOptions.avoidLaterItems);
+    for (let trackIndex = firstCandidate; trackIndex < trackCount; trackIndex += 1) {
+      const hasOverlap = await trackHasOverlap(app, sequence, trackIndex, placement.startSeconds, safeEndSeconds);
+      const couldRippleLaterItem = avoidLaterItems
+        ? await trackHasClipAtOrAfter(app, sequence, trackIndex, placement.startSeconds)
+        : false;
+      if (!hasOverlap && !couldRippleLaterItem) {
+        return { trackIndex, createsTrack: false };
+      }
+    }
+    return { trackIndex: trackCount, createsTrack: true };
+  }
+
+  // Resolve a bundled plugin asset to a native path accepted by Premiere's MOGRT importer.
+  async function getBundledAssetPath(relativePath) {
+    const localFileSystem = require("uxp").storage.localFileSystem;
+    const pluginFolder = await localFileSystem.getPluginFolder();
+    const entry = await pluginFolder.getEntry(relativePath);
+    if (!entry || !entry.nativePath) {
+      throw new Error("Tool Bar asset is unavailable: " + relativePath);
+    }
+    return entry.nativePath;
+  }
+
+  // Set the generated track item's exact timeline range in a separate undoable action.
+  async function setGeneratedItemRange(app, project, sequence, item, placement, undoName) {
+    if (!item || typeof item.createSetEndAction !== "function") {
+      throw new Error("Premiere did not return the generated timeline item.");
+    }
+    const actions = [];
+    if (typeof item.createSetStartAction === "function") {
+      actions.push(item.createSetStartAction(app.TickTime.createWithSeconds(placement.startSeconds)));
+    }
+    actions.push(item.createSetEndAction(app.TickTime.createWithSeconds(placement.endSeconds)));
+    executeActions(project, actions, undoName);
+    await refreshSequenceView(sequence);
+    return item;
+  }
+
+  // Insert one bundled rectangle or circle MOGRT without touching occupied timeline media.
+  async function addShapeGraphic(button, shapeType) {
+    const { app, project, sequence, items } = await getTimelineContext();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
+      throw new Error("Premiere does not expose the SequenceEditor API in this build.");
+    }
+    const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
+    const placement = await getTimelinePlacement(app, sequence, items, options);
+    const target = await findSafeVideoTrackIndex(app, sequence, placement, {
+      // Bundled shape MOGRTs have a five-second source duration before the final trim action.
+      endSeconds: placement.startSeconds + Math.max(placement.durationSeconds, 5),
+      avoidLaterItems: true
+    });
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const assetName = shapeType === "circle" ? "Tool Bar Circle.mogrt" : "Tool Bar Rectangle.mogrt";
+    const assetPath = await getBundledAssetPath("assets/MOGRT/" + assetName);
+    const insertedItems = await editor.insertMogrtFromPath(
+      assetPath,
+      app.TickTime.createWithSeconds(placement.startSeconds),
+      target.trackIndex,
+      0
+    );
+    const item = Array.isArray(insertedItems) ? insertedItems.find(isVideoItem) : null;
+    logBridge("info", "Inserted Tool Bar shape graphic.", {
+      shapeType,
+      trackIndex: target.trackIndex,
+      createdTrack: target.createsTrack,
+      startSeconds: placement.startSeconds,
+      endSeconds: placement.endSeconds
+    });
+    return setGeneratedItemRange(app, project, sequence, item, placement, "Tool Bar: Add " + capitalize(shapeType) + " Graphic");
+  }
+
+  // Find a reusable Adjustment Layer source from any sequence in the active project.
+  async function findAdjustmentLayerSource(app, project) {
+    const sequences = project && typeof project.getSequences === "function" ? await project.getSequences() : [];
+    for (const sequence of sequences || []) {
+      const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
+      for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+        const clips = await getTrackClips(app, sequence, "video", trackIndex);
+        for (const clip of clips) {
+          if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
+            const timing = await getTrackItemTiming(clip);
+            return {
+              projectItem: await readOptionalMethod(clip, "getProjectItem", null),
+              durationSeconds: timing.startNumber !== null && timing.endNumber !== null
+                ? Math.max(0, timing.endNumber - timing.startNumber)
+                : null
+            };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Locate the inserted Adjustment Layer after Premiere completes the timeline action.
+  async function findInsertedProjectItem(app, sequence, trackIndex, projectItem, startSeconds) {
+    const expectedId = projectItem && typeof projectItem.getId === "function" ? projectItem.getId() : "";
+    const clips = await getTrackClips(app, sequence, "video", trackIndex);
+    for (const clip of clips) {
+      const timing = await getTrackItemTiming(clip);
+      if (!nearlyEqualTime(timing.startNumber, startSeconds)) {
+        continue;
+      }
+      const source = await readOptionalMethod(clip, "getProjectItem", null);
+      const sourceId = source && typeof source.getId === "function" ? source.getId() : "";
+      if (!expectedId || sourceId === expectedId) {
+        return clip;
+      }
+    }
+    return null;
+  }
+
+  // Reuse an existing Adjustment Layer source and place it on a verified free or new track.
+  async function addAdjustmentLayer(button) {
+    const { app, project, sequence, items } = await getTimelineContext();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
+      throw new Error("Premiere does not expose the SequenceEditor API in this build.");
+    }
+    const sourceInfo = await findAdjustmentLayerSource(app, project);
+    if (!sourceInfo || !sourceInfo.projectItem) {
+      throw new Error("Create and place one Adjustment Layer in this project first. Premiere UXP cannot create the source item yet.");
+    }
+    const source = sourceInfo.projectItem;
+    const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
+    const placement = await getTimelinePlacement(app, sequence, items, options);
+    const sourceDuration = Number(sourceInfo.durationSeconds);
+    const target = await findSafeVideoTrackIndex(app, sequence, placement, {
+      endSeconds: placement.startSeconds + Math.max(
+        placement.durationSeconds,
+        Number.isFinite(sourceDuration) && sourceDuration > 0 ? sourceDuration : placement.durationSeconds
+      )
+    });
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const time = app.TickTime.createWithSeconds(placement.startSeconds);
+    const action = target.createsTrack
+      ? editor.createInsertProjectItemAction(source, time, target.trackIndex, 0, true)
+      : editor.createOverwriteItemAction(source, time, target.trackIndex, 0);
+    executeActions(project, [action], "Tool Bar: Add Adjustment Layer");
+    const item = await findInsertedProjectItem(app, sequence, target.trackIndex, source, placement.startSeconds);
+    logBridge("info", "Inserted Adjustment Layer.", {
+      trackIndex: target.trackIndex,
+      createdTrack: target.createsTrack,
+      startSeconds: placement.startSeconds,
+      endSeconds: placement.endSeconds
+    });
+    return setGeneratedItemRange(app, project, sequence, item, placement, "Tool Bar: Set Adjustment Layer Range");
   }
 
   // Remove selected clip components according to the user's Remove Effects choices.

@@ -65,7 +65,9 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 - `Video Transition`: add a video transition to selected clips or an edit point.
 - `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later. The standard button name is used, so no separate preset name is required.
 - `Multi Action`: run several existing Tool Bar buttons in order.
-- `Tools`: open settings, copy effects, paste effects, or remove selected clip effects.
+- `Tools`: open settings, copy/paste/remove effects, add an Adjustment Layer, or add a rectangle/circle Graphic.
+
+The Adjustment Layer and Graphic tools can use the selected video clip's exact time range. When that option is disabled, the new item starts at the playhead and uses the configured default duration. Tool Bar places it on a free video track above the selected clip, or creates a new top track when needed.
 
 ## Backup
 
@@ -81,6 +83,7 @@ Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
 Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. These areas are still limited for now:
 
 - `Remove Effects` removes only registered video effects. Text, shape, group, image, and video layers inside Essential Graphics clips are preserved.
+- Premiere UXP cannot create a new Adjustment Layer source. The Adjustment Layer tool reuses one already placed in any sequence of the current project; create and place one manually once if the project does not contain one yet.
 - Audio transitions are not exposed through a reliable documented UXP action.
 - Transition preset files can be parsed in part, but full transition preset application is not reliable enough for normal use.
 - Lumetri curve data can be preserved in exported Tool Bar JSON, but Premiere UXP does not expose a documented way to replay it.

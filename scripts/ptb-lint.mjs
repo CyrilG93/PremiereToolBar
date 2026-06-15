@@ -69,6 +69,8 @@ Object.keys(packageJson.scripts || {}).forEach((scriptName) => {
   "README.md",
   "index.html",
   "styles.css",
+  "assets/MOGRT/Tool Bar Rectangle.mogrt",
+  "assets/MOGRT/Tool Bar Circle.mogrt",
   "installers/ptb_install_macos.sh",
   "installers/ptb_install_windows.bat"
 ].forEach((relativePath) => {

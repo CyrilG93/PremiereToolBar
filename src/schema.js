@@ -19,7 +19,14 @@
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
-  const TOOL_IDS = ["openSettings", "copyClipEffects", "pasteClipEffects", "removeClipEffects"];
+  const TOOL_IDS = [
+    "openSettings",
+    "copyClipEffects",
+    "pasteClipEffects",
+    "removeClipEffects",
+    "addAdjustmentLayer",
+    "addGraphicShape"
+  ];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -70,7 +77,8 @@
       tool: {
         // Tool buttons run built-in utility commands that can grow over time.
         id: toolId,
-        removeEffects: normalizeRemoveEffectsOptions(input.tool && input.tool.removeEffects)
+        removeEffects: normalizeRemoveEffectsOptions(input.tool && input.tool.removeEffects),
+        timelineItem: normalizeTimelineItemOptions(input.tool && input.tool.timelineItem)
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
@@ -129,6 +137,16 @@
     return {
       includeIntrinsic: includeIntrinsic || !includeVideoEffects,
       includeVideoEffects: includeVideoEffects || !includeIntrinsic
+    };
+  }
+
+  // Normalize timeline item placement options shared by Adjustment Layer and Graphic tools.
+  function normalizeTimelineItemOptions(options) {
+    const input = options && typeof options === "object" ? options : {};
+    return {
+      useSelectedRange: input.useSelectedRange !== false,
+      defaultDurationSeconds: safeNumber(input.defaultDurationSeconds, 5, 0.1, 3600),
+      shapeType: input.shapeType === "circle" ? "circle" : "rectangle"
     };
   }
 
@@ -901,6 +919,7 @@
     createDefaultConfig,
     normalizeConfig,
     normalizePresetCaptureOptions,
+    normalizeTimelineItemOptions,
     normalizeStack,
     getCollection,
     getCollectionButtons,
