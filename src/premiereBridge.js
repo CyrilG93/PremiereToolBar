@@ -897,131 +897,35 @@
     return { trackIndex: trackCount, createsTrack: true };
   }
 
-  // Find a video ProjectItem that can temporarily bootstrap a new empty video track.
-  async function findTrackCreationSource(app, sequence, preferredItems) {
-    const candidates = (preferredItems || []).filter(isVideoItem);
-    const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
-    for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
-      const clips = await getTrackClips(app, sequence, "video", trackIndex);
-      candidates.push.apply(candidates, clips);
-    }
-    for (const item of candidates) {
-      const projectItem = await readOptionalMethod(item, "getProjectItem", null);
-      if (projectItem) {
-        return projectItem;
+  // Find a validated Adjustment Layer source from the active sequence or another sequence in the project.
+  async function findAdjustmentLayerSource(app, project, activeSequence) {
+    const projectSequences = project && typeof project.getSequences === "function" ? await project.getSequences() : [];
+    const sequences = [activeSequence].concat((projectSequences || []).filter((sequence) => sequence !== activeSequence));
+    for (const sequence of sequences) {
+      if (!sequence) {
+        continue;
       }
-    }
-    return null;
-  }
-
-  // Build the Premiere selection object required to remove one temporary track item.
-  function createSingleItemSelection(app, item) {
-    let selection = null;
-    const created = app.TrackItemSelection
-      && typeof app.TrackItemSelection.createEmptySelection === "function"
-      && app.TrackItemSelection.createEmptySelection((newSelection) => {
-        // Add only the temporary video item so no user media can be removed.
-        newSelection.addItem(item);
-        selection = newSelection;
-      });
-    if (!created || !selection) {
-      throw new Error("Premiere could not create a temporary track-item selection.");
-    }
-    return selection;
-  }
-
-  // Create and leave an empty top video track without shifting or replacing timeline media.
-  async function createEmptyTopVideoTrack(app, project, sequence, editor, items, placement) {
-    const beforeCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
-    const source = await findTrackCreationSource(app, sequence, items);
-    if (!source) {
-      throw new Error("Premiere needs at least one video ProjectItem in the active sequence to create a new video track.");
-    }
-    const time = app.TickTime.createWithSeconds(placement.startSeconds);
-    const apiTrackIndex = beforeCount + 1;
-    const insertAction = editor.createInsertProjectItemAction(source, time, apiTrackIndex, -1, true);
-    await runTimelineStage("Creating a new video track", {
-      existingVideoTracks: beforeCount,
-      requestedTrackIndex: apiTrackIndex,
-      startSeconds: placement.startSeconds
-    }, () => Promise.resolve(executeActions(project, [insertAction], "Tool Bar: Create Video Track")));
-    const afterCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : beforeCount;
-    if (afterCount <= beforeCount) {
-      throw new Error("Premiere did not create the requested video track.");
-    }
-    let temporaryItem = null;
-    let createdTrackIndex = null;
-    for (let trackIndex = beforeCount; trackIndex < afterCount && !temporaryItem; trackIndex += 1) {
-      temporaryItem = await findInsertedProjectItem(app, sequence, trackIndex, source, placement.startSeconds);
-      if (temporaryItem) {
-        createdTrackIndex = trackIndex;
-      }
-    }
-    if (!temporaryItem || createdTrackIndex === null) {
-      throw new Error("Premiere created a track but the temporary item could not be located.");
-    }
-    const selection = createSingleItemSelection(app, temporaryItem);
-    const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : 2;
-    const removeAction = editor.createRemoveItemsAction(selection, false, mediaType, false);
-    await runTimelineStage("Clearing the new video track", {
-      trackIndex: createdTrackIndex,
-      startSeconds: placement.startSeconds
-    }, () => Promise.resolve(executeActions(project, [removeAction], "Tool Bar: Clear New Video Track")));
-    return createdTrackIndex;
-  }
-
-  // Resolve a verified existing destination track, creating an empty top track when required.
-  async function resolveVideoDestination(app, project, sequence, editor, items, placement, target) {
-    if (!target.createsTrack) {
-      return { trackIndex: target.trackIndex, createdTrack: false };
-    }
-    const trackIndex = await createEmptyTopVideoTrack(app, project, sequence, editor, items, placement);
-    return { trackIndex, createdTrack: true };
-  }
-
-  // Find a reusable Adjustment Layer track item in the active sequence.
-  async function findAdjustmentLayerSource(app, sequence) {
-    const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
-    for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
-      const clips = await getTrackClips(app, sequence, "video", trackIndex);
-      for (const clip of clips) {
-        if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
-          const timing = await getTrackItemTiming(clip);
-          return {
-            item: clip,
-            trackIndex,
-            startSeconds: timing.startNumber,
-            projectItem: await readOptionalMethod(clip, "getProjectItem", null),
-            durationSeconds: timing.startNumber !== null && timing.endNumber !== null
-              ? Math.max(0, timing.endNumber - timing.startNumber)
-              : null
-          };
+      const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
+      for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+        const clips = await getTrackClips(app, sequence, "video", trackIndex);
+        for (const clip of clips) {
+          if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
+            const timing = await getTrackItemTiming(clip);
+            return {
+              item: clip,
+              sequence,
+              trackIndex,
+              startSeconds: timing.startNumber,
+              projectItem: await readOptionalMethod(clip, "getProjectItem", null),
+              durationSeconds: timing.startNumber !== null && timing.endNumber !== null
+                ? Math.max(0, timing.endNumber - timing.startNumber)
+                : null
+            };
+          }
         }
       }
     }
     return null;
-  }
-
-  // Match an Adjustment Layer duration through its media Out Point instead of the unreliable sequence End action.
-  async function setAdjustmentLayerDuration(app, project, sequence, item, placement) {
-    if (!item || typeof item.getInPoint !== "function" || typeof item.createSetOutPointAction !== "function") {
-      throw new Error("Premiere did not return an Adjustment Layer with editable In/Out points.");
-    }
-    const inPoint = await item.getInPoint();
-    const inPointSeconds = timeToNumber(inPoint);
-    if (inPointSeconds === null) {
-      throw new Error("Premiere did not expose the Adjustment Layer In Point.");
-    }
-    const outPointSeconds = inPointSeconds + placement.durationSeconds;
-    const action = item.createSetOutPointAction(app.TickTime.createWithSeconds(outPointSeconds));
-    await runTimelineStage("Setting Adjustment Layer duration", {
-      inPointSeconds,
-      outPointSeconds,
-      durationSeconds: placement.durationSeconds,
-      expectedEndSeconds: placement.endSeconds
-    }, () => Promise.resolve(executeActions(project, [action], "Tool Bar: Set Adjustment Layer Duration")));
-    await refreshSequenceView(sequence);
-    return item;
   }
 
   // Locate the inserted Adjustment Layer after Premiere completes the timeline action.
@@ -1042,56 +946,134 @@
     return null;
   }
 
-  // Reuse an existing Adjustment Layer source and place it on a verified free or new track.
+  // Find an inserted ProjectItem on any newly created video track.
+  async function findInsertedProjectItemOnNewTrack(app, sequence, firstTrackIndex, projectItem, startSeconds) {
+    const trackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : firstTrackIndex;
+    for (let trackIndex = firstTrackIndex; trackIndex < trackCount; trackIndex += 1) {
+      const item = await findInsertedProjectItem(app, sequence, trackIndex, projectItem, startSeconds);
+      if (item) {
+        return { item, trackIndex };
+      }
+    }
+    return null;
+  }
+
+  // Read the ProjectItem range that must be restored after inserting the requested duration.
+  async function getProjectItemRange(app, projectItem) {
+    const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : 2;
+    const inPoint = projectItem && typeof projectItem.getInPoint === "function" ? await projectItem.getInPoint(mediaType) : null;
+    const outPoint = projectItem && typeof projectItem.getOutPoint === "function" ? await projectItem.getOutPoint(mediaType) : null;
+    return {
+      inPoint,
+      outPoint,
+      inPointSeconds: timeToNumber(inPoint),
+      outPointSeconds: timeToNumber(outPoint)
+    };
+  }
+
+  // Set a temporary ProjectItem range so Premiere creates the Adjustment Layer at the requested duration.
+  async function setProjectItemRange(app, project, projectItem, inPointSeconds, outPointSeconds, undoName) {
+    await runTimelineStage("Preparing Adjustment Layer source range", {
+      inPointSeconds,
+      outPointSeconds,
+      durationSeconds: outPointSeconds - inPointSeconds
+    }, () => {
+      const inPoint = app.TickTime.createWithSeconds(inPointSeconds);
+      const outPoint = app.TickTime.createWithSeconds(outPointSeconds);
+      const action = typeof projectItem.createSetInOutPointsAction === "function"
+        ? projectItem.createSetInOutPointsAction(inPoint, outPoint)
+        : projectItem.createSetOutPointAction(outPoint);
+      return Promise.resolve(executeActions(project, [action], undoName));
+    });
+  }
+
+  // Restore the source ProjectItem range without invalidating an Adjustment Layer already inserted on the timeline.
+  async function restoreProjectItemRange(app, project, projectItem, range) {
+    if (range.inPointSeconds === null || range.outPointSeconds === null) {
+      return;
+    }
+    try {
+      await setProjectItemRange(
+        app,
+        project,
+        projectItem,
+        range.inPointSeconds,
+        range.outPointSeconds,
+        "Tool Bar: Restore Adjustment Layer Source Range"
+      );
+    } catch (error) {
+      // The inserted timeline item is already independent; keep the operation successful and report restoration failure.
+      logBridge("warn", "Could not restore the Adjustment Layer source range.", describeBridgeError(error));
+    }
+  }
+
+  // Insert a validated Adjustment Layer ProjectItem on a verified free or newly created track.
   async function addAdjustmentLayer(button) {
     const { app, project, sequence, items } = await getTimelineContext();
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
       throw new Error("Premiere does not expose the SequenceEditor API in this build.");
     }
-    const sourceInfo = await findAdjustmentLayerSource(app, sequence);
+    const sourceInfo = await findAdjustmentLayerSource(app, project, sequence);
     if (!sourceInfo || !sourceInfo.projectItem) {
-      throw new Error("Place one Adjustment Layer in the active sequence first. Premiere UXP cannot create or identify it from the Project panel.");
+      throw new Error("Place one Adjustment Layer in any project sequence first. Premiere UXP cannot identify it from the Project panel alone.");
     }
     const source = sourceInfo.projectItem;
     const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
     const placement = await getTimelinePlacement(app, sequence, items, options);
-    const sourceDuration = Number(sourceInfo.durationSeconds);
     const target = await findSafeVideoTrackIndex(app, sequence, placement, {
-      endSeconds: placement.startSeconds + Math.max(
-        placement.durationSeconds,
-        Number.isFinite(sourceDuration) && sourceDuration > 0 ? sourceDuration : placement.durationSeconds
-      )
+      endSeconds: placement.endSeconds
     });
     const editor = app.SequenceEditor.getEditor(sequence);
-    const destination = await resolveVideoDestination(app, project, sequence, editor, items, placement, target);
-    const canCloneActiveItem = sourceInfo.item
-      && Number.isFinite(Number(sourceInfo.startSeconds))
-      && typeof editor.createCloneTrackItemAction === "function";
-    if (!canCloneActiveItem) {
-      throw new Error("Premiere does not expose Adjustment Layer cloning in this build.");
-    }
-    const action = editor.createCloneTrackItemAction(
-      sourceInfo.item,
-      app.TickTime.createWithSeconds(placement.startSeconds - sourceInfo.startSeconds),
-      destination.trackIndex - sourceInfo.trackIndex,
-      0,
-      true,
-      false
+    const originalRange = await getProjectItemRange(app, source);
+    const sourceInPointSeconds = originalRange.inPointSeconds === null ? 0 : originalRange.inPointSeconds;
+    await setProjectItemRange(
+      app,
+      project,
+      source,
+      sourceInPointSeconds,
+      sourceInPointSeconds + placement.durationSeconds,
+      "Tool Bar: Prepare Adjustment Layer Duration"
     );
-    await runTimelineStage("Cloning the Adjustment Layer", {
-      trackIndex: destination.trackIndex,
-      createdTrack: destination.createdTrack,
-      sourceSequenceIsActive: true,
-      startSeconds: placement.startSeconds
-    }, () => Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer")));
-    const item = await findInsertedProjectItem(app, sequence, destination.trackIndex, source, placement.startSeconds);
+    const beforeTrackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
+    const requestedTrackIndex = target.createsTrack ? beforeTrackCount + 1 : target.trackIndex;
+    try {
+      await runTimelineStage(target.createsTrack ? "Creating a track and inserting the Adjustment Layer" : "Inserting the Adjustment Layer", {
+        requestedTrackIndex,
+        existingVideoTracks: beforeTrackCount,
+        createdTrack: target.createsTrack,
+        startSeconds: placement.startSeconds,
+        endSeconds: placement.endSeconds
+      }, () => {
+        const time = app.TickTime.createWithSeconds(placement.startSeconds);
+        const action = target.createsTrack
+          ? editor.createInsertProjectItemAction(source, time, requestedTrackIndex, 0, true)
+          : editor.createOverwriteItemAction(source, time, requestedTrackIndex, 0);
+        return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
+      });
+    } finally {
+      await restoreProjectItemRange(app, project, source, originalRange);
+    }
+    const inserted = target.createsTrack
+      ? await findInsertedProjectItemOnNewTrack(app, sequence, beforeTrackCount, source, placement.startSeconds)
+      : {
+        item: await findInsertedProjectItem(app, sequence, requestedTrackIndex, source, placement.startSeconds),
+        trackIndex: requestedTrackIndex
+      };
+    const item = inserted && inserted.item;
+    if (!item) {
+      throw new Error("Premiere completed the insert but Tool Bar could not locate the new Adjustment Layer.");
+    }
+    if (!await readOptionalMethod(item, "isAdjustmentLayer", false)) {
+      throw new Error("Premiere inserted an item that is not recognized as an Adjustment Layer.");
+    }
     logBridge("info", "Inserted Adjustment Layer.", {
-      trackIndex: destination.trackIndex,
-      createdTrack: destination.createdTrack,
+      trackIndex: inserted.trackIndex,
+      createdTrack: target.createsTrack,
       startSeconds: placement.startSeconds,
       endSeconds: placement.endSeconds
     });
-    return setAdjustmentLayerDuration(app, project, sequence, item, placement);
+    await refreshSequenceView(sequence);
+    return item;
   }
 
   // Remove selected clip components according to the user's Remove Effects choices.
