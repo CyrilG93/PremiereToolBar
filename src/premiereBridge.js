@@ -897,8 +897,89 @@
     return { trackIndex: trackCount, createsTrack: true };
   }
 
+  // Cast a generic ProjectItem to the clip subtype that exposes source In/Out actions.
+  function castClipProjectItem(app, projectItem) {
+    if (!projectItem) {
+      return null;
+    }
+    if (typeof projectItem.getInPoint === "function" && typeof projectItem.getOutPoint === "function") {
+      return projectItem;
+    }
+    try {
+      return app.ClipProjectItem && typeof app.ClipProjectItem.cast === "function"
+        ? app.ClipProjectItem.cast(projectItem)
+        : null;
+    } catch (error) {
+      logBridge("warn", "Could not cast ProjectItem to ClipProjectItem.", {
+        name: projectItem.name || "",
+        error: describeBridgeError(error)
+      });
+      return null;
+    }
+  }
+
+  // Read a ProjectItem name from the documented property with a runtime method fallback.
+  async function getProjectItemName(projectItem) {
+    const propertyName = readOptionalProperty(projectItem, "name", "");
+    return propertyName || await readOptionalMethod(projectItem, "getName", "");
+  }
+
+  // Recursively collect exact-name matches from the Project panel hierarchy.
+  async function findProjectItemsByName(app, project, requestedName) {
+    const expected = String(requestedName || "").trim().toLowerCase();
+    if (!expected || !project || typeof project.getRootItem !== "function") {
+      return [];
+    }
+    const rootItem = await project.getRootItem();
+    const matches = [];
+    async function visitFolder(folder) {
+      const children = folder && typeof folder.getItems === "function" ? await folder.getItems() : [];
+      for (const child of children || []) {
+        const name = await getProjectItemName(child);
+        if (String(name || "").trim().toLowerCase() === expected) {
+          matches.push(child);
+        }
+        const type = readOptionalProperty(child, "type", null);
+        const isFolder = app.ProjectItem && (type === app.ProjectItem.TYPE_BIN || type === app.ProjectItem.TYPE_ROOT);
+        if (isFolder && app.FolderItem && typeof app.FolderItem.cast === "function") {
+          // Recurse only into documented bin/root ProjectItem types.
+          await visitFolder(app.FolderItem.cast(child));
+        }
+      }
+    }
+    await visitFolder(rootItem);
+    return matches;
+  }
+
+  // Resolve an explicitly named ProjectItem while rejecting ambiguous or non-clip matches.
+  async function findNamedAdjustmentLayerSource(app, project, requestedName) {
+    const matches = await findProjectItemsByName(app, project, requestedName);
+    if (!matches.length) {
+      throw new Error("No Project item named \"" + requestedName + "\" was found.");
+    }
+    if (matches.length > 1) {
+      throw new Error("Several Project items are named \"" + requestedName + "\". Rename it uniquely.");
+    }
+    const clipProjectItem = castClipProjectItem(app, matches[0]);
+    if (!clipProjectItem) {
+      throw new Error("The named Project item is not a clip that Premiere can insert.");
+    }
+    return {
+      item: null,
+      sequence: null,
+      trackIndex: null,
+      startSeconds: null,
+      projectItem: matches[0],
+      clipProjectItem,
+      namedSource: true
+    };
+  }
+
   // Find a validated Adjustment Layer source from the active sequence or another sequence in the project.
-  async function findAdjustmentLayerSource(app, project, activeSequence) {
+  async function findAdjustmentLayerSource(app, project, activeSequence, requestedName) {
+    if (String(requestedName || "").trim()) {
+      return findNamedAdjustmentLayerSource(app, project, String(requestedName).trim());
+    }
     const projectSequences = project && typeof project.getSequences === "function" ? await project.getSequences() : [];
     const sequences = [activeSequence].concat((projectSequences || []).filter((sequence) => sequence !== activeSequence));
     for (const sequence of sequences) {
@@ -911,12 +992,15 @@
         for (const clip of clips) {
           if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
             const timing = await getTrackItemTiming(clip);
+            const projectItem = await readOptionalMethod(clip, "getProjectItem", null);
             return {
               item: clip,
               sequence,
               trackIndex,
               startSeconds: timing.startNumber,
-              projectItem: await readOptionalMethod(clip, "getProjectItem", null),
+              projectItem,
+              clipProjectItem: castClipProjectItem(app, projectItem),
+              namedSource: false,
               durationSeconds: timing.startNumber !== null && timing.endNumber !== null
                 ? Math.max(0, timing.endNumber - timing.startNumber)
                 : null
@@ -959,10 +1043,10 @@
   }
 
   // Read the ProjectItem range that must be restored after inserting the requested duration.
-  async function getProjectItemRange(app, projectItem) {
+  async function getProjectItemRange(app, clipProjectItem) {
     const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : 2;
-    const inPoint = projectItem && typeof projectItem.getInPoint === "function" ? await projectItem.getInPoint(mediaType) : null;
-    const outPoint = projectItem && typeof projectItem.getOutPoint === "function" ? await projectItem.getOutPoint(mediaType) : null;
+    const inPoint = clipProjectItem && typeof clipProjectItem.getInPoint === "function" ? await clipProjectItem.getInPoint(mediaType) : null;
+    const outPoint = clipProjectItem && typeof clipProjectItem.getOutPoint === "function" ? await clipProjectItem.getOutPoint(mediaType) : null;
     return {
       inPoint,
       outPoint,
@@ -972,7 +1056,7 @@
   }
 
   // Set a temporary ProjectItem range so Premiere creates the Adjustment Layer at the requested duration.
-  async function setProjectItemRange(app, project, projectItem, inPointSeconds, outPointSeconds, undoName) {
+  async function setProjectItemRange(app, project, clipProjectItem, inPointSeconds, outPointSeconds, undoName) {
     await runTimelineStage("Preparing Adjustment Layer source range", {
       inPointSeconds,
       outPointSeconds,
@@ -980,15 +1064,19 @@
     }, () => {
       const inPoint = app.TickTime.createWithSeconds(inPointSeconds);
       const outPoint = app.TickTime.createWithSeconds(outPointSeconds);
-      const action = typeof projectItem.createSetInOutPointsAction === "function"
-        ? projectItem.createSetInOutPointsAction(inPoint, outPoint)
-        : projectItem.createSetOutPointAction(outPoint);
+      if (!clipProjectItem || (typeof clipProjectItem.createSetInOutPointsAction !== "function"
+        && typeof clipProjectItem.createSetOutPointAction !== "function")) {
+        throw new Error("Premiere does not expose source range actions for this Project item.");
+      }
+      const action = typeof clipProjectItem.createSetInOutPointsAction === "function"
+        ? clipProjectItem.createSetInOutPointsAction(inPoint, outPoint)
+        : clipProjectItem.createSetOutPointAction(outPoint);
       return Promise.resolve(executeActions(project, [action], undoName));
     });
   }
 
   // Restore the source ProjectItem range without invalidating an Adjustment Layer already inserted on the timeline.
-  async function restoreProjectItemRange(app, project, projectItem, range) {
+  async function restoreProjectItemRange(app, project, clipProjectItem, range) {
     if (range.inPointSeconds === null || range.outPointSeconds === null) {
       return;
     }
@@ -996,7 +1084,7 @@
       await setProjectItemRange(
         app,
         project,
-        projectItem,
+        clipProjectItem,
         range.inPointSeconds,
         range.outPointSeconds,
         "Tool Bar: Restore Adjustment Layer Source Range"
@@ -1013,23 +1101,27 @@
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
       throw new Error("Premiere does not expose the SequenceEditor API in this build.");
     }
-    const sourceInfo = await findAdjustmentLayerSource(app, project, sequence);
+    const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
+    const sourceInfo = await findAdjustmentLayerSource(app, project, sequence, options.adjustmentLayerName);
     if (!sourceInfo || !sourceInfo.projectItem) {
       throw new Error("Place one Adjustment Layer in any project sequence first. Premiere UXP cannot identify it from the Project panel alone.");
     }
     const source = sourceInfo.projectItem;
-    const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
+    const clipSource = sourceInfo.clipProjectItem;
+    if (!clipSource) {
+      throw new Error("Premiere could not access the Adjustment Layer as a ClipProjectItem.");
+    }
     const placement = await getTimelinePlacement(app, sequence, items, options);
     const target = await findSafeVideoTrackIndex(app, sequence, placement, {
       endSeconds: placement.endSeconds
     });
     const editor = app.SequenceEditor.getEditor(sequence);
-    const originalRange = await getProjectItemRange(app, source);
+    const originalRange = await getProjectItemRange(app, clipSource);
     const sourceInPointSeconds = originalRange.inPointSeconds === null ? 0 : originalRange.inPointSeconds;
     await setProjectItemRange(
       app,
       project,
-      source,
+      clipSource,
       sourceInPointSeconds,
       sourceInPointSeconds + placement.durationSeconds,
       "Tool Bar: Prepare Adjustment Layer Duration"
@@ -1051,7 +1143,7 @@
         return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
       });
     } finally {
-      await restoreProjectItemRange(app, project, source, originalRange);
+      await restoreProjectItemRange(app, project, clipSource, originalRange);
     }
     const inserted = target.createsTrack
       ? await findInsertedProjectItemOnNewTrack(app, sequence, beforeTrackCount, source, placement.startSeconds)

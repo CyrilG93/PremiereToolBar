@@ -36,11 +36,12 @@ assert.equal(removeEffectsButton.tool.removeEffects.includeIntrinsic, false);
 assert.equal(removeEffectsButton.tool.removeEffects.includeVideoEffects, true);
 const adjustmentLayerButton = schema.createButton({
   actionType: "tool",
-  tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: false, defaultDurationSeconds: 7.5 } }
+  tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: false, defaultDurationSeconds: 7.5, adjustmentLayerName: " Adjustment Layer " } }
 });
 assert.equal(adjustmentLayerButton.tool.id, "addAdjustmentLayer");
 assert.equal(adjustmentLayerButton.tool.timelineItem.useSelectedRange, false);
 assert.equal(adjustmentLayerButton.tool.timelineItem.defaultDurationSeconds, 7.5);
+assert.equal(adjustmentLayerButton.tool.timelineItem.adjustmentLayerName, "Adjustment Layer");
 const retiredGraphicButton = schema.createButton({ actionType: "tool", tool: { id: "addGraphicShape" } });
 assert.equal(retiredGraphicButton.tool.id, "openSettings");
 const configWithRetiredGraphic = JSON.parse(JSON.stringify(defaultConfig));
@@ -1866,8 +1867,11 @@ await inspectSelectionMatchNamesSmokeTest();
 
 // Build a fake Adjustment Layer project item whose source range controls inserted timeline duration.
 function createAdjustmentProjectItem(projectRange, preparedRanges) {
-  return {
+  const projectItem = {
     getId: () => "adjustment-project-item",
+    name: "Adjustment Layer"
+  };
+  const clipProjectItem = {
     getInPoint: async () => ({ seconds: projectRange.inPoint }),
     getOutPoint: async () => ({ seconds: projectRange.outPoint }),
     createSetInOutPointsAction(inPoint, outPoint) {
@@ -1880,13 +1884,15 @@ function createAdjustmentProjectItem(projectRange, preparedRanges) {
       };
     }
   };
+  return { projectItem, clipProjectItem };
 }
 
 // Verify a source in another sequence inserts with a prepared duration and restores its ProjectItem range.
 async function addAdjustmentLayerInsertSmokeTest() {
   const projectRange = { inPoint: 2, outPoint: 7 };
   const preparedRanges = [];
-  const projectItem = createAdjustmentProjectItem(projectRange, preparedRanges);
+  const sourceItems = createAdjustmentProjectItem(projectRange, preparedRanges);
+  const projectItem = sourceItems.projectItem;
   const selectedItem = {
     createAddVideoTransitionAction() {},
     getStartTime: async () => ({ seconds: 10 }),
@@ -1953,6 +1959,12 @@ async function addAdjustmentLayerInsertSmokeTest() {
         throw new Error("Unexpected module: " + name);
       }
       return {
+        ClipProjectItem: {
+          cast: (item) => {
+            assert.equal(item, projectItem);
+            return sourceItems.clipProjectItem;
+          }
+        },
         Constants: {
           TrackItemType: { CLIP: 1 }
         },
@@ -1990,7 +2002,8 @@ await addAdjustmentLayerInsertSmokeTest();
 async function addAdjustmentLayerNewTrackSmokeTest() {
   const projectRange = { inPoint: 0, outPoint: 5 };
   const preparedRanges = [];
-  const projectItem = createAdjustmentProjectItem(projectRange, preparedRanges);
+  const sourceItems = createAdjustmentProjectItem(projectRange, preparedRanges);
+  const projectItem = sourceItems.projectItem;
   const selectedItem = {
     createAddVideoTransitionAction() {},
     getStartTime: async () => ({ seconds: 0 }),
@@ -2054,6 +2067,12 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
         throw new Error("Unexpected module: " + name);
       }
       return {
+        ClipProjectItem: {
+          cast: (item) => {
+            assert.equal(item, projectItem);
+            return sourceItems.clipProjectItem;
+          }
+        },
         Constants: {
           MediaType: { VIDEO: 2 },
           TrackItemType: { CLIP: 1 }
@@ -2086,6 +2105,114 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
 }
 
 await addAdjustmentLayerNewTrackSmokeTest();
+
+// Verify an exact Project-panel name can resolve a generic item recursively through bins.
+async function addNamedProjectAdjustmentLayerSmokeTest() {
+  const projectRange = { inPoint: 0, outPoint: 5 };
+  const preparedRanges = [];
+  const sourceItems = createAdjustmentProjectItem(projectRange, preparedRanges);
+  const selectedItem = {
+    createAddVideoTransitionAction() {},
+    getStartTime: async () => ({ seconds: 4 }),
+    getEndTime: async () => ({ seconds: 12 }),
+    getTrackIndex: async () => 0
+  };
+  const tracks = [[selectedItem], []];
+  const binItem = { name: "Assets", type: 10 };
+  const rootFolder = { getItems: async () => [binItem] };
+  const childFolder = { getItems: async () => [sourceItems.projectItem] };
+  let insertedItem = null;
+  const editor = {
+    createOverwriteItemAction(source, time, videoTrackIndex) {
+      return {
+        apply() {
+          const insertedDuration = projectRange.outPoint - projectRange.inPoint;
+          insertedItem = {
+            createAddVideoTransitionAction() {},
+            isAdjustmentLayer: async () => true,
+            getStartTime: async () => ({ seconds: time.seconds }),
+            getEndTime: async () => ({ seconds: time.seconds + insertedDuration }),
+            getTrackIndex: async () => videoTrackIndex,
+            getProjectItem: async () => source
+          };
+          tracks[videoTrackIndex].push(insertedItem);
+        }
+      };
+    }
+  };
+  const sequence = {
+    getSelection: async () => ({ getTrackItems: async () => [selectedItem] }),
+    getVideoTrackCount: async () => tracks.length,
+    getVideoTrack: async (trackIndex) => ({ getTrackItems: async () => tracks[trackIndex] || [] }),
+    getPlayerPosition: () => ({ seconds: 4 }),
+    setPlayerPosition() {}
+  };
+  const project = {
+    getActiveSequence: async () => sequence,
+    getSequences: async () => [sequence],
+    getRootItem: async () => rootFolder,
+    executeTransaction(handler) {
+      const actions = [];
+      handler({ addAction: (action) => actions.push(action) });
+      actions.forEach((action) => action.apply && action.apply());
+      return true;
+    }
+  };
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      return {
+        ProjectItem: {
+          TYPE_BIN: 10,
+          TYPE_ROOT: 11
+        },
+        FolderItem: {
+          cast: (item) => {
+            assert.equal(item, binItem);
+            return childFolder;
+          }
+        },
+        ClipProjectItem: {
+          cast: (item) => {
+            assert.equal(item, sourceItems.projectItem);
+            return sourceItems.clipProjectItem;
+          }
+        },
+        Constants: {
+          MediaType: { VIDEO: 2 },
+          TrackItemType: { CLIP: 1 }
+        },
+        TickTime: {
+          createWithSeconds: (seconds) => ({ seconds })
+        },
+        SequenceEditor: {
+          getEditor: () => editor
+        },
+        Project: {
+          getActiveProject: async () => project
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    actionType: "tool",
+    tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: true, adjustmentLayerName: "adjustment layer" } }
+  }));
+  assert.ok(insertedItem);
+  assert.equal((await insertedItem.getEndTime()).seconds, 12);
+  assert.deepEqual(preparedRanges, [[0, 8], [0, 5]]);
+}
+
+await addNamedProjectAdjustmentLayerSmokeTest();
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");

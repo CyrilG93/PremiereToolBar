@@ -2054,6 +2054,9 @@
     button.tool.timelineItem = root.PTB_SCHEMA.normalizeTimelineItemOptions(button.tool.timelineItem);
     const options = button.tool.timelineItem;
     const panel = el("div", "ptb-tool-options");
+    panel.appendChild(textField(root.PTB_I18N.t("adjustmentLayerName"), options.adjustmentLayerName, (value) => {
+      button.tool.timelineItem.adjustmentLayerName = value.trim();
+    }));
     panel.appendChild(checkboxField(root.PTB_I18N.t("useSelectedClipRange"), options.useSelectedRange !== false, (checked) => {
       button.tool.timelineItem.useSelectedRange = checked;
       saveAndRender(root.PTB_I18N.t("statusSaved"));

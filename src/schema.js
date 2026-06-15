@@ -144,7 +144,8 @@
     const input = options && typeof options === "object" ? options : {};
     return {
       useSelectedRange: input.useSelectedRange !== false,
-      defaultDurationSeconds: safeNumber(input.defaultDurationSeconds, 5, 0.1, 3600)
+      defaultDurationSeconds: safeNumber(input.defaultDurationSeconds, 5, 0.1, 3600),
+      adjustmentLayerName: safeString(input.adjustmentLayerName, "").trim()
     };
   }
 
