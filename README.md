@@ -94,6 +94,10 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.0.9 - 2026-06-16
+
+- Improved Adjustment Layer insertion reliability in Premiere by running timeline edits under the project edit lock.
+
 ### 1.0.1 - 2026-06-13
 
 - Fixed `Remove Effects` so text, shape, group, image, and video layers inside Essential Graphics clips are preserved.

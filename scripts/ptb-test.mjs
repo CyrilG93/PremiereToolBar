@@ -1939,9 +1939,15 @@ async function addAdjustmentLayerInsertSmokeTest() {
     getPlayerPosition: () => ({ seconds: 10 }),
     setPlayerPosition() {}
   };
+  let lockedAccessCount = 0;
   const project = {
     getActiveSequence: async () => sequence,
     getSequences: async () => [sequence, sourceSequence],
+    lockedAccess(handler) {
+      // Confirm timeline actions run inside Premiere's project edit lock.
+      lockedAccessCount += 1;
+      return handler();
+    },
     executeTransaction(handler) {
       const actions = [];
       handler({ addAction: (action) => actions.push(action) });
@@ -1995,6 +2001,7 @@ async function addAdjustmentLayerInsertSmokeTest() {
   assert.deepEqual(preparedRanges, [[2, 12], [2, 7]]);
   assert.equal(projectRange.outPoint, 7);
   assert.equal((await tracks[1][0].getEndTime()).seconds, 20);
+  assert.equal(lockedAccessCount, 3);
 }
 
 await addAdjustmentLayerInsertSmokeTest();

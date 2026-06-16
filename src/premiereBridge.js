@@ -661,10 +661,15 @@
       throw new Error("No compatible selected clips for this button.");
     }
     logBridge("info", "Executing Premiere transaction.", { undoName: undoName || "Tool Bar", actions: actions.length });
-    return project.executeTransaction((compoundAction) => {
+    const runTransaction = () => project.executeTransaction((compoundAction) => {
       // Add every prepared action to the undoable compound operation.
       actions.forEach((action) => compoundAction.addAction(action));
     }, undoName || "Tool Bar");
+    if (project && typeof project.lockedAccess === "function") {
+      // Premiere timeline actions are more reliable when the transaction runs under the project edit lock.
+      return project.lockedAccess(runTransaction);
+    }
+    return runTransaction();
   }
 
   // Nudge the timeline viewer so Premiere paints async UXP changes without waiting for user movement.
