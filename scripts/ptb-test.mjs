@@ -1899,26 +1899,41 @@ async function addAdjustmentLayerInsertSmokeTest() {
     getEndTime: async () => ({ seconds: 20 }),
     getTrackIndex: async () => 0
   };
+  let sourceOutPoint = 5;
   const adjustmentItem = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
     getStartTime: async () => ({ seconds: 0 }),
-    getEndTime: async () => ({ seconds: 5 }),
+    getEndTime: async () => ({ seconds: sourceOutPoint }),
+    getInPoint: async () => ({ seconds: 0 }),
+    getOutPoint: async () => ({ seconds: sourceOutPoint }),
     getTrackIndex: async () => 1,
-    getProjectItem: async () => projectItem
+    getProjectItem: async () => projectItem,
+    createSetOutPointAction(time) {
+      return {
+        apply() {
+          sourceOutPoint = time.seconds;
+        }
+      };
+    }
   };
   const tracks = [[selectedItem], [adjustmentItem]];
   let cloneArguments = null;
+  let removedEffectCount = 0;
   const editor = {
     createCloneTrackItemAction(sourceItem, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert) {
       cloneArguments = { sourceItem, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert };
       return {
         apply() {
           const sourceStart = 0;
-          const sourceEnd = 5;
+          const sourceEnd = sourceOutPoint;
           const videoTrackIndex = 1 + videoTrackVerticalOffset;
           const startSeconds = sourceStart + timeOffset.seconds;
-          let endSeconds = sourceEnd + timeOffset.seconds;
+          const endSeconds = sourceEnd + timeOffset.seconds;
+          const components = [
+            { getDisplayName: async () => "Motion", getMatchName: async () => "" },
+            { getDisplayName: async () => "Gaussian Blur", getMatchName: async () => "AE.ADBE Gaussian Blur 2" }
+          ];
           const insertedItem = {
             createAddVideoTransitionAction() {},
             isAdjustmentLayer: async () => true,
@@ -1926,13 +1941,21 @@ async function addAdjustmentLayerInsertSmokeTest() {
             getEndTime: async () => ({ seconds: endSeconds }),
             getTrackIndex: async () => videoTrackIndex,
             getProjectItem: async () => projectItem,
-            createSetEndAction(time) {
-              return {
-                apply() {
-                  endSeconds = time.seconds;
-                }
-              };
-            }
+            getComponentChain: async () => ({
+              getComponentCount: () => components.length,
+              getComponentAtIndex: (index) => components[index],
+              createRemoveComponentAction(component) {
+                return {
+                  apply() {
+                    removedEffectCount += 1;
+                    const index = components.indexOf(component);
+                    if (index >= 0) {
+                      components.splice(index, 1);
+                    }
+                  }
+                };
+              }
+            })
           };
           tracks[videoTrackIndex].push(insertedItem);
         }
@@ -1981,6 +2004,10 @@ async function addAdjustmentLayerInsertSmokeTest() {
         Constants: {
           TrackItemType: { CLIP: 1 }
         },
+        VideoFilterFactory: {
+          getMatchNames: async () => ["AE.ADBE Gaussian Blur 2"],
+          getDisplayNames: async () => ["Gaussian Blur"]
+        },
         TickTime: {
           createWithSeconds: (seconds) => ({ seconds })
         },
@@ -2009,7 +2036,9 @@ async function addAdjustmentLayerInsertSmokeTest() {
   assert.deepEqual(preparedRanges, []);
   assert.equal(projectRange.outPoint, 7);
   assert.equal((await tracks[1][1].getEndTime()).seconds, 20);
-  assert.equal(lockedAccessCount, 2);
+  assert.equal(sourceOutPoint, 5);
+  assert.equal(removedEffectCount, 1);
+  assert.equal(lockedAccessCount, 4);
 }
 
 await addAdjustmentLayerInsertSmokeTest();
@@ -2026,13 +2055,23 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
     getEndTime: async () => ({ seconds: 10 }),
     getTrackIndex: async () => 0
   };
+  let sourceOutPoint = 10;
   const adjustmentItem = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
     getStartTime: async () => ({ seconds: 0 }),
-    getEndTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: sourceOutPoint }),
+    getInPoint: async () => ({ seconds: 0 }),
+    getOutPoint: async () => ({ seconds: sourceOutPoint }),
     getTrackIndex: async () => 1,
-    getProjectItem: async () => projectItem
+    getProjectItem: async () => projectItem,
+    createSetOutPointAction(time) {
+      return {
+        apply() {
+          sourceOutPoint = time.seconds;
+        }
+      };
+    }
   };
   const tracks = [[selectedItem], [adjustmentItem]];
   let cloneArguments = null;
@@ -2042,7 +2081,7 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
       return {
         apply() {
           const actualTrackIndex = 1 + videoTrackVerticalOffset;
-          let endSeconds = 10 + timeOffset.seconds;
+          const endSeconds = sourceOutPoint + timeOffset.seconds;
           tracks.push([{
             createAddVideoTransitionAction() {},
             isAdjustmentLayer: async () => true,
@@ -2050,13 +2089,7 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
             getEndTime: async () => ({ seconds: endSeconds }),
             getTrackIndex: async () => actualTrackIndex,
             getProjectItem: async () => projectItem,
-            createSetEndAction(time) {
-              return {
-                apply() {
-                  endSeconds = time.seconds;
-                }
-              };
-            }
+            getComponentChain: async () => ({ getComponentCount: () => 0 })
           }]);
         }
       };
@@ -2098,6 +2131,10 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
         Constants: {
           MediaType: { VIDEO: 2 },
           TrackItemType: { CLIP: 1 }
+        },
+        VideoFilterFactory: {
+          getMatchNames: async () => [],
+          getDisplayNames: async () => []
         },
         TickTime: {
           createWithSeconds: (seconds) => ({ seconds })
@@ -2141,13 +2178,23 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
     getEndTime: async () => ({ seconds: 12 }),
     getTrackIndex: async () => 0
   };
+  let sourceOutPoint = 2;
   const adjustmentItem = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
     getStartTime: async () => ({ seconds: 0 }),
-    getEndTime: async () => ({ seconds: 2 }),
+    getEndTime: async () => ({ seconds: sourceOutPoint }),
+    getInPoint: async () => ({ seconds: 0 }),
+    getOutPoint: async () => ({ seconds: sourceOutPoint }),
     getTrackIndex: async () => 1,
-    getProjectItem: async () => sourceItems.projectItem
+    getProjectItem: async () => sourceItems.projectItem,
+    createSetOutPointAction(time) {
+      return {
+        apply() {
+          sourceOutPoint = time.seconds;
+        }
+      };
+    }
   };
   const tracks = [[selectedItem], [adjustmentItem]];
   let insertedItem = null;
@@ -2156,7 +2203,7 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
       assert.equal(sourceItem, adjustmentItem);
       return {
         apply() {
-          let endSeconds = 2 + timeOffset.seconds;
+          const endSeconds = sourceOutPoint + timeOffset.seconds;
           insertedItem = {
             createAddVideoTransitionAction() {},
             isAdjustmentLayer: async () => true,
@@ -2164,13 +2211,7 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
             getEndTime: async () => ({ seconds: endSeconds }),
             getTrackIndex: async () => 1 + videoTrackVerticalOffset,
             getProjectItem: async () => sourceItems.projectItem,
-            createSetEndAction(time) {
-              return {
-                apply() {
-                  endSeconds = time.seconds;
-                }
-              };
-            }
+            getComponentChain: async () => ({ getComponentCount: () => 0 })
           };
           tracks[1 + videoTrackVerticalOffset].push(insertedItem);
         }
@@ -2214,6 +2255,10 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
           MediaType: { VIDEO: 2 },
           TrackItemType: { CLIP: 1 }
         },
+        VideoFilterFactory: {
+          getMatchNames: async () => [],
+          getDisplayNames: async () => []
+        },
         TickTime: {
           createWithSeconds: (seconds) => ({ seconds })
         },
@@ -2235,6 +2280,7 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
   }));
   assert.ok(insertedItem);
   assert.equal((await insertedItem.getEndTime()).seconds, 12);
+  assert.equal(sourceOutPoint, 2);
   assert.deepEqual(preparedRanges, []);
 }
 

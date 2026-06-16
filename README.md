@@ -94,6 +94,10 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.0.11 - 2026-06-16
+
+- Fixed cloned Adjustment Layers so they inherit the requested duration and copied effects are removed.
+
 ### 1.0.10 - 2026-06-16
 
 - Changed Adjustment Layer creation to clone an existing layer from the active sequence and set its duration.

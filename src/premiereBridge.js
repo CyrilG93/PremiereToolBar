@@ -1008,6 +1008,7 @@
         for (const clip of clips) {
           if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
             const timing = await getTrackItemTiming(clip);
+            const fullTiming = await getItemTimingSnapshot(clip);
             const projectItem = await readOptionalMethod(clip, "getProjectItem", null);
             const projectItemName = await getProjectItemName(projectItem);
             if (expectedName && String(projectItemName || "").trim().toLowerCase() !== expectedName) {
@@ -1021,6 +1022,7 @@
               projectItem,
               clipProjectItem: castClipProjectItem(app, projectItem),
               namedSource: false,
+              timing: fullTiming,
               durationSeconds: timing.startNumber !== null && timing.endNumber !== null
                 ? Math.max(0, timing.endNumber - timing.startNumber)
                 : null
@@ -1149,7 +1151,70 @@
     throw lastError || new Error("Premiere could not insert the Adjustment Layer.");
   }
 
-  // Clone an existing active-sequence Adjustment Layer, then trim it to the requested range.
+  // Temporarily change the source timeline Adjustment Layer out point so the clone inherits the requested duration.
+  async function setTimelineItemOutPoint(app, project, item, outPointSeconds, undoName) {
+    await runTimelineStage("Preparing source Adjustment Layer duration", {
+      outPointSeconds
+    }, () => {
+      if (!item || typeof item.createSetOutPointAction !== "function") {
+        throw new Error("Premiere UXP does not expose createSetOutPointAction for the source Adjustment Layer.");
+      }
+      const action = item.createSetOutPointAction(app.TickTime.createWithSeconds(outPointSeconds));
+      return Promise.resolve(executeActions(project, [action], undoName));
+    });
+  }
+
+  // Restore the source Adjustment Layer out point after cloning.
+  async function restoreTimelineItemOutPoint(app, project, item, originalOutPointSeconds) {
+    if (typeof originalOutPointSeconds !== "number") {
+      return;
+    }
+    try {
+      await setTimelineItemOutPoint(
+        app,
+        project,
+        item,
+        originalOutPointSeconds,
+        "Tool Bar: Restore Source Adjustment Layer Duration"
+      );
+    } catch (error) {
+      logBridge("warn", "Could not restore the source Adjustment Layer duration.", describeBridgeError(error));
+    }
+  }
+
+  // Remove added video effects from a cloned Adjustment Layer while preserving intrinsic clip components.
+  async function removeClonedAdjustmentLayerEffects(app, project, item) {
+    if (!item || typeof item.getComponentChain !== "function") {
+      logBridge("warn", "Cloned Adjustment Layer does not expose a component chain; copied effects could not be removed.");
+      return;
+    }
+    const chain = await item.getComponentChain();
+    const count = chain && typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+    if (!chain || !count || typeof chain.createRemoveComponentAction !== "function") {
+      return;
+    }
+    const videoEffectCatalog = await loadVideoEffectIdentityCatalog(app);
+    const actions = [];
+    for (let index = 0; index < count; index += 1) {
+      const component = chain.getComponentAtIndex(index);
+      const displayName = await readComponentDisplayName(component);
+      if (INTRINSIC_COMPONENTS.includes(displayName) || isEssentialGraphicsLayerComponent(displayName)) {
+        continue;
+      }
+      const matchName = await readComponentMatchName(component);
+      if (isCatalogVideoEffect(videoEffectCatalog, matchName, displayName)) {
+        actions.push(chain.createRemoveComponentAction(component));
+      }
+    }
+    if (!actions.length) {
+      return;
+    }
+    await runTimelineStage("Removing cloned Adjustment Layer effects", {
+      actions: actions.length
+    }, () => Promise.resolve(executeActions(project, actions, "Tool Bar: Clean Adjustment Layer Effects")));
+  }
+
+  // Clone an existing active-sequence Adjustment Layer at the requested range.
   async function cloneAdjustmentLayerFromTimeline(app, project, sequence, editor, sourceInfo, target, placement, beforeTrackCount) {
     if (!sourceInfo.item || typeof editor.createCloneTrackItemAction !== "function") {
       throw new Error("Premiere UXP cannot insert Adjustment Layers from the Project panel. Place one Adjustment Layer in the active sequence first.");
@@ -1159,25 +1224,42 @@
     }
     const timeOffset = placement.startSeconds - sourceInfo.startSeconds;
     const videoTrackVerticalOffset = target.trackIndex - sourceInfo.trackIndex;
-    await runTimelineStage(target.createsTrack ? "Creating a track and cloning the Adjustment Layer" : "Cloning the Adjustment Layer", {
-      sourceTrackIndex: sourceInfo.trackIndex,
-      targetTrackIndex: target.trackIndex,
-      videoTrackVerticalOffset,
-      timeOffsetSeconds: timeOffset,
-      createdTrack: target.createsTrack,
-      startSeconds: placement.startSeconds,
-      endSeconds: placement.endSeconds
-    }, () => {
-      const action = editor.createCloneTrackItemAction(
-        sourceInfo.item,
-        app.TickTime.createWithSeconds(timeOffset),
+    const originalOutPointSeconds = sourceInfo.timing && typeof sourceInfo.timing.outPointSeconds === "number"
+      ? sourceInfo.timing.outPointSeconds
+      : null;
+    const sourceInPointSeconds = sourceInfo.timing && typeof sourceInfo.timing.inPointSeconds === "number"
+      ? sourceInfo.timing.inPointSeconds
+      : 0;
+    await setTimelineItemOutPoint(
+      app,
+      project,
+      sourceInfo.item,
+      sourceInPointSeconds + placement.durationSeconds,
+      "Tool Bar: Prepare Source Adjustment Layer Duration"
+    );
+    try {
+      await runTimelineStage(target.createsTrack ? "Creating a track and cloning the Adjustment Layer" : "Cloning the Adjustment Layer", {
+        sourceTrackIndex: sourceInfo.trackIndex,
+        targetTrackIndex: target.trackIndex,
         videoTrackVerticalOffset,
-        0,
-        true,
-        false
-      );
-      return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
-    });
+        timeOffsetSeconds: timeOffset,
+        createdTrack: target.createsTrack,
+        startSeconds: placement.startSeconds,
+        endSeconds: placement.endSeconds
+      }, () => {
+        const action = editor.createCloneTrackItemAction(
+          sourceInfo.item,
+          app.TickTime.createWithSeconds(timeOffset),
+          videoTrackVerticalOffset,
+          0,
+          true,
+          false
+        );
+        return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
+      });
+    } finally {
+      await restoreTimelineItemOutPoint(app, project, sourceInfo.item, originalOutPointSeconds);
+    }
     const inserted = target.createsTrack
       ? await findInsertedProjectItemOnNewTrack(app, sequence, beforeTrackCount, sourceInfo.projectItem, placement.startSeconds)
       : {
@@ -1188,17 +1270,7 @@
     if (!item) {
       throw new Error("Premiere completed the clone but Tool Bar could not locate the new Adjustment Layer.");
     }
-    if (typeof item.createSetEndAction !== "function") {
-      throw new Error("Premiere UXP does not expose createSetEndAction for the cloned Adjustment Layer.");
-    }
-    await runTimelineStage("Setting Adjustment Layer duration", {
-      trackIndex: inserted.trackIndex,
-      startSeconds: placement.startSeconds,
-      endSeconds: placement.endSeconds
-    }, () => {
-      const action = item.createSetEndAction(app.TickTime.createWithSeconds(placement.endSeconds));
-      return Promise.resolve(executeActions(project, [action], "Tool Bar: Set Adjustment Layer Duration"));
-    });
+    await removeClonedAdjustmentLayerEffects(app, project, item);
     return inserted;
   }
 
