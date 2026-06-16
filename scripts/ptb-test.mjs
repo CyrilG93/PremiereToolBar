@@ -1912,10 +1912,10 @@ async function addAdjustmentLayerInsertSmokeTest() {
     getVideoTrackCount: async () => 1,
     getVideoTrack: async () => ({ getTrackItems: async () => [adjustmentItem] })
   };
-  let overwriteArguments = null;
+  let insertArguments = null;
   const editor = {
-    createOverwriteItemAction(source, time, videoTrackIndex, audioTrackIndex) {
-      overwriteArguments = { source, time, videoTrackIndex, audioTrackIndex };
+    createInsertProjectItemAction(source, time, videoTrackIndex, audioTrackIndex, limitShift) {
+      insertArguments = { source, time, videoTrackIndex, audioTrackIndex, limitShift };
       return {
         apply() {
           // Capture the source range at insertion time because the timeline item becomes independent.
@@ -1987,10 +1987,11 @@ async function addAdjustmentLayerInsertSmokeTest() {
     actionType: "tool",
     tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: true } }
   }));
-  assert.equal(overwriteArguments.source, projectItem);
-  assert.equal(overwriteArguments.time.seconds, 10);
-  assert.equal(overwriteArguments.videoTrackIndex, 1);
-  assert.equal(overwriteArguments.audioTrackIndex, 0);
+  assert.equal(insertArguments.source, projectItem);
+  assert.equal(insertArguments.time.seconds, 10);
+  assert.equal(insertArguments.videoTrackIndex, 1);
+  assert.equal(insertArguments.audioTrackIndex, -1);
+  assert.equal(insertArguments.limitShift, true);
   assert.deepEqual(preparedRanges, [[2, 12], [2, 7]]);
   assert.equal(projectRange.outPoint, 7);
   assert.equal((await tracks[1][0].getEndTime()).seconds, 20);
@@ -2098,7 +2099,7 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
   }));
   assert.equal(insertArguments.source, projectItem);
   assert.equal(insertArguments.videoTrackIndex, 3);
-  assert.equal(insertArguments.audioTrackIndex, 0);
+  assert.equal(insertArguments.audioTrackIndex, -1);
   assert.equal(insertArguments.limitShift, true);
   assert.equal(tracks.length, 3);
   assert.equal((await tracks[2][0].getEndTime()).seconds, 10);
@@ -2123,7 +2124,7 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
   const childFolder = { getItems: async () => [sourceItems.projectItem] };
   let insertedItem = null;
   const editor = {
-    createOverwriteItemAction(source, time, videoTrackIndex) {
+    createInsertProjectItemAction(source, time, videoTrackIndex) {
       return {
         apply() {
           const insertedDuration = projectRange.outPoint - projectRange.inPoint;

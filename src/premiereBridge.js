@@ -1113,7 +1113,8 @@
     }
     const placement = await getTimelinePlacement(app, sequence, items, options);
     const target = await findSafeVideoTrackIndex(app, sequence, placement, {
-      endSeconds: placement.endSeconds
+      endSeconds: placement.endSeconds,
+      avoidLaterItems: true
     });
     const editor = app.SequenceEditor.getEditor(sequence);
     const originalRange = await getProjectItemRange(app, clipSource);
@@ -1137,9 +1138,7 @@
         endSeconds: placement.endSeconds
       }, () => {
         const time = app.TickTime.createWithSeconds(placement.startSeconds);
-        const action = target.createsTrack
-          ? editor.createInsertProjectItemAction(source, time, requestedTrackIndex, 0, true)
-          : editor.createOverwriteItemAction(source, time, requestedTrackIndex, 0);
+        const action = editor.createInsertProjectItemAction(source, time, requestedTrackIndex, -1, true);
         return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
       });
     } finally {
