@@ -1990,7 +1990,7 @@ async function addAdjustmentLayerInsertSmokeTest() {
   assert.equal(insertArguments.source, projectItem);
   assert.equal(insertArguments.time.seconds, 10);
   assert.equal(insertArguments.videoTrackIndex, 1);
-  assert.equal(insertArguments.audioTrackIndex, -1);
+  assert.equal(insertArguments.audioTrackIndex, 0);
   assert.equal(insertArguments.limitShift, true);
   assert.deepEqual(preparedRanges, [[2, 12], [2, 7]]);
   assert.equal(projectRange.outPoint, 7);
@@ -2098,8 +2098,8 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
     tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: true } }
   }));
   assert.equal(insertArguments.source, projectItem);
-  assert.equal(insertArguments.videoTrackIndex, 3);
-  assert.equal(insertArguments.audioTrackIndex, -1);
+  assert.equal(insertArguments.videoTrackIndex, 2);
+  assert.equal(insertArguments.audioTrackIndex, 0);
   assert.equal(insertArguments.limitShift, true);
   assert.equal(tracks.length, 3);
   assert.equal((await tracks[2][0].getEndTime()).seconds, 10);

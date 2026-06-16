@@ -932,22 +932,36 @@
     }
     const rootItem = await project.getRootItem();
     const matches = [];
+    const scannedNames = [];
     async function visitFolder(folder) {
       const children = folder && typeof folder.getItems === "function" ? await folder.getItems() : [];
       for (const child of children || []) {
         const name = await getProjectItemName(child);
+        if (name && scannedNames.length < 80) {
+          scannedNames.push(name);
+        }
         if (String(name || "").trim().toLowerCase() === expected) {
           matches.push(child);
         }
         const type = readOptionalProperty(child, "type", null);
         const isFolder = app.ProjectItem && (type === app.ProjectItem.TYPE_BIN || type === app.ProjectItem.TYPE_ROOT);
-        if (isFolder && app.FolderItem && typeof app.FolderItem.cast === "function") {
-          // Recurse only into documented bin/root ProjectItem types.
-          await visitFolder(app.FolderItem.cast(child));
+        if ((isFolder || type === null) && app.FolderItem && typeof app.FolderItem.cast === "function") {
+          try {
+            // Recurse into documented bins, and also try unknown ProjectItem types because some hosts omit type.
+            await visitFolder(app.FolderItem.cast(child));
+          } catch (error) {
+            // Non-folder ProjectItems are expected to reject FolderItem.cast.
+          }
         }
       }
     }
     await visitFolder(rootItem);
+    if (!matches.length) {
+      logBridge("warn", "No Project item matched the requested Adjustment Layer name.", {
+        requestedName,
+        scannedNames
+      });
+    }
     return matches;
   }
 
@@ -1095,6 +1109,37 @@
     }
   }
 
+  // Try ProjectItem insertion with host-specific track/audio index fallbacks.
+  async function insertProjectItemWithFallback(app, project, editor, source, time, trackIndices, placement, createsTrack) {
+    const audioTrackIndices = [0, -1];
+    let lastError = null;
+    for (const trackIndex of trackIndices) {
+      for (const audioTrackIndex of audioTrackIndices) {
+        try {
+          await runTimelineStage(createsTrack ? "Creating a track and inserting the Adjustment Layer" : "Inserting the Adjustment Layer", {
+            requestedTrackIndex: trackIndex,
+            audioTrackIndex,
+            createdTrack: createsTrack,
+            startSeconds: placement.startSeconds,
+            endSeconds: placement.endSeconds
+          }, () => {
+            const action = editor.createInsertProjectItemAction(source, time, trackIndex, audioTrackIndex, true);
+            return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
+          });
+          return { trackIndex, audioTrackIndex };
+        } catch (error) {
+          lastError = error;
+          logBridge("warn", "Adjustment Layer insert attempt failed.", {
+            requestedTrackIndex: trackIndex,
+            audioTrackIndex,
+            error: describeBridgeError(error)
+          });
+        }
+      }
+    }
+    throw lastError || new Error("Premiere could not insert the Adjustment Layer.");
+  }
+
   // Insert a validated Adjustment Layer ProjectItem on a verified free or newly created track.
   async function addAdjustmentLayer(button) {
     const { app, project, sequence, items } = await getTimelineContext();
@@ -1128,27 +1173,28 @@
       "Tool Bar: Prepare Adjustment Layer Duration"
     );
     const beforeTrackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
-    const requestedTrackIndex = target.createsTrack ? beforeTrackCount + 1 : target.trackIndex;
+    const requestedTrackIndices = target.createsTrack
+      ? [beforeTrackCount, beforeTrackCount + 1]
+      : [target.trackIndex];
     try {
-      await runTimelineStage(target.createsTrack ? "Creating a track and inserting the Adjustment Layer" : "Inserting the Adjustment Layer", {
-        requestedTrackIndex,
-        existingVideoTracks: beforeTrackCount,
-        createdTrack: target.createsTrack,
-        startSeconds: placement.startSeconds,
-        endSeconds: placement.endSeconds
-      }, () => {
-        const time = app.TickTime.createWithSeconds(placement.startSeconds);
-        const action = editor.createInsertProjectItemAction(source, time, requestedTrackIndex, -1, true);
-        return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
-      });
+      await insertProjectItemWithFallback(
+        app,
+        project,
+        editor,
+        source,
+        app.TickTime.createWithSeconds(placement.startSeconds),
+        requestedTrackIndices,
+        placement,
+        target.createsTrack
+      );
     } finally {
       await restoreProjectItemRange(app, project, clipSource, originalRange);
     }
     const inserted = target.createsTrack
       ? await findInsertedProjectItemOnNewTrack(app, sequence, beforeTrackCount, source, placement.startSeconds)
       : {
-        item: await findInsertedProjectItem(app, sequence, requestedTrackIndex, source, placement.startSeconds),
-        trackIndex: requestedTrackIndex
+        item: await findInsertedProjectItem(app, sequence, target.trackIndex, source, placement.startSeconds),
+        trackIndex: target.trackIndex
       };
     const item = inserted && inserted.item;
     if (!item) {
