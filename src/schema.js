@@ -23,8 +23,7 @@
     "openSettings",
     "copyClipEffects",
     "pasteClipEffects",
-    "removeClipEffects",
-    "addAdjustmentLayer"
+    "removeClipEffects"
   ];
 
   // Create stable ids without relying on external dependencies.
@@ -76,8 +75,7 @@
       tool: {
         // Tool buttons run built-in utility commands that can grow over time.
         id: toolId,
-        removeEffects: normalizeRemoveEffectsOptions(input.tool && input.tool.removeEffects),
-        timelineItem: normalizeTimelineItemOptions(input.tool && input.tool.timelineItem)
+        removeEffects: normalizeRemoveEffectsOptions(input.tool && input.tool.removeEffects)
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
@@ -136,16 +134,6 @@
     return {
       includeIntrinsic: includeIntrinsic || !includeVideoEffects,
       includeVideoEffects: includeVideoEffects || !includeIntrinsic
-    };
-  }
-
-  // Normalize timeline item placement options used by the Adjustment Layer tool.
-  function normalizeTimelineItemOptions(options) {
-    const input = options && typeof options === "object" ? options : {};
-    return {
-      useSelectedRange: input.useSelectedRange !== false,
-      defaultDurationSeconds: safeNumber(input.defaultDurationSeconds, 5, 0.1, 3600),
-      adjustmentLayerName: safeString(input.adjustmentLayerName, "").trim()
     };
   }
 
@@ -921,7 +909,6 @@
     createDefaultConfig,
     normalizeConfig,
     normalizePresetCaptureOptions,
-    normalizeTimelineItemOptions,
     normalizeStack,
     getCollection,
     getCollectionButtons,

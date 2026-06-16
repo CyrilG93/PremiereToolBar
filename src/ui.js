@@ -1891,8 +1891,7 @@
         { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") },
         { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
         { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
-        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
-        { value: "addAdjustmentLayer", label: root.PTB_I18N.t("toolAddAdjustmentLayer") }
+        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") }
       ], (value) => {
         button.tool.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
@@ -1901,9 +1900,6 @@
       wrap.appendChild(toolField);
       if (button.tool.id === "removeClipEffects") {
         wrap.appendChild(renderRemoveEffectsOptions(button));
-      }
-      if (button.tool.id === "addAdjustmentLayer") {
-        wrap.appendChild(renderTimelineItemOptions(button));
       }
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("toolHelp")));
       return wrap;
@@ -2046,30 +2042,6 @@
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("removeEffectsHelp")));
-    return panel;
-  }
-
-  // Render shared duration and placement settings for generated timeline items.
-  function renderTimelineItemOptions(button) {
-    button.tool.timelineItem = root.PTB_SCHEMA.normalizeTimelineItemOptions(button.tool.timelineItem);
-    const options = button.tool.timelineItem;
-    const panel = el("div", "ptb-tool-options");
-    panel.appendChild(textField(root.PTB_I18N.t("adjustmentLayerName"), options.adjustmentLayerName, (value) => {
-      button.tool.timelineItem.adjustmentLayerName = value.trim();
-    }));
-    panel.appendChild(checkboxField(root.PTB_I18N.t("useSelectedClipRange"), options.useSelectedRange !== false, (checked) => {
-      button.tool.timelineItem.useSelectedRange = checked;
-      saveAndRender(root.PTB_I18N.t("statusSaved"));
-    }));
-    if (!options.useSelectedRange) {
-      panel.appendChild(numberField(root.PTB_I18N.t("defaultTimelineItemDuration"), options.defaultDurationSeconds, (value) => {
-        button.tool.timelineItem.defaultDurationSeconds = clampNumber(value, 5, 0.1, 3600);
-      }));
-    }
-    panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("timelineItemHelp")));
-    if (button.tool.id === "addAdjustmentLayer") {
-      panel.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("adjustmentLayerHelp")));
-    }
     return panel;
   }
 
