@@ -994,13 +994,10 @@
     };
   }
 
-  // Find a validated Adjustment Layer source from the active sequence or another sequence in the project.
+  // Find a validated Adjustment Layer source from the active sequence.
   async function findAdjustmentLayerSource(app, project, activeSequence, requestedName) {
-    if (String(requestedName || "").trim()) {
-      return findNamedAdjustmentLayerSource(app, project, String(requestedName).trim());
-    }
-    const projectSequences = project && typeof project.getSequences === "function" ? await project.getSequences() : [];
-    const sequences = [activeSequence].concat((projectSequences || []).filter((sequence) => sequence !== activeSequence));
+    const expectedName = String(requestedName || "").trim().toLowerCase();
+    const sequences = [activeSequence];
     for (const sequence of sequences) {
       if (!sequence) {
         continue;
@@ -1012,6 +1009,10 @@
           if (await readOptionalMethod(clip, "isAdjustmentLayer", false)) {
             const timing = await getTrackItemTiming(clip);
             const projectItem = await readOptionalMethod(clip, "getProjectItem", null);
+            const projectItemName = await getProjectItemName(projectItem);
+            if (expectedName && String(projectItemName || "").trim().toLowerCase() !== expectedName) {
+              continue;
+            }
             return {
               item: clip,
               sequence,
@@ -1027,6 +1028,9 @@
           }
         }
       }
+    }
+    if (expectedName) {
+      await findProjectItemsByName(app, project, requestedName);
     }
     return null;
   }
@@ -1145,7 +1149,60 @@
     throw lastError || new Error("Premiere could not insert the Adjustment Layer.");
   }
 
-  // Insert a validated Adjustment Layer ProjectItem on a verified free or newly created track.
+  // Clone an existing active-sequence Adjustment Layer, then trim it to the requested range.
+  async function cloneAdjustmentLayerFromTimeline(app, project, sequence, editor, sourceInfo, target, placement, beforeTrackCount) {
+    if (!sourceInfo.item || typeof editor.createCloneTrackItemAction !== "function") {
+      throw new Error("Premiere UXP cannot insert Adjustment Layers from the Project panel. Place one Adjustment Layer in the active sequence first.");
+    }
+    if (typeof sourceInfo.startSeconds !== "number" || typeof sourceInfo.trackIndex !== "number") {
+      throw new Error("Tool Bar could not read the source Adjustment Layer position.");
+    }
+    const timeOffset = placement.startSeconds - sourceInfo.startSeconds;
+    const videoTrackVerticalOffset = target.trackIndex - sourceInfo.trackIndex;
+    await runTimelineStage(target.createsTrack ? "Creating a track and cloning the Adjustment Layer" : "Cloning the Adjustment Layer", {
+      sourceTrackIndex: sourceInfo.trackIndex,
+      targetTrackIndex: target.trackIndex,
+      videoTrackVerticalOffset,
+      timeOffsetSeconds: timeOffset,
+      createdTrack: target.createsTrack,
+      startSeconds: placement.startSeconds,
+      endSeconds: placement.endSeconds
+    }, () => {
+      const action = editor.createCloneTrackItemAction(
+        sourceInfo.item,
+        app.TickTime.createWithSeconds(timeOffset),
+        videoTrackVerticalOffset,
+        0,
+        true,
+        false
+      );
+      return Promise.resolve(executeActions(project, [action], "Tool Bar: Add Adjustment Layer"));
+    });
+    const inserted = target.createsTrack
+      ? await findInsertedProjectItemOnNewTrack(app, sequence, beforeTrackCount, sourceInfo.projectItem, placement.startSeconds)
+      : {
+        item: await findInsertedProjectItem(app, sequence, target.trackIndex, sourceInfo.projectItem, placement.startSeconds),
+        trackIndex: target.trackIndex
+      };
+    const item = inserted && inserted.item;
+    if (!item) {
+      throw new Error("Premiere completed the clone but Tool Bar could not locate the new Adjustment Layer.");
+    }
+    if (typeof item.createSetEndAction !== "function") {
+      throw new Error("Premiere UXP does not expose createSetEndAction for the cloned Adjustment Layer.");
+    }
+    await runTimelineStage("Setting Adjustment Layer duration", {
+      trackIndex: inserted.trackIndex,
+      startSeconds: placement.startSeconds,
+      endSeconds: placement.endSeconds
+    }, () => {
+      const action = item.createSetEndAction(app.TickTime.createWithSeconds(placement.endSeconds));
+      return Promise.resolve(executeActions(project, [action], "Tool Bar: Set Adjustment Layer Duration"));
+    });
+    return inserted;
+  }
+
+  // Clone a validated active-sequence Adjustment Layer on a verified free or newly created track.
   async function addAdjustmentLayer(button) {
     const { app, project, sequence, items } = await getTimelineContext();
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
@@ -1153,13 +1210,8 @@
     }
     const options = button.tool && button.tool.timelineItem ? button.tool.timelineItem : {};
     const sourceInfo = await findAdjustmentLayerSource(app, project, sequence, options.adjustmentLayerName);
-    if (!sourceInfo || !sourceInfo.projectItem) {
-      throw new Error("Place one Adjustment Layer in any project sequence first. Premiere UXP cannot identify it from the Project panel alone.");
-    }
-    const source = sourceInfo.projectItem;
-    const clipSource = sourceInfo.clipProjectItem;
-    if (!clipSource) {
-      throw new Error("Premiere could not access the Adjustment Layer as a ClipProjectItem.");
+    if (!sourceInfo || !sourceInfo.item || !sourceInfo.projectItem) {
+      throw new Error("Place one Adjustment Layer in the active sequence first. Premiere UXP cannot insert Adjustment Layers from the Project panel.");
     }
     const placement = await getTimelinePlacement(app, sequence, items, options);
     const target = await findSafeVideoTrackIndex(app, sequence, placement, {
@@ -1167,46 +1219,14 @@
       avoidLaterItems: true
     });
     const editor = app.SequenceEditor.getEditor(sequence);
-    const originalRange = await getProjectItemRange(app, clipSource);
-    const sourceInPointSeconds = originalRange.inPointSeconds === null ? 0 : originalRange.inPointSeconds;
-    await setProjectItemRange(
-      app,
-      project,
-      clipSource,
-      sourceInPointSeconds,
-      sourceInPointSeconds + placement.durationSeconds,
-      "Tool Bar: Prepare Adjustment Layer Duration"
-    );
     const beforeTrackCount = typeof sequence.getVideoTrackCount === "function" ? await sequence.getVideoTrackCount() : 0;
-    const requestedTrackIndices = target.createsTrack
-      ? [beforeTrackCount, beforeTrackCount + 1]
-      : [target.trackIndex];
-    try {
-      await insertProjectItemWithFallback(
-        app,
-        project,
-        editor,
-        source,
-        app.TickTime.createWithSeconds(placement.startSeconds),
-        requestedTrackIndices,
-        placement,
-        target.createsTrack
-      );
-    } finally {
-      await restoreProjectItemRange(app, project, clipSource, originalRange);
-    }
-    const inserted = target.createsTrack
-      ? await findInsertedProjectItemOnNewTrack(app, sequence, beforeTrackCount, source, placement.startSeconds)
-      : {
-        item: await findInsertedProjectItem(app, sequence, target.trackIndex, source, placement.startSeconds),
-        trackIndex: target.trackIndex
-      };
+    const inserted = await cloneAdjustmentLayerFromTimeline(app, project, sequence, editor, sourceInfo, target, placement, beforeTrackCount);
     const item = inserted && inserted.item;
     if (!item) {
-      throw new Error("Premiere completed the insert but Tool Bar could not locate the new Adjustment Layer.");
+      throw new Error("Premiere completed the clone but Tool Bar could not locate the new Adjustment Layer.");
     }
     if (!await readOptionalMethod(item, "isAdjustmentLayer", false)) {
-      throw new Error("Premiere inserted an item that is not recognized as an Adjustment Layer.");
+      throw new Error("Premiere cloned an item that is not recognized as an Adjustment Layer.");
     }
     logBridge("info", "Inserted Adjustment Layer.", {
       trackIndex: inserted.trackIndex,

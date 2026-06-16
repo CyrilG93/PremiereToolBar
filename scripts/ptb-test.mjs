@@ -1887,7 +1887,7 @@ function createAdjustmentProjectItem(projectRange, preparedRanges) {
   return { projectItem, clipProjectItem };
 }
 
-// Verify a source in another sequence inserts with a prepared duration and restores its ProjectItem range.
+// Verify a source in the active sequence is cloned and extended to the selected clip duration.
 async function addAdjustmentLayerInsertSmokeTest() {
   const projectRange = { inPoint: 2, outPoint: 7 };
   const preparedRanges = [];
@@ -1907,27 +1907,34 @@ async function addAdjustmentLayerInsertSmokeTest() {
     getTrackIndex: async () => 1,
     getProjectItem: async () => projectItem
   };
-  const tracks = [[selectedItem], []];
-  const sourceSequence = {
-    getVideoTrackCount: async () => 1,
-    getVideoTrack: async () => ({ getTrackItems: async () => [adjustmentItem] })
-  };
-  let insertArguments = null;
+  const tracks = [[selectedItem], [adjustmentItem]];
+  let cloneArguments = null;
   const editor = {
-    createInsertProjectItemAction(source, time, videoTrackIndex, audioTrackIndex, limitShift) {
-      insertArguments = { source, time, videoTrackIndex, audioTrackIndex, limitShift };
+    createCloneTrackItemAction(sourceItem, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert) {
+      cloneArguments = { sourceItem, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert };
       return {
         apply() {
-          // Capture the source range at insertion time because the timeline item becomes independent.
-          const insertedDuration = projectRange.outPoint - projectRange.inPoint;
-          tracks[videoTrackIndex].push({
+          const sourceStart = 0;
+          const sourceEnd = 5;
+          const videoTrackIndex = 1 + videoTrackVerticalOffset;
+          const startSeconds = sourceStart + timeOffset.seconds;
+          let endSeconds = sourceEnd + timeOffset.seconds;
+          const insertedItem = {
             createAddVideoTransitionAction() {},
             isAdjustmentLayer: async () => true,
-            getStartTime: async () => ({ seconds: time.seconds }),
-            getEndTime: async () => ({ seconds: time.seconds + insertedDuration }),
+            getStartTime: async () => ({ seconds: startSeconds }),
+            getEndTime: async () => ({ seconds: endSeconds }),
             getTrackIndex: async () => videoTrackIndex,
             getProjectItem: async () => projectItem,
-          });
+            createSetEndAction(time) {
+              return {
+                apply() {
+                  endSeconds = time.seconds;
+                }
+              };
+            }
+          };
+          tracks[videoTrackIndex].push(insertedItem);
         }
       };
     }
@@ -1942,7 +1949,7 @@ async function addAdjustmentLayerInsertSmokeTest() {
   let lockedAccessCount = 0;
   const project = {
     getActiveSequence: async () => sequence,
-    getSequences: async () => [sequence, sourceSequence],
+    getSequences: async () => [sequence],
     lockedAccess(handler) {
       // Confirm timeline actions run inside Premiere's project edit lock.
       lockedAccessCount += 1;
@@ -1993,20 +2000,21 @@ async function addAdjustmentLayerInsertSmokeTest() {
     actionType: "tool",
     tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: true } }
   }));
-  assert.equal(insertArguments.source, projectItem);
-  assert.equal(insertArguments.time.seconds, 10);
-  assert.equal(insertArguments.videoTrackIndex, 1);
-  assert.equal(insertArguments.audioTrackIndex, 0);
-  assert.equal(insertArguments.limitShift, true);
-  assert.deepEqual(preparedRanges, [[2, 12], [2, 7]]);
+  assert.equal(cloneArguments.sourceItem, adjustmentItem);
+  assert.equal(cloneArguments.timeOffset.seconds, 10);
+  assert.equal(cloneArguments.videoTrackVerticalOffset, 0);
+  assert.equal(cloneArguments.audioTrackVerticalOffset, 0);
+  assert.equal(cloneArguments.alignToVideo, true);
+  assert.equal(cloneArguments.isInsert, false);
+  assert.deepEqual(preparedRanges, []);
   assert.equal(projectRange.outPoint, 7);
-  assert.equal((await tracks[1][0].getEndTime()).seconds, 20);
-  assert.equal(lockedAccessCount, 3);
+  assert.equal((await tracks[1][1].getEndTime()).seconds, 20);
+  assert.equal(lockedAccessCount, 2);
 }
 
 await addAdjustmentLayerInsertSmokeTest();
 
-// Verify a full timeline requests a new track through Adobe's documented count-plus-one index.
+// Verify a full timeline clones to a newly created top track.
 async function addAdjustmentLayerNewTrackSmokeTest() {
   const projectRange = { inPoint: 0, outPoint: 5 };
   const preparedRanges = [];
@@ -2027,22 +2035,28 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
     getProjectItem: async () => projectItem
   };
   const tracks = [[selectedItem], [adjustmentItem]];
-  let insertArguments = null;
+  let cloneArguments = null;
   const editor = {
-    createInsertProjectItemAction(source, time, videoTrackIndex, audioTrackIndex, limitShift) {
-      insertArguments = { source, time, videoTrackIndex, audioTrackIndex, limitShift };
+    createCloneTrackItemAction(sourceItem, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert) {
+      cloneArguments = { sourceItem, timeOffset, videoTrackVerticalOffset, audioTrackVerticalOffset, alignToVideo, isInsert };
       return {
         apply() {
-          const actualTrackIndex = tracks.length;
-          // Capture the source range at insertion time because the timeline item becomes independent.
-          const insertedDuration = projectRange.outPoint - projectRange.inPoint;
+          const actualTrackIndex = 1 + videoTrackVerticalOffset;
+          let endSeconds = 10 + timeOffset.seconds;
           tracks.push([{
             createAddVideoTransitionAction() {},
             isAdjustmentLayer: async () => true,
-            getStartTime: async () => ({ seconds: time.seconds }),
-            getEndTime: async () => ({ seconds: time.seconds + insertedDuration }),
+            getStartTime: async () => ({ seconds: timeOffset.seconds }),
+            getEndTime: async () => ({ seconds: endSeconds }),
             getTrackIndex: async () => actualTrackIndex,
-            getProjectItem: async () => projectItem
+            getProjectItem: async () => projectItem,
+            createSetEndAction(time) {
+              return {
+                apply() {
+                  endSeconds = time.seconds;
+                }
+              };
+            }
           }]);
         }
       };
@@ -2104,46 +2118,61 @@ async function addAdjustmentLayerNewTrackSmokeTest() {
     actionType: "tool",
     tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: true } }
   }));
-  assert.equal(insertArguments.source, projectItem);
-  assert.equal(insertArguments.videoTrackIndex, 2);
-  assert.equal(insertArguments.audioTrackIndex, 0);
-  assert.equal(insertArguments.limitShift, true);
+  assert.equal(cloneArguments.sourceItem, adjustmentItem);
+  assert.equal(cloneArguments.videoTrackVerticalOffset, 1);
+  assert.equal(cloneArguments.audioTrackVerticalOffset, 0);
+  assert.equal(cloneArguments.alignToVideo, true);
+  assert.equal(cloneArguments.isInsert, false);
   assert.equal(tracks.length, 3);
   assert.equal((await tracks[2][0].getEndTime()).seconds, 10);
 }
 
 await addAdjustmentLayerNewTrackSmokeTest();
 
-// Verify an exact Project-panel name can resolve a generic item recursively through bins.
+// Verify an exact name can choose an Adjustment Layer already present in the active sequence.
 async function addNamedProjectAdjustmentLayerSmokeTest() {
   const projectRange = { inPoint: 0, outPoint: 5 };
   const preparedRanges = [];
   const sourceItems = createAdjustmentProjectItem(projectRange, preparedRanges);
+  sourceItems.projectItem.name = "Named Adjustment";
   const selectedItem = {
     createAddVideoTransitionAction() {},
     getStartTime: async () => ({ seconds: 4 }),
     getEndTime: async () => ({ seconds: 12 }),
     getTrackIndex: async () => 0
   };
-  const tracks = [[selectedItem], []];
-  const binItem = { name: "Assets", type: 10 };
-  const rootFolder = { getItems: async () => [binItem] };
-  const childFolder = { getItems: async () => [sourceItems.projectItem] };
+  const adjustmentItem = {
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => true,
+    getStartTime: async () => ({ seconds: 0 }),
+    getEndTime: async () => ({ seconds: 2 }),
+    getTrackIndex: async () => 1,
+    getProjectItem: async () => sourceItems.projectItem
+  };
+  const tracks = [[selectedItem], [adjustmentItem]];
   let insertedItem = null;
   const editor = {
-    createInsertProjectItemAction(source, time, videoTrackIndex) {
+    createCloneTrackItemAction(sourceItem, timeOffset, videoTrackVerticalOffset) {
+      assert.equal(sourceItem, adjustmentItem);
       return {
         apply() {
-          const insertedDuration = projectRange.outPoint - projectRange.inPoint;
+          let endSeconds = 2 + timeOffset.seconds;
           insertedItem = {
             createAddVideoTransitionAction() {},
             isAdjustmentLayer: async () => true,
-            getStartTime: async () => ({ seconds: time.seconds }),
-            getEndTime: async () => ({ seconds: time.seconds + insertedDuration }),
-            getTrackIndex: async () => videoTrackIndex,
-            getProjectItem: async () => source
+            getStartTime: async () => ({ seconds: timeOffset.seconds }),
+            getEndTime: async () => ({ seconds: endSeconds }),
+            getTrackIndex: async () => 1 + videoTrackVerticalOffset,
+            getProjectItem: async () => sourceItems.projectItem,
+            createSetEndAction(time) {
+              return {
+                apply() {
+                  endSeconds = time.seconds;
+                }
+              };
+            }
           };
-          tracks[videoTrackIndex].push(insertedItem);
+          tracks[1 + videoTrackVerticalOffset].push(insertedItem);
         }
       };
     }
@@ -2158,7 +2187,6 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
   const project = {
     getActiveSequence: async () => sequence,
     getSequences: async () => [sequence],
-    getRootItem: async () => rootFolder,
     executeTransaction(handler) {
       const actions = [];
       handler({ addAction: (action) => actions.push(action) });
@@ -2176,16 +2204,6 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
         throw new Error("Unexpected module: " + name);
       }
       return {
-        ProjectItem: {
-          TYPE_BIN: 10,
-          TYPE_ROOT: 11
-        },
-        FolderItem: {
-          cast: (item) => {
-            assert.equal(item, binItem);
-            return childFolder;
-          }
-        },
         ClipProjectItem: {
           cast: (item) => {
             assert.equal(item, sourceItems.projectItem);
@@ -2213,11 +2231,11 @@ async function addNamedProjectAdjustmentLayerSmokeTest() {
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
   await context.PTB_PREMIERE.applyButton(schema.createButton({
     actionType: "tool",
-    tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: true, adjustmentLayerName: "adjustment layer" } }
+    tool: { id: "addAdjustmentLayer", timelineItem: { useSelectedRange: true, adjustmentLayerName: "named adjustment" } }
   }));
   assert.ok(insertedItem);
   assert.equal((await insertedItem.getEndTime()).seconds, 12);
-  assert.deepEqual(preparedRanges, [[0, 8], [0, 5]]);
+  assert.deepEqual(preparedRanges, []);
 }
 
 await addNamedProjectAdjustmentLayerSmokeTest();

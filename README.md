@@ -67,7 +67,7 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 - `Multi Action`: run several existing Tool Bar buttons in order.
 - `Tools`: open settings, copy/paste/remove effects, or add an Adjustment Layer.
 
-The Adjustment Layer tool can use the selected video clip's exact time range. When that option is disabled, the new item starts at the playhead and uses the configured default duration. Tool Bar places it on a free video track above the selected clip, or creates a new top track when needed.
+The Adjustment Layer tool clones an Adjustment Layer that is already present in the active sequence. It can use the selected video clip's exact time range. When that option is disabled, the new item starts at the playhead and uses the configured default duration. Tool Bar places it on a free video track above the selected clip, or creates a new top track when needed.
 
 ## Backup
 
@@ -83,7 +83,7 @@ Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
 Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. These areas are still limited for now:
 
 - `Remove Effects` removes only registered video effects. Text, shape, group, image, and video layers inside Essential Graphics clips are preserved.
-- Premiere UXP can insert a known ProjectItem, but it cannot identify whether an item in the Project panel is an Adjustment Layer before insertion. Tool Bar can reuse a validated one from any sequence, or find one by the exact Project panel name configured on the button. Project item names must be unique.
+- Premiere UXP currently fails when Tool Bar tries to insert an Adjustment Layer ProjectItem directly. Tool Bar works around this by cloning an Adjustment Layer already present in the active sequence, then setting the cloned layer duration.
 - Premiere UXP does not expose a documented API for creating native Graphic shape layers. The previous MOGRT-based Graphic tool has been removed.
 - Audio transitions are not exposed through a reliable documented UXP action.
 - Transition preset files can be parsed in part, but full transition preset application is not reliable enough for normal use.
@@ -93,6 +93,10 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 - Script buttons can store `.jsx` source, but direct script execution is not currently available through a documented Premiere UXP API.
 
 ## Changelog
+
+### 1.0.10 - 2026-06-16
+
+- Changed Adjustment Layer creation to clone an existing layer from the active sequence and set its duration.
 
 ### 1.0.9 - 2026-06-16
 
