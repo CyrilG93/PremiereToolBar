@@ -92,6 +92,11 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.1.0 - 2026-06-18
+
+- Restored effect, preset, transition, and Remove Effects actions in Premiere Pro 26.3 and newer.
+- Improved installation package cache busting so updated plugin files reload cleanly.
+
 ### 1.0.15 - 2026-06-18
 
 - Reworked effect, preset, transition, and Remove Effects actions so Premiere creates UXP actions inside locked transactions, as required by Premiere Pro 26.3.
