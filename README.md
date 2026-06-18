@@ -94,36 +94,7 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ### 1.1.0 - 2026-06-18
 
-- Restored effect, preset, transition, and Remove Effects actions in Premiere Pro 26.3 and newer.
-- Improved installation package cache busting so updated plugin files reload cleanly.
-
-### 1.0.15 - 2026-06-18
-
-- Reworked effect, preset, transition, and Remove Effects actions so Premiere creates UXP actions inside locked transactions, as required by Premiere Pro 26.3.
-
-### 1.0.14 - 2026-06-18
-
-- Added a fallback for Premiere Pro 26.3 when normal effect insertion is rejected by an invalid UXP action object.
-
-### 1.0.13 - 2026-06-18
-
-- Fixed effect, preset, transition, and Remove Effects actions after Premiere Pro 26.3 made delayed UXP action objects invalid.
-
-### 1.0.12 - 2026-06-16
-
-- Removed the unreliable Adjustment Layer tool until Premiere UXP supports it cleanly.
-
-### 1.0.11 - 2026-06-16
-
-- Fixed cloned Adjustment Layers so they inherit the requested duration and copied effects are removed.
-
-### 1.0.10 - 2026-06-16
-
-- Changed Adjustment Layer creation to clone an existing layer from the active sequence and set its duration.
-
-### 1.0.9 - 2026-06-16
-
-- Improved Adjustment Layer insertion reliability in Premiere by running timeline edits under the project edit lock.
+- Stability update for Premiere Pro 26.3.
 
 ### 1.0.1 - 2026-06-13
 
