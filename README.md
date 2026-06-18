@@ -92,6 +92,10 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.0.14 - 2026-06-18
+
+- Added a fallback for Premiere Pro 26.3 when normal effect insertion is rejected by an invalid UXP action object.
+
 ### 1.0.13 - 2026-06-18
 
 - Fixed effect, preset, transition, and Remove Effects actions after Premiere Pro 26.3 made delayed UXP action objects invalid.

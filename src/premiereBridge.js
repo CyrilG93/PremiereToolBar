@@ -723,6 +723,12 @@
     if (recursionDepth > 8) {
       throw new Error("Multi Action nesting is too deep.");
     }
+    logBridge("info", "Applying Tool Bar button.", {
+      label: normalizedButton.label || "",
+      actionType: normalizedButton.actionType,
+      mediaType: normalizedButton.mediaType || "",
+      effect: normalizedButton.effect && (normalizedButton.effect.displayName || normalizedButton.effect.matchName) || ""
+    });
     if (normalizedButton.actionType === "tool") {
       return applyToolButton(normalizedButton);
     }
@@ -1147,14 +1153,16 @@
         const chain = await item.getComponentChain();
         const component = await createVideoFilterComponent(app, button.effect);
         // Create and execute the action without another await so Premiere 26.3 keeps the proxy valid.
-        results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component)], "Tool Bar: " + button.label));
+        const append = createNaturalAppendComponentActionInfo(chain, component);
+        results.push(executeActions(project, [append.action], "Tool Bar: " + button.label));
         actionCount += 1;
       }
       if (button.mediaType === "audio" && isAudioItem(item)) {
         const chain = await item.getComponentChain();
         const component = await app.AudioFilterFactory.createComponentByDisplayName(button.effect.displayName, item);
         // Audio effect components are also short-lived UXP proxies in newer Premiere builds.
-        results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component)], "Tool Bar: " + button.label));
+        const append = createNaturalAppendComponentActionInfo(chain, component);
+        results.push(executeActions(project, [append.action], "Tool Bar: " + button.label));
         actionCount += 1;
       }
     }
@@ -1167,11 +1175,38 @@
 
   // Insert at index 0 because Premiere displays the component chain in reverse UI order.
   function createNaturalAppendComponentAction(chain, component, offset) {
+    return createNaturalAppendComponentActionInfo(chain, component, offset).action;
+  }
+
+  // Create an add-component action and record the expected component index for later parameter replay.
+  function createNaturalAppendComponentActionInfo(chain, component, offset) {
+    const insertionIndex = Number(offset) || 0;
     if (chain && typeof chain.createInsertComponentAction === "function" && typeof chain.getComponentCount === "function") {
-      return chain.createInsertComponentAction(component, Number(offset) || 0);
+      try {
+        return {
+          action: chain.createInsertComponentAction(component, insertionIndex),
+          resolveIndex: insertionIndex,
+          method: "insert"
+        };
+      } catch (error) {
+        logBridge("warn", "Premiere rejected insert component action; trying append fallback.", {
+          index: insertionIndex,
+          error: describeBridgeError(error)
+        });
+      }
     }
     if (chain && typeof chain.createAppendComponentAction === "function") {
-      return chain.createAppendComponentAction(component);
+      let previousCount = null;
+      try {
+        previousCount = typeof chain.getComponentCount === "function" ? chain.getComponentCount() : null;
+      } catch (error) {
+        previousCount = null;
+      }
+      return {
+        action: chain.createAppendComponentAction(component),
+        resolveIndex: typeof previousCount === "number" ? previousCount : insertionIndex,
+        method: "append"
+      };
     }
     throw new Error("Selected clip does not expose a Premiere component append action.");
   }
@@ -1536,7 +1571,8 @@
           const chain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : targetChain;
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
           // Append immediately after creating the action; Premiere 26.3 invalidates delayed component proxies.
-          results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component, appendOffset)], "Tool Bar: " + button.label + " components"));
+          const append = createNaturalAppendComponentActionInfo(chain, component, appendOffset);
+          results.push(executeActions(project, [append.action], "Tool Bar: " + button.label + " components"));
           appendActionCount += 1;
           await refreshSequenceView(sequence);
           await waitForHostPaint();
@@ -1544,8 +1580,8 @@
           pendingParamTargets.push({
             component,
             chain: resolvedChain || chain,
-            insertIndex: appendOffset,
-            resolvedComponent: resolveInsertedComponent(resolvedChain || chain, appendOffset) || component,
+            insertIndex: append.resolveIndex,
+            resolvedComponent: resolveInsertedComponent(resolvedChain || chain, append.resolveIndex) || component,
             params: componentSnapshot.params,
             stack,
             targetTiming,
@@ -1557,7 +1593,8 @@
           const chain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : targetChain;
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
           // Keep audio preset insert actions as short-lived as the video path.
-          results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component, appendOffset)], "Tool Bar: " + button.label + " components"));
+          const append = createNaturalAppendComponentActionInfo(chain, component, appendOffset);
+          results.push(executeActions(project, [append.action], "Tool Bar: " + button.label + " components"));
           appendActionCount += 1;
           await refreshSequenceView(sequence);
           await waitForHostPaint();
@@ -1565,8 +1602,8 @@
           pendingParamTargets.push({
             component,
             chain: resolvedChain || chain,
-            insertIndex: appendOffset,
-            resolvedComponent: resolveInsertedComponent(resolvedChain || chain, appendOffset) || component,
+            insertIndex: append.resolveIndex,
+            resolvedComponent: resolveInsertedComponent(resolvedChain || chain, append.resolveIndex) || component,
             params: componentSnapshot.params,
             stack,
             targetTiming,

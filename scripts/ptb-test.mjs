@@ -1306,6 +1306,71 @@ async function applyEffectOrderSmokeTest() {
 
 await applyEffectOrderSmokeTest();
 
+// Verify Premiere 26.3 can fall back when insert-component actions are rejected by stale host proxies.
+async function applyEffectAppendFallbackSmokeTest() {
+  let appended = false;
+  let warned = false;
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    PTB_LOGGER: {
+      info: () => {},
+      warn: (message) => {
+        if (message === "Premiere rejected insert component action; trying append fallback.") {
+          warned = true;
+        }
+      }
+    },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const chain = {
+        getComponentCount: () => 4,
+        createInsertComponentAction() {
+          throw new Error("The script object is no longer valid.");
+        },
+        createAppendComponentAction(component) {
+          appended = true;
+          return { component, type: "append" };
+        }
+      };
+      const item = {
+        createAddVideoTransitionAction() {},
+        getComponentChain: async () => chain
+      };
+      return {
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({
+                getTrackItems: async () => [item]
+              })
+            }),
+            executeTransaction: (handler) => {
+              handler({ addAction() {} });
+              return true;
+            }
+          })
+        },
+        VideoFilterFactory: {
+          createComponent: async () => ({})
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({ actionType: "effect", effect: { matchName: "AE.ADBE Mosaic", displayName: "Mosaic" } }));
+  assert.equal(appended, true);
+  assert.equal(warned, true);
+}
+
+await applyEffectAppendFallbackSmokeTest();
+
 // Verify Script buttons store JSX and call a compatible host runner only when one exists.
 async function applyScriptButtonSmokeTest() {
   let executedSource = "";
