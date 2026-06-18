@@ -661,15 +661,20 @@
       throw new Error("No compatible selected clips for this button.");
     }
     logBridge("info", "Executing Premiere transaction.", { undoName: undoName || "Tool Bar", actions: actions.length });
+    let transactionResult = null;
     const runTransaction = () => project.executeTransaction((compoundAction) => {
-      // Add every prepared action to the undoable compound operation.
-      actions.forEach((action) => compoundAction.addAction(action));
+      // Build create*Action results synchronously inside the transaction for Premiere 26.3+.
+      actions.forEach((action) => compoundAction.addAction(typeof action === "function" ? action() : action));
     }, undoName || "Tool Bar");
     if (project && typeof project.lockedAccess === "function") {
       // Premiere timeline actions are more reliable when the transaction runs under the project edit lock.
-      return project.lockedAccess(runTransaction);
+      project.lockedAccess(() => {
+        transactionResult = runTransaction();
+      });
+      return transactionResult;
     }
-    return runTransaction();
+    transactionResult = runTransaction();
+    return transactionResult;
   }
 
   // Nudge the timeline viewer so Premiere paints async UXP changes without waiting for user movement.
@@ -879,7 +884,7 @@
               continue;
             }
             // Remove from the end of the chain and execute now to avoid index shifts and stale UXP actions.
-            results.push(executeActions(project, [chain.createRemoveComponentAction(component)], "Tool Bar: Remove Effects"));
+            results.push(executeActions(project, [() => chain.createRemoveComponentAction(component)], "Tool Bar: Remove Effects"));
             actionCount += 1;
             summary.videoEffects += 1;
           }
@@ -971,10 +976,10 @@
         }
         actions.push.apply(actions, await createClearParamKeyframeActions(param));
         if (typeof param.createSetTimeVaryingAction === "function") {
-          actions.push(param.createSetTimeVaryingAction(false));
+          actions.push(() => param.createSetTimeVaryingAction(false));
         }
         const keyframe = createPresetKeyframe(app, param, defaultSnapshot);
-        actions.push(param.createSetValueAction(keyframe, true));
+        actions.push(() => param.createSetValueAction(keyframe, true));
       } catch (error) {
         logBridge("warn", "Skipped intrinsic parameter reset.", {
           component: componentName,
@@ -995,7 +1000,7 @@
         return actions;
       }
       keyframes.forEach((time) => {
-        actions.push(param.createRemoveKeyframeAction(time, true));
+        actions.push(() => param.createRemoveKeyframeAction(time, true));
       });
     } catch (error) {
       logBridge("warn", "Could not queue intrinsic keyframe cleanup.", describeBridgeError(error));
@@ -1153,16 +1158,16 @@
         const chain = await item.getComponentChain();
         const component = await createVideoFilterComponent(app, button.effect);
         // Create and execute the action without another await so Premiere 26.3 keeps the proxy valid.
-        const append = createNaturalAppendComponentActionInfo(chain, component);
-        results.push(executeActions(project, [append.action], "Tool Bar: " + button.label));
+        const append = createNaturalAppendComponentActionFactoryInfo(chain, component);
+        results.push(executeActions(project, [append.factory], "Tool Bar: " + button.label));
         actionCount += 1;
       }
       if (button.mediaType === "audio" && isAudioItem(item)) {
         const chain = await item.getComponentChain();
         const component = await app.AudioFilterFactory.createComponentByDisplayName(button.effect.displayName, item);
         // Audio effect components are also short-lived UXP proxies in newer Premiere builds.
-        const append = createNaturalAppendComponentActionInfo(chain, component);
-        results.push(executeActions(project, [append.action], "Tool Bar: " + button.label));
+        const append = createNaturalAppendComponentActionFactoryInfo(chain, component);
+        results.push(executeActions(project, [append.factory], "Tool Bar: " + button.label));
         actionCount += 1;
       }
     }
@@ -1176,6 +1181,24 @@
   // Insert at index 0 because Premiere displays the component chain in reverse UI order.
   function createNaturalAppendComponentAction(chain, component, offset) {
     return createNaturalAppendComponentActionInfo(chain, component, offset).action;
+  }
+
+  // Create a synchronous action factory so create*Action runs inside executeTransaction.
+  function createNaturalAppendComponentActionFactoryInfo(chain, component, offset) {
+    const insertionIndex = Number(offset) || 0;
+    const info = {
+      factory: null,
+      resolveIndex: insertionIndex,
+      method: chain && typeof chain.createInsertComponentAction === "function" ? "insert" : "append"
+    };
+    info.factory = () => {
+      // Capture the actual fallback method used while still creating the action inline.
+      const actionInfo = createNaturalAppendComponentActionInfo(chain, component, insertionIndex);
+      info.resolveIndex = actionInfo.resolveIndex;
+      info.method = actionInfo.method;
+      return actionInfo.action;
+    };
+    return info;
   }
 
   // Create an add-component action and record the expected component index for later parameter replay.
@@ -1325,8 +1348,7 @@
         forceSingleSided: false,
         alignment: CENTERED_TRANSITION_ALIGNMENT
       });
-      const action = target.item.createAddVideoTransitionAction(transition, options);
-      results.push(executeActions(project, [action], "Tool Bar: " + button.label));
+      results.push(executeActions(project, [() => target.item.createAddVideoTransitionAction(transition, options)], "Tool Bar: " + button.label));
       logBridge("info", "Applied " + logLabel + " video transition action.", {
         applyTo: target.applyTo,
         trackIndex: target.trackIndex,
@@ -1385,8 +1407,7 @@
         for (const applyTo of applyTargets) {
           const transition = await createTransitionWithFallback(app, button.transition.matchName, applyTo, mediaType);
           const options = createTransitionOptions(app, button, applyTo);
-          const action = item[actionMethod](transition, options);
-          results.push(executeActions(project, [action], "Tool Bar: " + button.label));
+          results.push(executeActions(project, [() => item[actionMethod](transition, options)], "Tool Bar: " + button.label));
           actionCount += 1;
           logBridge("info", "Applied " + mediaType + " transition action.", { applyTo, hasOptions: Boolean(options), actions: actionCount });
         }
@@ -1571,8 +1592,8 @@
           const chain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : targetChain;
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
           // Append immediately after creating the action; Premiere 26.3 invalidates delayed component proxies.
-          const append = createNaturalAppendComponentActionInfo(chain, component, appendOffset);
-          results.push(executeActions(project, [append.action], "Tool Bar: " + button.label + " components"));
+          const append = createNaturalAppendComponentActionFactoryInfo(chain, component, appendOffset);
+          results.push(executeActions(project, [append.factory], "Tool Bar: " + button.label + " components"));
           appendActionCount += 1;
           await refreshSequenceView(sequence);
           await waitForHostPaint();
@@ -1593,8 +1614,8 @@
           const chain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : targetChain;
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
           // Keep audio preset insert actions as short-lived as the video path.
-          const append = createNaturalAppendComponentActionInfo(chain, component, appendOffset);
-          results.push(executeActions(project, [append.action], "Tool Bar: " + button.label + " components"));
+          const append = createNaturalAppendComponentActionFactoryInfo(chain, component, appendOffset);
+          results.push(executeActions(project, [append.factory], "Tool Bar: " + button.label + " components"));
           appendActionCount += 1;
           await refreshSequenceView(sequence);
           await waitForHostPaint();
@@ -1883,12 +1904,12 @@
           // Intrinsic clip parameters already exist on the target, so clear their old animation first.
           actions.push.apply(actions, await createClearParamKeyframeActions(param));
           if (typeof param.createSetTimeVaryingAction === "function") {
-            actions.push(param.createSetTimeVaryingAction(Boolean(snapshot.timeVarying && Array.isArray(snapshot.keyframes) && snapshot.keyframes.length)));
+            actions.push(() => param.createSetTimeVaryingAction(Boolean(snapshot.timeVarying && Array.isArray(snapshot.keyframes) && snapshot.keyframes.length)));
           }
           continue;
         }
         if (snapshot.timeVarying && Array.isArray(snapshot.keyframes) && snapshot.keyframes.length) {
-          actions.push(param.createSetTimeVaryingAction(true));
+          actions.push(() => param.createSetTimeVaryingAction(true));
         }
       } catch (error) {
         logBridge("warn", "Skipped preset keyframe setup action.", {
@@ -1946,7 +1967,7 @@
                   });
                 }
               }
-              const action = param.createAddKeyframeAction(keyframe);
+              const actionFactory = () => param.createAddKeyframeAction(keyframe);
               if (isPointPresetValue(keyframeSnapshot.value)) {
                 logBridge("info", "Queued point preset keyframe.", {
                   index: snapshot.index,
@@ -1954,9 +1975,9 @@
                   x: keyframeSnapshot.value.x,
                   y: keyframeSnapshot.value.y
                 });
-                pointActions.push(action);
+                pointActions.push(actionFactory);
               } else {
-                actions.push(action);
+                actions.push(actionFactory);
               }
             } catch (error) {
               logBridge("warn", "Skipped one preset keyframe.", {
@@ -1982,7 +2003,7 @@
           if (snapshot.startTemporalInterpolation !== null && typeof keyframe.setTemporalInterpolationMode === "function") {
             await keyframe.setTemporalInterpolationMode(snapshot.startTemporalInterpolation);
           }
-          const action = param.createSetValueAction(keyframe, true);
+          const actionFactory = () => param.createSetValueAction(keyframe, true);
           if (isPointPresetValue(snapshot.startValue)) {
             logBridge("info", "Queued point preset value.", {
               index: snapshot.index,
@@ -1990,9 +2011,9 @@
               x: snapshot.startValue.x,
               y: snapshot.startValue.y
             });
-            pointActions.push(action);
+            pointActions.push(actionFactory);
           } else {
-            actions.push(action);
+            actions.push(actionFactory);
           }
         }
       } catch (error) {

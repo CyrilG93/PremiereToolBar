@@ -1310,6 +1310,8 @@ await applyEffectOrderSmokeTest();
 async function applyEffectAppendFallbackSmokeTest() {
   let appended = false;
   let warned = false;
+  let inLockedAccess = false;
+  let executedInsideLock = false;
   const context = {
     console,
     window: null,
@@ -1349,7 +1351,13 @@ async function applyEffectAppendFallbackSmokeTest() {
                 getTrackItems: async () => [item]
               })
             }),
+            lockedAccess(callback) {
+              inLockedAccess = true;
+              callback();
+              inLockedAccess = false;
+            },
             executeTransaction: (handler) => {
+              executedInsideLock = inLockedAccess;
               handler({ addAction() {} });
               return true;
             }
@@ -1367,6 +1375,7 @@ async function applyEffectAppendFallbackSmokeTest() {
   await context.PTB_PREMIERE.applyButton(schema.createButton({ actionType: "effect", effect: { matchName: "AE.ADBE Mosaic", displayName: "Mosaic" } }));
   assert.equal(appended, true);
   assert.equal(warned, true);
+  assert.equal(executedInsideLock, true);
 }
 
 await applyEffectAppendFallbackSmokeTest();
