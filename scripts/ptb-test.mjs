@@ -1239,7 +1239,7 @@ async function removeEffectsPreservesGraphicsSmokeTest() {
     tool: { id: "removeClipEffects", removeEffects: { includeIntrinsic: false, includeVideoEffects: true } }
   }));
   assert.equal(removedComponents.length, 2);
-  assert.deepEqual(transactions, [["removeEffect", "removeEffect"]]);
+  assert.deepEqual(transactions, [["removeEffect"], ["removeEffect"]]);
   const summary = logs.find((entry) => entry.message === "Remove Effects completed.").details;
   assert.equal(summary.videoEffects, 2);
   assert.equal(summary.graphicsLayersPreserved, 4);

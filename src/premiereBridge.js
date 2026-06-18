@@ -814,7 +814,8 @@
     if (!includeIntrinsic && !includeVideoEffects) {
       throw new Error("Choose at least one Remove Effects option.");
     }
-    const actions = [];
+    let actionCount = 0;
+    const results = [];
     const summary = { clips: 0, baseParameters: 0, videoEffects: 0, graphicsLayersPreserved: 0, skipped: 0 };
     const videoEffectCatalog = includeVideoEffects ? await loadVideoEffectIdentityCatalog(app) : null;
     const frameSize = await getSequenceFrameSize(sequence);
@@ -831,7 +832,7 @@
         logBridge("warn", "Selected clip does not expose a component chain.");
         continue;
       }
-      for (let index = 0; index < count; index += 1) {
+      for (let index = count - 1; index >= 0; index -= 1) {
         const component = chain.getComponentAtIndex(index);
         const displayName = await readComponentDisplayName(component);
         const isIntrinsic = INTRINSIC_COMPONENTS.includes(displayName);
@@ -847,7 +848,11 @@
         try {
           if (isIntrinsic) {
             const resetActions = await createResetIntrinsicComponentActions(app, component, displayName, frameSize);
-            actions.push.apply(actions, resetActions);
+            if (resetActions.length) {
+              // Execute each reset group immediately because Premiere 26.3 invalidates delayed action proxies.
+              results.push(executeActions(project, resetActions, "Tool Bar: Remove Effects"));
+              actionCount += resetActions.length;
+            }
             summary.baseParameters += resetActions.length ? 1 : 0;
             if (!resetActions.length) {
               summary.skipped += 1;
@@ -867,7 +872,9 @@
               logBridge("warn", "Selected clip does not expose remove component actions.");
               continue;
             }
-            actions.push(chain.createRemoveComponentAction(component));
+            // Remove from the end of the chain and execute now to avoid index shifts and stale UXP actions.
+            results.push(executeActions(project, [chain.createRemoveComponentAction(component)], "Tool Bar: Remove Effects"));
+            actionCount += 1;
             summary.videoEffects += 1;
           }
         } catch (error) {
@@ -879,10 +886,12 @@
         }
       }
     }
-    const result = executeActions(project, actions, "Tool Bar: Remove Effects");
+    if (!actionCount) {
+      throw new Error("No compatible selected clips for this button.");
+    }
     await refreshSequenceView(sequence);
-    logBridge("info", "Remove Effects completed.", summary);
-    return result;
+    logBridge("info", "Remove Effects completed.", Object.assign({}, summary, { actions: actionCount }));
+    return results;
   }
 
   // Read a component display name while keeping remove workflows resilient.
@@ -1131,22 +1140,29 @@
   // Apply a native audio or video effect to all compatible selected clips.
   async function applyEffectButton(button) {
     const { app, project, sequence, items } = await getSelectedItems();
-    const actions = [];
+    const results = [];
+    let actionCount = 0;
     for (const item of items) {
       if (button.mediaType === "video" && isVideoItem(item)) {
-        const component = await createVideoFilterComponent(app, button.effect);
         const chain = await item.getComponentChain();
-        actions.push(createNaturalAppendComponentAction(chain, component));
+        const component = await createVideoFilterComponent(app, button.effect);
+        // Create and execute the action without another await so Premiere 26.3 keeps the proxy valid.
+        results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component)], "Tool Bar: " + button.label));
+        actionCount += 1;
       }
       if (button.mediaType === "audio" && isAudioItem(item)) {
-        const component = await app.AudioFilterFactory.createComponentByDisplayName(button.effect.displayName, item);
         const chain = await item.getComponentChain();
-        actions.push(createNaturalAppendComponentAction(chain, component));
+        const component = await app.AudioFilterFactory.createComponentByDisplayName(button.effect.displayName, item);
+        // Audio effect components are also short-lived UXP proxies in newer Premiere builds.
+        results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component)], "Tool Bar: " + button.label));
+        actionCount += 1;
       }
     }
-    const result = executeActions(project, actions, "Tool Bar: " + button.label);
+    if (!actionCount) {
+      throw new Error("No compatible selected clips for this button.");
+    }
     await refreshSequenceView(sequence);
-    return result;
+    return results;
   }
 
   // Insert at index 0 because Premiere displays the component chain in reverse UI order.
@@ -1261,8 +1277,9 @@
     return options;
   }
 
-  // Queue one video transition per detected edit point, keeping the cut-centered options consistent.
-  async function queueVideoEditPointTransitionActions(app, button, targets, actions, logLabel) {
+  // Apply one video transition per detected edit point before host proxies can go stale.
+  async function applyVideoEditPointTransitionActions(app, project, button, targets, logLabel) {
+    const results = [];
     for (const target of targets) {
       if (!target.item || typeof target.item.createAddVideoTransitionAction !== "function") {
         logBridge("warn", "Skipped edit-point target without createAddVideoTransitionAction.");
@@ -1273,21 +1290,24 @@
         forceSingleSided: false,
         alignment: CENTERED_TRANSITION_ALIGNMENT
       });
-      actions.push(target.item.createAddVideoTransitionAction(transition, options));
-      logBridge("info", "Queued " + logLabel + " video transition action.", {
+      const action = target.item.createAddVideoTransitionAction(transition, options);
+      results.push(executeActions(project, [action], "Tool Bar: " + button.label));
+      logBridge("info", "Applied " + logLabel + " video transition action.", {
         applyTo: target.applyTo,
         trackIndex: target.trackIndex,
         point: target.point,
         hasOptions: Boolean(options),
-        actions: actions.length
+        actions: results.length
       });
     }
+    return results;
   }
 
   // Apply a native transition to all selected compatible clips.
   async function applyNativeTransitionButton(button, mediaType) {
     const { app, project, sequence, items } = await getSelectedItems();
-    const actions = [];
+    const results = [];
+    let actionCount = 0;
     if (!button.transition.matchName) {
       throw new Error("Choose a Premiere " + mediaType + " transition first.");
     }
@@ -1302,21 +1322,19 @@
       const editPointTargets = await resolveSelectedVideoEditPointTargets(app, sequence, items);
       if (editPointTargets.length) {
         logBridge("info", "Applying transition to selected edit point.", { targets: editPointTargets.length });
-        await queueVideoEditPointTransitionActions(app, button, editPointTargets, actions, "edit-point");
-        const result = executeActions(project, actions, "Tool Bar: " + button.label);
+        const result = await applyVideoEditPointTransitionActions(app, project, button, editPointTargets, "edit-point");
         await refreshSequenceView(sequence);
         await applyTransitionPresetValues(app, project, sequence, button, items);
-        logBridge("info", "Edit-point video transition command completed.", { actions: actions.length });
+        logBridge("info", "Edit-point video transition command completed.", { actions: result.length });
         return result;
       }
       const adjacentClipTargets = await resolveSelectedAdjacentVideoClipTargets(items);
       if (adjacentClipTargets.length) {
         logBridge("info", "Applying transition to selected adjacent clip cut.", { targets: adjacentClipTargets.length });
-        await queueVideoEditPointTransitionActions(app, button, adjacentClipTargets, actions, "adjacent-clip");
-        const result = executeActions(project, actions, "Tool Bar: " + button.label);
+        const result = await applyVideoEditPointTransitionActions(app, project, button, adjacentClipTargets, "adjacent-clip");
         await refreshSequenceView(sequence);
         await applyTransitionPresetValues(app, project, sequence, button, items);
-        logBridge("info", "Adjacent-clip video transition command completed.", { actions: actions.length });
+        logBridge("info", "Adjacent-clip video transition command completed.", { actions: result.length });
         return result;
       }
     }
@@ -1332,18 +1350,22 @@
         for (const applyTo of applyTargets) {
           const transition = await createTransitionWithFallback(app, button.transition.matchName, applyTo, mediaType);
           const options = createTransitionOptions(app, button, applyTo);
-          actions.push(item[actionMethod](transition, options));
-          logBridge("info", "Queued " + mediaType + " transition action.", { applyTo, hasOptions: Boolean(options), actions: actions.length });
+          const action = item[actionMethod](transition, options);
+          results.push(executeActions(project, [action], "Tool Bar: " + button.label));
+          actionCount += 1;
+          logBridge("info", "Applied " + mediaType + " transition action.", { applyTo, hasOptions: Boolean(options), actions: actionCount });
         }
       } else {
         logBridge("warn", "Skipped timeline item without " + actionMethod + ".");
       }
     }
-    const result = executeActions(project, actions, "Tool Bar: " + button.label);
+    if (!actionCount) {
+      throw new Error("No compatible selected clips for this button.");
+    }
     await refreshSequenceView(sequence);
     await applyTransitionPresetValues(app, project, sequence, button, items);
-    logBridge("info", capitalize(mediaType) + " transition command completed.", { actions: actions.length });
-    return result;
+    logBridge("info", capitalize(mediaType) + " transition command completed.", { actions: actionCount });
+    return results;
   }
 
   // Replay imported transition preset parameters on the transition items Premiere exposes after creation.
@@ -1366,8 +1388,8 @@
       });
       return 0;
     }
-    const setupActions = [];
     const valueTargets = [];
+    let setupActionCount = 0;
     for (const target of targets) {
       const component = await resolveTransitionPresetComponent(target.item, componentSnapshot);
       if (!component) {
@@ -1375,22 +1397,25 @@
         continue;
       }
       const targetTiming = await getItemTimingSnapshot(target.item);
-      setupActions.push.apply(setupActions, await createParamSetupActions(app, component, componentSnapshot.params));
+      const setupActions = await createParamSetupActions(app, component, componentSnapshot.params);
+      if (setupActions.length) {
+        executeActions(project, setupActions, "Tool Bar: " + button.label + " transition preset setup");
+        setupActionCount += setupActions.length;
+        await refreshSequenceView(sequence);
+        await waitForHostPaint();
+      }
       valueTargets.push({ component, params: componentSnapshot.params, stack, targetTiming, timingMode: "scale" });
     }
-    if (setupActions.length) {
-      executeActions(project, setupActions, "Tool Bar: " + button.label + " transition preset setup");
-      await refreshSequenceView(sequence);
-      await waitForHostPaint();
-    }
-    const paramActions = [];
+    let paramActionCount = 0;
     for (const target of valueTargets) {
-      paramActions.push.apply(paramActions, await createParamValueActions(app, target.component, target.params, target));
+      const paramActions = await createParamValueActions(app, target.component, target.params, target);
+      if (paramActions.length) {
+        executeActions(project, paramActions, "Tool Bar: " + button.label + " transition preset values");
+        paramActionCount += paramActions.length;
+        await refreshSequenceView(sequence);
+      }
     }
-    if (paramActions.length) {
-      executeActions(project, paramActions, "Tool Bar: " + button.label + " transition preset values");
-      await refreshSequenceView(sequence);
-    } else {
+    if (!paramActionCount) {
       logBridge("warn", "Transition preset applied without parameter actions.", {
         targets: valueTargets.length,
         storedParams: componentSnapshot.params.length
@@ -1398,10 +1423,10 @@
     }
     logBridge("info", "Transition preset parameter replay completed.", {
       targets: valueTargets.length,
-      setupActions: setupActions.length,
-      parameterActions: setupActions.length + paramActions.length
+      setupActions: setupActionCount,
+      parameterActions: setupActionCount + paramActionCount
     });
-    return setupActions.length + paramActions.length;
+    return setupActionCount + paramActionCount;
   }
 
   // Find newly-created or nearby transition track items that match the imported preset.
@@ -1486,8 +1511,9 @@
   async function applyPresetButton(button) {
     const { app, project, sequence, items } = await getSelectedItems();
     const stack = root.PTB_SCHEMA.normalizeStack(button.stack);
-    const appendActions = [];
     const pendingParamTargets = [];
+    const results = [];
+    let appendActionCount = 0;
     if (!stack.components.length) {
       throw new Error(root.PTB_I18N.t("noPresetCaptured"));
     }
@@ -1507,33 +1533,56 @@
           continue;
         }
         if (componentSnapshot.mediaType === "video" && isVideoItem(item)) {
+          const chain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : targetChain;
           const component = await app.VideoFilterFactory.createComponent(componentSnapshot.matchName);
-          const chain = targetChain || await item.getComponentChain();
-          appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
-          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
+          // Append immediately after creating the action; Premiere 26.3 invalidates delayed component proxies.
+          results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component, appendOffset)], "Tool Bar: " + button.label + " components"));
+          appendActionCount += 1;
+          await refreshSequenceView(sequence);
+          await waitForHostPaint();
+          const resolvedChain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : chain;
+          pendingParamTargets.push({
+            component,
+            chain: resolvedChain || chain,
+            insertIndex: appendOffset,
+            resolvedComponent: resolveInsertedComponent(resolvedChain || chain, appendOffset) || component,
+            params: componentSnapshot.params,
+            stack,
+            targetTiming,
+            timingMode: button.preset.keyframeTiming
+          });
           appendOffset += 1;
         }
         if (componentSnapshot.mediaType === "audio" && isAudioItem(item)) {
+          const chain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : targetChain;
           const component = await app.AudioFilterFactory.createComponentByDisplayName(componentSnapshot.displayName, item);
-          const chain = targetChain || await item.getComponentChain();
-          appendActions.push(createNaturalAppendComponentAction(chain, component, appendOffset));
-          pendingParamTargets.push({ component, chain, insertIndex: appendOffset, params: componentSnapshot.params, stack, targetTiming, timingMode: button.preset.keyframeTiming });
+          // Keep audio preset insert actions as short-lived as the video path.
+          results.push(executeActions(project, [createNaturalAppendComponentAction(chain, component, appendOffset)], "Tool Bar: " + button.label + " components"));
+          appendActionCount += 1;
+          await refreshSequenceView(sequence);
+          await waitForHostPaint();
+          const resolvedChain = typeof item.getComponentChain === "function" ? await item.getComponentChain() : chain;
+          pendingParamTargets.push({
+            component,
+            chain: resolvedChain || chain,
+            insertIndex: appendOffset,
+            resolvedComponent: resolveInsertedComponent(resolvedChain || chain, appendOffset) || component,
+            params: componentSnapshot.params,
+            stack,
+            targetTiming,
+            timingMode: button.preset.keyframeTiming
+          });
           appendOffset += 1;
         }
       }
     }
-    const result = appendActions.length ? executeActions(project, appendActions, "Tool Bar: " + button.label + " components") : null;
     if (!pendingParamTargets.length) {
       throw new Error("No compatible selected clips for this preset.");
     }
-    if (appendActions.length) {
-      await refreshSequenceView(sequence);
-      await waitForHostPaint();
-    }
     const resolvedTargets = pendingParamTargets.map((target) => Object.assign({}, target, {
-      resolvedComponent: target.intrinsic ? target.component : (resolveInsertedComponent(target.chain, target.insertIndex) || target.component)
+      resolvedComponent: target.intrinsic ? target.component : target.resolvedComponent
     }));
-    const setupActions = [];
+    let setupActionCount = 0;
     for (const target of resolvedTargets) {
       let actions = await createParamSetupActions(app, target.resolvedComponent, target.params, { clearExistingKeyframes: target.intrinsic });
       target.valueComponent = target.resolvedComponent;
@@ -1545,16 +1594,16 @@
           target.valueComponent = target.component;
         }
       }
-      setupActions.push.apply(setupActions, actions);
+      if (actions.length) {
+        // Enable animated parameters in their own transaction; macOS can ignore keyframes added in the same transaction.
+        executeActions(project, actions, "Tool Bar: " + button.label + " preset keyframe setup");
+        setupActionCount += actions.length;
+        await refreshSequenceView(sequence);
+        await waitForHostPaint();
+      }
     }
-    if (setupActions.length) {
-      // Enable animated parameters in their own transaction; macOS can ignore keyframes added in the same transaction.
-      executeActions(project, setupActions, "Tool Bar: " + button.label + " preset keyframe setup");
-      await refreshSequenceView(sequence);
-      await waitForHostPaint();
-    }
-    const paramActions = [];
-    const finalPointActions = [];
+    let paramActionCount = 0;
+    let finalPointActionCount = 0;
     for (const target of resolvedTargets) {
       const lateGroups = await createParamValueActionGroups(app, target.valueComponent, target.params, target);
       const alternateComponent = target.valueComponent === target.resolvedComponent ? target.component : target.resolvedComponent;
@@ -1567,26 +1616,32 @@
           storedParams: target.params.length,
           insertIndex: target.insertIndex,
           resolvedParamCount: getComponentParamCount(target.resolvedComponent),
-          setupActions: setupActions.length
+          setupActions: setupActionCount
         });
       }
-      paramActions.push.apply(paramActions, usableGroups.actions);
-      finalPointActions.push.apply(finalPointActions, usableGroups.pointActions);
+      if (usableGroups.actions.length) {
+        executeActions(project, usableGroups.actions, "Tool Bar: " + button.label + " preset values");
+        paramActionCount += usableGroups.actions.length;
+      }
+      if (usableGroups.pointActions.length) {
+        // Reapply point parameters after scalar Transform settings that can reset Position/Anchor Point to center.
+        await refreshSequenceView(sequence);
+        await waitForHostPaint();
+        executeActions(project, usableGroups.pointActions, "Tool Bar: " + button.label + " preset point values");
+        finalPointActionCount += usableGroups.pointActions.length;
+      }
     }
-    if (paramActions.length) {
-      executeActions(project, paramActions, "Tool Bar: " + button.label + " preset values");
-    } else if (!finalPointActions.length) {
+    if (!paramActionCount && !finalPointActionCount) {
       logBridge("warn", "Preset applied without parameter actions.", { components: pendingParamTargets.length });
     }
-    if (finalPointActions.length) {
-      // Reapply point parameters after scalar Transform settings that can reset Position/Anchor Point to center.
-      await refreshSequenceView(sequence);
-      await waitForHostPaint();
-      executeActions(project, finalPointActions, "Tool Bar: " + button.label + " preset point values");
-    }
     await refreshSequenceView(sequence);
-    logBridge("info", "Preset command completed.", { components: pendingParamTargets.length, keyframeSetupActions: setupActions.length, parameterActions: setupActions.length + paramActions.length + finalPointActions.length });
-    return result;
+    logBridge("info", "Preset command completed.", {
+      components: pendingParamTargets.length,
+      appendActions: appendActionCount,
+      keyframeSetupActions: setupActionCount,
+      parameterActions: setupActionCount + paramActionCount + finalPointActionCount
+    });
+    return results;
   }
 
   // Return a component from the destination chain after Premiere has inserted it.
