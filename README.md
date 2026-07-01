@@ -12,7 +12,7 @@ Create buttons for native effects, video transitions, captured presets, and util
 
 ## Install
 
-1. Quit Premiere Pro.
+1. Close Premiere Pro.
 2. Download or open the Tool Bar folder.
 3. Run the installer for your system:
 
