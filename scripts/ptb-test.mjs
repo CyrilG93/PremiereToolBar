@@ -572,6 +572,36 @@ const scaledIcon = findByPredicate(scaledButton, (node) => String(node.className
 assert.equal(scaledIcon.style.width, "31px");
 assert.equal(scaledIcon.style.height, "31px");
 
+// Verify the settings version badge opens the public Tool Bar product page without changing its span layout.
+async function versionBadgeProductLinkSmokeTest() {
+  let openedUrl = "";
+  const harness = renderSettingsHarness(null, {
+    version: "1.1.1",
+    require: (name) => {
+      if (name !== "uxp") {
+        throw new Error("Unexpected module: " + name);
+      }
+      return {
+        shell: {
+          openExternal: async (url, developerText) => {
+            openedUrl = url;
+            assert.ok(String(developerText || "").includes("Tool Bar"));
+            return "";
+          }
+        }
+      };
+    }
+  });
+  const versionBadge = findByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-version"));
+  assert.equal(versionBadge.tagName, "SPAN");
+  assert.equal(versionBadge.attributes.role, "button");
+  assert.equal(versionBadge.textContent, "v1.1.1");
+  await versionBadge.onclick();
+  assert.equal(openedUrl, "https://www.cyrilplugin.com/tool-bar");
+}
+
+await versionBadgeProductLinkSmokeTest();
+
 // Verify a newer GitHub release renders a direct top-header download button.
 async function updateDownloadButtonSmokeTest() {
   let openedUrl = "";

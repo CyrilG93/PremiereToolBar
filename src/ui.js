@@ -38,6 +38,7 @@
   // Keep the .prfpset importer code available, but hide it while the internal capture workflow is preferred.
   const presetFileImportEnabled = false;
   const githubRepo = "CyrilG93/PremiereToolBar";
+  const productPageUrl = "https://www.cyrilplugin.com/tool-bar";
   const internalLogs = [];
   const colorPalette = [
     "#d7dee8", "#8fd6ff", "#79c8ff", "#9fe3c1", "#ffd166", "#ffb986",
@@ -245,40 +246,41 @@
       || message.includes("permission denied");
   }
 
-  // Open release download links from UXP, falling back to copying the URL.
-  async function openExternalUrl(url) {
+  // Open product and release links from UXP, falling back to copying the URL.
+  async function openExternalUrl(url, developerText) {
     const normalizedUrl = String(url || "").trim();
     if (!normalizedUrl) {
       addInternalLog("warn", "Update download URL is unavailable.", "", false);
       return;
     }
-    addInternalLog("info", "Opening update download.", { url: normalizedUrl }, true);
+    const openReason = developerText || "Open a Tool Bar link in the default browser.";
+    addInternalLog("info", "Opening external URL.", { url: normalizedUrl }, true);
     try {
       const uxp = typeof require === "function" ? require("uxp") : null;
       if (uxp && uxp.shell && typeof uxp.shell.openExternal === "function") {
-        const result = await uxp.shell.openExternal(normalizedUrl, "Download the latest Tool Bar installer package from GitHub.");
+        const result = await uxp.shell.openExternal(normalizedUrl, openReason);
         if (result) {
           throw new Error(result);
         }
-        addInternalLog("info", "Update download opened in the default browser.", { url: normalizedUrl }, false);
+        addInternalLog("info", "External URL opened in the default browser.", { url: normalizedUrl }, false);
         return;
       }
     } catch (error) {
       // Some hosts expose require without a usable shell module, so keep going to browser fallbacks.
-      addInternalLog("warn", "UXP shell could not open the update URL.", error, true);
+      addInternalLog("warn", "UXP shell could not open the external URL.", error, true);
     }
     try {
       if (root.open && typeof root.open === "function") {
         root.open(normalizedUrl, "_blank");
-        addInternalLog("info", "Update download opened through the panel browser fallback.", { url: normalizedUrl }, false);
+        addInternalLog("info", "External URL opened through the panel browser fallback.", { url: normalizedUrl }, false);
         return;
       }
     } catch (error) {
       // Clipboard fallback keeps the update URL accessible when the host blocks external navigation.
-      addInternalLog("warn", "Browser fallback could not open the update URL.", error, true);
+      addInternalLog("warn", "Browser fallback could not open the external URL.", error, true);
     }
     await root.PTB_STORAGE.copyText(normalizedUrl);
-    addInternalLog("warn", "Could not open the update URL; copied it to clipboard instead.", { url: normalizedUrl }, true);
+    addInternalLog("warn", "Could not open the external URL; copied it to clipboard instead.", { url: normalizedUrl }, true);
     statusMessage = root.PTB_I18N.t("statusCopied");
     renderAll();
   }
@@ -304,7 +306,7 @@
       :root{color-scheme:dark;--ptb-bg:var(--uxp-host-background-color,#1f1f1f);--ptb-panel:var(--uxp-host-widget-background-color,#262626);--ptb-panel-soft:var(--uxp-host-widget-hover-background-color,#303030);--ptb-line:var(--uxp-host-border-color,#444);--ptb-text:var(--uxp-host-text-color,#f0f0f0);--ptb-muted:var(--uxp-host-dimmed-text-color,#a7a7a7);--ptb-accent:#79c8ff;--ptb-danger:#ff746b}
       *{box-sizing:border-box}html,body,#ptb-root{width:100%;height:100%;min-width:0;min-height:100%;margin:0;overflow:auto;background:var(--ptb-bg);color:var(--ptb-text);font-family:Arial,Helvetica,sans-serif;font-size:12px}button,input,select,textarea{font:inherit}button{appearance:none}
       .ptb-toolbar-shell{width:100%;height:100%;min-height:44px;padding:3px;overflow:auto;background:var(--ptb-bg)}.ptb-toolbar-strip{display:flex;flex-wrap:wrap;align-items:flex-start;align-content:flex-start;justify-content:flex-start;gap:2px;width:100%;min-height:34px}.ptb-vertical .ptb-toolbar-strip{flex-direction:column;flex-wrap:wrap;align-content:flex-start;width:auto;height:100%;max-height:100%;min-width:34px}.ptb-tool-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;min-width:34px;height:34px;min-height:34px;margin:0;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:0;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer}.ptb-button-face{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;overflow:hidden}.ptb-button-face.with-caption{flex-direction:column;gap:1px}.ptb-image-icon{display:block;width:22px;height:22px;object-fit:contain;border:0;background:transparent;outline:0;pointer-events:none}.ptb-svg-icon svg{display:block;width:22px;height:22px;fill:currentColor}.ptb-tool-text,.ptb-tool-caption{display:block;max-width:31px;overflow:hidden;font-size:10px;font-weight:900;letter-spacing:0;line-height:1;text-align:center;text-overflow:ellipsis;white-space:nowrap}.ptb-tool-caption{font-size:8px;line-height:8px}.ptb-empty{color:var(--ptb-muted);font-size:11px;line-height:1.2}
-      .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
+      .ptb-settings-shell{width:100%;height:100%;min-height:100%;overflow:auto;background:var(--ptb-bg);padding-bottom:24px}.ptb-settings-header{position:sticky;top:0;z-index:4;display:flex;width:100%;align-items:center;justify-content:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);background:var(--ptb-bg)}.ptb-title-line{display:flex;align-items:center;gap:8px;min-width:0}.ptb-title-line h1{margin:0;font-size:16px;font-weight:800;white-space:nowrap}.ptb-version,.ptb-status-badge{display:inline-flex;align-items:center;min-height:20px;border:1px solid var(--ptb-line);border-radius:999px;padding:2px 7px;color:var(--ptb-muted);background:#1a1a1a;font-size:10px;font-weight:700;white-space:nowrap}.ptb-version{cursor:pointer}.ptb-status-badge{color:var(--ptb-accent)}.ptb-header-actions,.ptb-action-row{display:flex;flex-wrap:wrap;gap:7px}.ptb-header-actions{margin-left:auto}
       .ptb-title-line{overflow:hidden}.ptb-version{border-radius:999px}.ptb-status-badge{max-width:140px;overflow:hidden;border-radius:4px;text-overflow:ellipsis}.ptb-status-badge.error{color:#ffd8d5;border-color:rgba(255,116,107,.45)}
       .ptb-update-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 12px 0;border:1px solid rgba(121,200,255,.65);border-radius:8px;padding:9px 10px;color:var(--ptb-text);background:#172d3d;cursor:pointer}.ptb-update-banner strong{font-weight:900}.ptb-update-banner small{color:var(--ptb-muted)}
       .ptb-settings-content{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;padding:12px}.ptb-section{display:block;width:100%;min-width:0;border:1px solid var(--ptb-line);border-radius:8px;background:var(--ptb-panel)}.ptb-section-heading{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 12px;border-bottom:1px solid var(--ptb-line);cursor:pointer}.ptb-section-body{display:block;min-width:0;min-height:18px;padding:0}.ptb-section.collapsed .ptb-section-heading{border-bottom:0}.ptb-section.collapsed .ptb-section-body{display:none;min-height:0}.ptb-section-heading h2{margin:0;font-size:12px;font-weight:800}.ptb-section-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--ptb-line);border-radius:6px;color:var(--ptb-text);background:var(--ptb-panel-soft);cursor:pointer;font-weight:800}
@@ -421,7 +423,7 @@
       setStyles(node, { display: "inline-flex", alignItems: "center", minHeight: "20px", border: "1px solid var(--ptb-line)", padding: "2px 7px", color: "var(--ptb-muted)", background: "#1a1a1a", fontSize: "10px", fontWeight: "700", whiteSpace: "nowrap" });
     }
     if (tokens.includes("ptb-version")) {
-      setStyles(node, { borderRadius: "999px" });
+      setStyles(node, { borderRadius: "999px", cursor: "pointer" });
     }
     if (tokens.includes("ptb-status-badge")) {
       setStyles(node, { maxWidth: "140px", overflow: "hidden", borderRadius: "4px", color: "var(--ptb-accent)", textOverflow: "ellipsis" });
@@ -1615,7 +1617,20 @@
     const header = el("header", "ptb-settings-header");
     const title = el("div", "ptb-title-line");
     title.appendChild(el("h1", "", root.PTB_I18N.t("appName")));
-    title.appendChild(el("span", "ptb-version", "v" + (root.PTB_VERSION || "")));
+    const versionBadge = el("span", "ptb-version", "v" + (root.PTB_VERSION || ""));
+    versionBadge.setAttribute("role", "button");
+    versionBadge.tabIndex = 0;
+    versionBadge.title = "Open Tool Bar page";
+    versionBadge.setAttribute("aria-label", "Open Tool Bar page for version " + (root.PTB_VERSION || ""));
+    // Keep the badge as the existing inline span while making it mouse and keyboard clickable.
+    versionBadge.addEventListener("click", () => openExternalUrl(productPageUrl, "Open the Tool Bar product page."));
+    versionBadge.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openExternalUrl(productPageUrl, "Open the Tool Bar product page.");
+      }
+    });
+    title.appendChild(versionBadge);
     const status = renderStatusBadge();
     if (status) {
       title.appendChild(status);

@@ -3,6 +3,7 @@
 Tool Bar is an Adobe Premiere Pro UXP extension that adds compact dockable shortcut for common editing actions.
 
 Create buttons for native effects, video transitions, captured presets, and utility actions, then place them in one or more toolbar collections.
+Click the version badge in Settings to open the Tool Bar product page.
 
 ## Requirements
 
