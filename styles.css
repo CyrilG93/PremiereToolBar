@@ -1,15 +1,97 @@
 :root {
   color-scheme: dark;
-  --ptb-bg: var(--uxp-host-background-color, #1f1f1f);
-  --ptb-panel: var(--uxp-host-widget-background-color, #262626);
-  --ptb-panel-soft: var(--uxp-host-widget-hover-background-color, #303030);
-  --ptb-panel-lift: var(--uxp-host-widget-hover-background-color, #383838);
-  --ptb-line: var(--uxp-host-border-color, #444444);
-  --ptb-text: var(--uxp-host-text-color, #f0f0f0);
-  --ptb-muted: var(--uxp-host-dimmed-text-color, #a7a7a7);
+  /* Premiere UXP does not expose host CSS variables reliably yet, so JS updates these tokens from document.theme. */
+  --ptb-bg: #1f1f1f;
+  --ptb-panel: #262626;
+  --ptb-panel-soft: #303030;
+  --ptb-panel-lift: #383838;
+  --ptb-line: #444444;
+  --ptb-button-border: rgba(255, 255, 255, 0.1);
+  --ptb-text: #f0f0f0;
+  --ptb-muted: #a7a7a7;
   --ptb-accent: #79c8ff;
   --ptb-accent-strong: #3fa8f5;
   --ptb-danger: #ff746b;
+  --ptb-danger-soft: rgba(255, 116, 107, 0.08);
+  --ptb-error-text: #ffd8d5;
+  --ptb-input-bg: #10151b;
+  --ptb-primary-bg: #224259;
+  --ptb-update-bg: #172d3d;
+  --ptb-active-bg: #223446;
+  --ptb-number-bg: #0f151d;
+  --ptb-icon-action-bg: #2b323d;
+  --ptb-popover-bg: #181818;
+  --ptb-badge-bg: #111820;
+  --ptb-toggle-bg: #202733;
+  --ptb-collection-bg: #141a22;
+  --ptb-log-bg: #101010;
+  --ptb-success-bg: #14532d;
+  --ptb-success-border: #4ade80;
+  --ptb-success-text: #e9fff3;
+  --ptb-download-bg: #16803d;
+  --ptb-download-text: #eafff2;
+  --ptb-gear-bg: #242b35;
+  --ptb-drop-bg: rgba(255, 255, 255, 0.02);
+}
+
+:root.ptb-theme-light {
+  color-scheme: light;
+  --ptb-bg: #e8e8e8;
+  --ptb-panel: #f4f4f4;
+  --ptb-panel-soft: #ffffff;
+  --ptb-panel-lift: #ffffff;
+  --ptb-line: #c8c8c8;
+  --ptb-button-border: rgba(0, 0, 0, 0.16);
+  --ptb-text: #202020;
+  --ptb-muted: #5f5f5f;
+  --ptb-accent: #1473e6;
+  --ptb-accent-strong: #0f61c8;
+  --ptb-danger: #b42318;
+  --ptb-danger-soft: rgba(180, 35, 24, 0.08);
+  --ptb-error-text: #8f1d16;
+  --ptb-input-bg: #ffffff;
+  --ptb-primary-bg: #d8eaff;
+  --ptb-update-bg: #dff0ff;
+  --ptb-active-bg: #dbeeff;
+  --ptb-number-bg: #eef5ff;
+  --ptb-icon-action-bg: #f8f8f8;
+  --ptb-popover-bg: #ffffff;
+  --ptb-badge-bg: #f8f8f8;
+  --ptb-toggle-bg: #f7f7f7;
+  --ptb-collection-bg: #f8f8f8;
+  --ptb-log-bg: #ffffff;
+  --ptb-success-bg: #dff7e8;
+  --ptb-success-border: #299764;
+  --ptb-success-text: #124d31;
+  --ptb-download-bg: #18884f;
+  --ptb-download-text: #ffffff;
+  --ptb-gear-bg: #e2edf8;
+  --ptb-drop-bg: rgba(0, 0, 0, 0.03);
+}
+
+:root.ptb-theme-darkest,
+:root.ptb-theme-darker {
+  color-scheme: dark;
+  --ptb-bg: #151515;
+  --ptb-panel: #1b1b1b;
+  --ptb-panel-soft: #232323;
+  --ptb-panel-lift: #2a2a2a;
+  --ptb-line: #383838;
+  --ptb-button-border: rgba(255, 255, 255, 0.09);
+  --ptb-text: #f2f2f2;
+  --ptb-muted: #9a9a9a;
+  --ptb-input-bg: #0f0f0f;
+  --ptb-primary-bg: #1d3a50;
+  --ptb-update-bg: #132839;
+  --ptb-active-bg: #1b3043;
+  --ptb-number-bg: #0d1116;
+  --ptb-icon-action-bg: #252b34;
+  --ptb-popover-bg: #151515;
+  --ptb-badge-bg: #10151b;
+  --ptb-toggle-bg: #1d232d;
+  --ptb-collection-bg: #11161d;
+  --ptb-log-bg: #0d0d0d;
+  --ptb-gear-bg: #202631;
 }
 
 * {
@@ -78,7 +160,7 @@ button {
   align-items: center;
   justify-content: center;
   height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--ptb-button-border);
   border-radius: 7px;
   color: var(--ptb-text);
   background: var(--ptb-panel-soft);
@@ -149,7 +231,7 @@ button {
 }
 
 .ptb-gear-button {
-  background: #242b35;
+  background: var(--ptb-gear-bg);
 }
 
 .ptb-shape-icon {
@@ -597,7 +679,7 @@ button {
   border-radius: 6px;
   padding: 7px 8px;
   color: var(--ptb-text);
-  background: #10151b;
+  background: var(--ptb-input-bg);
   outline: none;
 }
 
@@ -652,13 +734,13 @@ button {
 
 .ptb-button.primary {
   border-color: rgba(121, 200, 255, 0.7);
-  background: #224259;
+  background: var(--ptb-primary-bg);
 }
 
 .ptb-button.ptb-update-download {
-  color: #eafff2;
+  color: var(--ptb-download-text);
   border-color: rgba(74, 222, 128, 0.85);
-  background: #16803d;
+  background: var(--ptb-download-bg);
   box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.25);
 }
 
@@ -669,7 +751,7 @@ button {
 }
 
 .ptb-button.danger {
-  color: #ffd8d5;
+  color: var(--ptb-error-text);
   border-color: rgba(255, 116, 107, 0.45);
 }
 
@@ -729,7 +811,7 @@ button {
 .ptb-assignment-card.active,
 .ptb-icon-choice.active {
   border-color: var(--ptb-accent);
-  background: #223446;
+  background: var(--ptb-active-bg);
 }
 
 .ptb-bar-number {
@@ -740,7 +822,7 @@ button {
   height: 26px;
   flex: 0 0 26px;
   border-radius: 7px;
-  background: #0f151d;
+  background: var(--ptb-number-bg);
   color: var(--ptb-accent);
   font-weight: 800;
 }
@@ -836,13 +918,13 @@ button {
   border-radius: 6px;
   padding: 3px 6px;
   color: var(--ptb-text);
-  background: #2b323d;
+  background: var(--ptb-icon-action-bg);
   cursor: pointer;
   font-size: 10px;
 }
 
 .ptb-icon-action.danger {
-  color: #ffd8d5;
+  color: var(--ptb-error-text);
   border-color: rgba(255, 116, 107, 0.45);
 }
 
@@ -938,7 +1020,7 @@ button {
   border: 1px solid var(--ptb-line);
   border-radius: 8px;
   padding: 8px;
-  background: #181818;
+  background: var(--ptb-popover-bg);
 }
 
 .ptb-icon-picker {
@@ -1091,7 +1173,7 @@ button {
   border-radius: 999px;
   padding: 2px 7px;
   color: var(--ptb-muted);
-  background: #111820;
+  background: var(--ptb-badge-bg);
   font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
@@ -1110,7 +1192,7 @@ button {
 }
 
 .ptb-status-badge.error {
-  color: #ffd8d5;
+  color: var(--ptb-error-text);
   border-color: rgba(255, 116, 107, 0.45);
 }
 
@@ -1166,7 +1248,7 @@ button {
   border: 1px solid var(--ptb-line);
   border-radius: 6px;
   color: var(--ptb-text);
-  background: #202733;
+  background: var(--ptb-toggle-bg);
   cursor: pointer;
   font-weight: 800;
 }
@@ -1203,7 +1285,7 @@ button {
 .ptb-collection-member.active,
 .ptb-collection-drop-card.active {
   border-color: var(--ptb-accent);
-  background: #223446;
+  background: var(--ptb-active-bg);
 }
 
 .ptb-gallery-card:hover,
@@ -1227,8 +1309,8 @@ button {
 .ptb-module-error,
 .ptb-render-error {
   padding: 12px;
-  color: #ffd8d5;
-  background: rgba(255, 116, 107, 0.08);
+  color: var(--ptb-error-text);
+  background: var(--ptb-danger-soft);
 }
 
 .ptb-logs-panel {
@@ -1247,7 +1329,7 @@ button {
   border-radius: 8px;
   padding: 8px;
   color: var(--ptb-text);
-  background: #101010;
+  background: var(--ptb-log-bg);
   font-family: Consolas, monospace;
   font-size: 11px;
   line-height: 1.35;
@@ -1289,7 +1371,7 @@ button {
   border: 1px solid var(--ptb-line);
   border-radius: 8px;
   padding: 10px;
-  background: #141a22;
+  background: var(--ptb-collection-bg);
 }
 
 .ptb-collection-header-row {
@@ -1308,7 +1390,7 @@ button {
   border-radius: 6px;
   padding: 7px 8px;
   color: var(--ptb-text);
-  background: #10151b;
+  background: var(--ptb-input-bg);
   font-weight: 800;
   outline: none;
 }
@@ -1330,16 +1412,16 @@ button {
   border: 1px solid var(--ptb-line);
   border-radius: 6px;
   color: var(--ptb-muted);
-  background: #202733;
+  background: var(--ptb-toggle-bg);
   cursor: pointer;
   font-size: 10px;
   font-weight: 800;
 }
 
 .ptb-bar-toggle.active {
-  color: #e9fff3;
-  border-color: #4ade80;
-  background: #14532d;
+  color: var(--ptb-success-text);
+  border-color: var(--ptb-success-border);
+  background: var(--ptb-success-bg);
 }
 
 .ptb-bar-control-grid {
@@ -1408,7 +1490,7 @@ button {
 
 .ptb-collection-member.drag-over {
   border-color: var(--ptb-accent);
-  background: #223446;
+  background: var(--ptb-active-bg);
 }
 
 .ptb-collection-member.drop-before {
@@ -1430,7 +1512,7 @@ button {
   border-radius: 7px;
   padding: 12px;
   color: var(--ptb-muted);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--ptb-drop-bg);
   text-align: center;
 }
 

@@ -347,7 +347,9 @@ class FakeElement {
 }
 
 // Create the subset of document APIs used by the Tool Bar UI.
-function createFakeDocument() {
+function createFakeDocument(initialTheme = "dark") {
+  let currentTheme = initialTheme;
+  const themeListeners = [];
   const document = {
     createElement(tagName) {
       return new FakeElement(tagName, document);
@@ -361,6 +363,18 @@ function createFakeDocument() {
         const tokens = node.className ? String(node.className).split(/\s+/) : [];
         return wanted.some((className) => tokens.includes(className));
       });
+    },
+    theme: {
+      getCurrent: () => currentTheme,
+      onUpdated: {
+        addListener(listener) {
+          themeListeners.push(listener);
+        }
+      },
+      update(nextTheme) {
+        currentTheme = nextTheme;
+        themeListeners.forEach((listener) => listener(nextTheme));
+      }
     }
   };
   document.documentElement = new FakeElement("html", document);
@@ -400,7 +414,7 @@ function countClass(node, className) {
 
 // Execute the browser UI scripts against the fake DOM.
 function renderSettingsHarness(initialConfig, options = {}) {
-  const document = createFakeDocument();
+  const document = createFakeDocument(options.theme || "dark");
   let savedConfig = null;
   let copiedText = "";
   const context = {
@@ -472,6 +486,20 @@ assert.ok(settingsRoot.textContent.includes("Effect Preset"));
 assert.ok(settingsRoot.textContent.includes("Transform"));
 assert.equal(settingsRoot.textContent.includes("Import .prfpset"), false);
 assert.equal(countClass(settingsRoot, "ptb-log-copy-text"), 0);
+
+// Verify Premiere UXP theme changes update the shared CSS tokens without rerendering the panel.
+function themeTokenSmokeTest() {
+  const harness = renderSettingsHarness(null, { theme: "light" });
+  assert.ok(String(harness.document.documentElement.className).includes("ptb-theme-light"));
+  assert.equal(harness.document.documentElement.style["--ptb-bg"], "#e8e8e8");
+  assert.equal(harness.document.documentElement.style["color-scheme"], "light");
+  harness.document.theme.update("darkest");
+  assert.ok(String(harness.document.documentElement.className).includes("ptb-theme-darkest"));
+  assert.equal(harness.document.documentElement.style["--ptb-bg"], "#151515");
+  assert.equal(harness.document.documentElement.style["color-scheme"], "dark");
+}
+
+themeTokenSmokeTest();
 
 // Verify Effect Preset buttons expose capture group choices while .prfpset import stays hidden.
 function presetCaptureOptionsRenderSmokeTest() {
@@ -576,7 +604,7 @@ assert.equal(scaledIcon.style.height, "31px");
 async function versionBadgeProductLinkSmokeTest() {
   let openedUrl = "";
   const harness = renderSettingsHarness(null, {
-    version: "1.1.1",
+    version: "1.1.2",
     require: (name) => {
       if (name !== "uxp") {
         throw new Error("Unexpected module: " + name);
@@ -595,7 +623,7 @@ async function versionBadgeProductLinkSmokeTest() {
   const versionBadge = findByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-version"));
   assert.equal(versionBadge.tagName, "SPAN");
   assert.equal(versionBadge.attributes.role, "button");
-  assert.equal(versionBadge.textContent, "v1.1.1");
+  assert.equal(versionBadge.textContent, "v1.1.2");
   await versionBadge.onclick();
   assert.equal(openedUrl, "https://www.cyrilplugin.com/tool-bar");
 }
