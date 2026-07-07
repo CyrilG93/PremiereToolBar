@@ -1,11 +1,11 @@
 :root {
   color-scheme: dark;
   /* Premiere UXP does not expose host CSS variables reliably yet, so JS updates these tokens from document.theme. */
-  --ptb-bg: #1f1f1f;
-  --ptb-panel: #262626;
-  --ptb-panel-soft: #303030;
-  --ptb-panel-lift: #383838;
-  --ptb-line: #444444;
+  --ptb-bg: #2b2b2b;
+  --ptb-panel: #303030;
+  --ptb-panel-soft: #383838;
+  --ptb-panel-lift: #414141;
+  --ptb-line: #505050;
   --ptb-button-border: rgba(255, 255, 255, 0.1);
   --ptb-text: #f0f0f0;
   --ptb-muted: #a7a7a7;
@@ -36,11 +36,11 @@
 
 :root.ptb-theme-light {
   color-scheme: light;
-  --ptb-bg: #e8e8e8;
-  --ptb-panel: #f4f4f4;
+  --ptb-bg: #f4f4f4;
+  --ptb-panel: #ffffff;
   --ptb-panel-soft: #ffffff;
   --ptb-panel-lift: #ffffff;
-  --ptb-line: #c8c8c8;
+  --ptb-line: #d6d6d6;
   --ptb-button-border: rgba(0, 0, 0, 0.16);
   --ptb-text: #202020;
   --ptb-muted: #5f5f5f;
@@ -72,11 +72,11 @@
 :root.ptb-theme-darkest,
 :root.ptb-theme-darker {
   color-scheme: dark;
-  --ptb-bg: #151515;
-  --ptb-panel: #1b1b1b;
-  --ptb-panel-soft: #232323;
-  --ptb-panel-lift: #2a2a2a;
-  --ptb-line: #383838;
+  --ptb-bg: #1f1f1f;
+  --ptb-panel: #262626;
+  --ptb-panel-soft: #303030;
+  --ptb-panel-lift: #383838;
+  --ptb-line: #444444;
   --ptb-button-border: rgba(255, 255, 255, 0.09);
   --ptb-text: #f2f2f2;
   --ptb-muted: #9a9a9a;

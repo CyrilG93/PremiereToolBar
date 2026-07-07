@@ -491,11 +491,11 @@ assert.equal(countClass(settingsRoot, "ptb-log-copy-text"), 0);
 function themeTokenSmokeTest() {
   const harness = renderSettingsHarness(null, { theme: "light" });
   assert.ok(String(harness.document.documentElement.className).includes("ptb-theme-light"));
-  assert.equal(harness.document.documentElement.style["--ptb-bg"], "#e8e8e8");
+  assert.equal(harness.document.documentElement.style["--ptb-bg"], "#f4f4f4");
   assert.equal(harness.document.documentElement.style["color-scheme"], "light");
   harness.document.theme.update("darkest");
   assert.ok(String(harness.document.documentElement.className).includes("ptb-theme-darkest"));
-  assert.equal(harness.document.documentElement.style["--ptb-bg"], "#151515");
+  assert.equal(harness.document.documentElement.style["--ptb-bg"], "#1f1f1f");
   assert.equal(harness.document.documentElement.style["color-scheme"], "dark");
 }
 
@@ -604,7 +604,7 @@ assert.equal(scaledIcon.style.height, "31px");
 async function versionBadgeProductLinkSmokeTest() {
   let openedUrl = "";
   const harness = renderSettingsHarness(null, {
-    version: "1.1.2",
+    version: "1.1.3",
     require: (name) => {
       if (name !== "uxp") {
         throw new Error("Unexpected module: " + name);
@@ -623,7 +623,7 @@ async function versionBadgeProductLinkSmokeTest() {
   const versionBadge = findByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-version"));
   assert.equal(versionBadge.tagName, "SPAN");
   assert.equal(versionBadge.attributes.role, "button");
-  assert.equal(versionBadge.textContent, "v1.1.2");
+  assert.equal(versionBadge.textContent, "v1.1.3");
   await versionBadge.onclick();
   assert.equal(openedUrl, "https://www.cyrilplugin.com/tool-bar");
 }
