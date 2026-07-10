@@ -35,24 +35,40 @@ if errorlevel 1 (
   goto PTB_FINISH
 )
 
-REM // Read the plugin version from manifest.json.
-for /f "usebackq delims=" %%V in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -Raw '%PTB_MANIFEST%' | ConvertFrom-Json).version"`) do set "PTB_VERSION=%%V"
+REM // Read the plugin version from manifest.json, or infer it from the release CCX when the full source is absent.
+if exist "%PTB_MANIFEST%" (
+  for /f "usebackq delims=" %%V in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content -Raw '%PTB_MANIFEST%' | ConvertFrom-Json).version"`) do set "PTB_VERSION=%%V"
+) else (
+  for /f "usebackq delims=" %%V in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$file = Get-ChildItem -LiteralPath '%PTB_ROOT%' -Filter 'ToolBar-*.ccx' -File | Sort-Object Name | Select-Object -Last 1; if ($file) { $file.BaseName -replace '^ToolBar-', '' }"`) do set "PTB_VERSION=%%V"
+)
 if "%PTB_VERSION%"=="" (
-  echo Unable to read Tool Bar version from manifest.json.
+  echo Unable to read Tool Bar version from manifest.json or a ToolBar-*.ccx release file.
   set "PTB_EXIT_CODE=1"
   goto PTB_FINISH
 )
 
-REM // Preserve existing user buttons before packaging or installing because some UXP installers clear plugin storage.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" -Mode backup -Version "%PTB_VERSION%"
+REM // Preserve existing user buttons when the backup helper is present in a source checkout.
+if exist "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" -Mode backup -Version "%PTB_VERSION%"
+) else (
+  echo Backup helper not found in this release folder; continuing with the included CCX installer.
+)
 
-REM // Stage only the files required by the UXP plugin runtime.
+REM // Use the release CCX when it is already included beside the README.
 set "PTB_BUILD_DIR=%PTB_ROOT%\.ptb-installer-build"
 set "PTB_STAGE_DIR=%PTB_BUILD_DIR%\package-%PTB_VERSION%"
-set "PTB_CCX=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%.ccx"
+set "PTB_RELEASE_CCX=%PTB_ROOT%\ToolBar-%PTB_VERSION%.ccx"
 set "PTB_ZIP=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%.zip"
 set "PTB_UPIA_LOG=%PTB_BUILD_DIR%\upia-install-%PTB_VERSION%-%RANDOM%.log"
 mkdir "%PTB_BUILD_DIR%" >nul 2>nul
+if exist "%PTB_RELEASE_CCX%" (
+  set "PTB_CCX=%PTB_RELEASE_CCX%"
+  echo Using included release package: %PTB_RELEASE_CCX%
+  goto PTB_PACKAGE_READY
+)
+set "PTB_CCX=%PTB_BUILD_DIR%\ToolBar-%PTB_VERSION%.ccx"
+
+REM // Stage only the files required by the UXP plugin runtime when running from a source checkout.
 REM // Reuse one staging folder and clean old package folders inside the build directory only.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$build=(Resolve-Path -LiteralPath '%PTB_BUILD_DIR%').Path; Get-ChildItem -LiteralPath $build -Directory -Filter 'package-*' | ForEach-Object { $resolved=$_.FullName; if ($resolved.StartsWith($build, [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force } else { throw 'Unsafe Tool Bar staging path.' } }"
 if errorlevel 1 (
@@ -84,6 +100,7 @@ if errorlevel 1 (
   goto PTB_FINISH
 )
 
+:PTB_PACKAGE_READY
 echo Created %PTB_CCX%
 
 REM // Allow release/package workflows to create the CCX without installing it immediately.
@@ -119,7 +136,9 @@ REM // Install through Adobe UPIA and inspect its output because some failures s
 set "PTB_UPIA_EXIT=%ERRORLEVEL%"
 type "%PTB_UPIA_LOG%"
 REM // Put the user backup mirror back where Tool Bar can restore it if UPIA cleared localStorage.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" -Mode restore -Version "%PTB_VERSION%"
+if exist "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%PTB_ROOT%\scripts\ptb-backup-windows.ps1" -Mode restore -Version "%PTB_VERSION%"
+)
 if not "%PTB_UPIA_EXIT%"=="0" (
   echo Adobe UPIA returned an installation error.
   set "PTB_EXIT_CODE=1"

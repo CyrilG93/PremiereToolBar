@@ -15,8 +15,18 @@ Tool Bar automatically follows Premiere Pro's Light, Dark, and Darkest interface
 ## Install
 
 1. Close Premiere Pro.
-2. Download or open the Tool Bar folder.
-3. Run the installer for your system:
+2. Download and unzip the Tool Bar release.
+3. Double-click the `.ccx` file in the unzipped folder, for example:
+
+```text
+ToolBar-1.1.5.ccx
+```
+
+Creative Cloud Desktop should open Adobe's installer. Accept the installation, then reopen Premiere Pro.
+
+If double-clicking the `.ccx` does not work, keep the unzipped release folder together and run the helper installer for your system.
+
+On macOS, open Terminal in the unzipped folder and run:
 
 ```bash
 bash installers/ptb_install_macos.sh
@@ -28,7 +38,7 @@ On Windows, double-click:
 installers\ptb_install_windows.bat
 ```
 
-The installer builds the `.ccx` package and tries to install it with Adobe's installer tool. If that does not open automatically, the `.ccx` file is created in `.ptb-installer-build`; double-click it while Creative Cloud Desktop is running.
+The helper installer uses the `.ccx` included in the release folder. If you run it from a source checkout instead, it builds the `.ccx` first, then tries Adobe's installer tool.
 
 ## Open Tool Bar
 
@@ -93,6 +103,12 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 - Script buttons can store `.jsx` source, but direct script execution is not currently available through a documented Premiere UXP API.
 
 ## Changelog
+
+### 1.1.5 - 2026-07-10
+
+- Fixed `Remove Effects` for Transform effects exposed with older Premiere match names.
+- Matched the Collections panel background to the rest of the interface in Dark and Darkest themes.
+- Clarified the release install steps around the included `.ccx` file.
 
 ### 1.1.0 - 2026-06-18
 
