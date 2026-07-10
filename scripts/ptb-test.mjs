@@ -1235,6 +1235,7 @@ async function removeEffectsPreservesGraphicsSmokeTest() {
     component("Group (Title)", "Graphic.Group"),
     component("Mosaic", "AE.ADBE Mosaic"),
     component("Glint", "AE.Impact_Glint_FX"),
+    component("Transform", "AE.ADBE Geometry"),
     component("Unknown Internal Component", "Premiere.Internal")
   ];
   const chain = {
@@ -1283,8 +1284,8 @@ async function removeEffectsPreservesGraphicsSmokeTest() {
           })
         },
         VideoFilterFactory: {
-          getMatchNames: async () => ["AE.ADBE Mosaic", "AE.Impact_Glint_FX"],
-          getDisplayNames: async () => ["Mosaic", "Glint"]
+          getMatchNames: async () => ["AE.ADBE Mosaic", "AE.Impact_Glint_FX", "AE.ADBE Geometry2"],
+          getDisplayNames: async () => ["Mosaic", "Glint", "Transform"]
         }
       };
     }
@@ -1296,10 +1297,10 @@ async function removeEffectsPreservesGraphicsSmokeTest() {
     actionType: "tool",
     tool: { id: "removeClipEffects", removeEffects: { includeIntrinsic: false, includeVideoEffects: true } }
   }));
-  assert.equal(removedComponents.length, 2);
-  assert.deepEqual(transactions, [["removeEffect"], ["removeEffect"]]);
+  assert.equal(removedComponents.length, 3);
+  assert.deepEqual(transactions, [["removeEffect"], ["removeEffect"], ["removeEffect"]]);
   const summary = logs.find((entry) => entry.message === "Remove Effects completed.").details;
-  assert.equal(summary.videoEffects, 2);
+  assert.equal(summary.videoEffects, 3);
   assert.equal(summary.graphicsLayersPreserved, 4);
   assert.equal(summary.skipped, 1);
 }

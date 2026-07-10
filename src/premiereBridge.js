@@ -24,6 +24,13 @@
   const AUDIO_TRANSITIONS_ENABLED = false;
   const CENTERED_TRANSITION_ALIGNMENT = 0.5;
   const EFFECT_CLIPBOARD_KEY = "com.cyrilplugin.toolbar.effectClipboard.v1";
+  // Premiere can expose the same registered video effect with older or alternate match names on existing clips.
+  const KNOWN_VIDEO_EFFECT_MATCH_ALIASES = [
+    {
+      displayName: "Transform",
+      matchNames: ["AE.ADBE Geometry", "AE.ADBE Geometry2", "AE.ADBE Transform"]
+    }
+  ];
 
   // Return the Premiere UXP API module when the plugin is running inside Premiere.
   function getPremiere() {
@@ -939,10 +946,25 @@
       (displayNames || []).forEach((displayName) => {
         catalog.displayNames[normalizeCatalogName(displayName)] = true;
       });
+      addKnownVideoEffectAliases(catalog);
     } catch (error) {
       logBridge("warn", "Could not load the video effect catalog; unknown components will be preserved.", describeBridgeError(error));
     }
     return catalog;
+  }
+
+  // Add aliases only for effects that Premiere already reports, keeping graphics/internal components protected.
+  function addKnownVideoEffectAliases(catalog) {
+    KNOWN_VIDEO_EFFECT_MATCH_ALIASES.forEach((entry) => {
+      const hasDisplayName = catalog.displayNames[normalizeCatalogName(entry.displayName)];
+      const hasKnownMatchName = entry.matchNames.some((matchName) => catalog.matchNames[normalizeCatalogName(matchName)]);
+      if (!hasDisplayName && !hasKnownMatchName) {
+        return;
+      }
+      entry.matchNames.forEach((matchName) => {
+        catalog.matchNames[normalizeCatalogName(matchName)] = true;
+      });
+    });
   }
 
   // Identify editable Essential Graphics layer components that must never be removed as clip effects.
@@ -1241,7 +1263,7 @@
       candidates.push("AE.ADBE Mosaic");
     }
     if (effect.displayName === "Transform") {
-      candidates.push("AE.ADBE Transform");
+      candidates.push("AE.ADBE Geometry", "AE.ADBE Transform");
     }
     if (effect.displayName === "Crop") {
       candidates.push("AE.ADBE Crop");

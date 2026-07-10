@@ -82,7 +82,7 @@ Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
 
 Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. These areas are still limited for now:
 
-- `Remove Effects` removes only registered video effects. Text, shape, group, image, and video layers inside Essential Graphics clips are preserved.
+- `Remove Effects` removes registered video effects, including known Transform match-name aliases from existing clips. Text, shape, group, image, and video layers inside Essential Graphics clips are preserved.
 - Adjustment Layer creation is not included for now because Premiere UXP does not expose a reliable documented workflow for creating or inserting one.
 - Premiere UXP does not expose a documented API for creating native Graphic shape layers. The previous MOGRT-based Graphic tool has been removed.
 - Audio transitions are not exposed through a reliable documented UXP action.
