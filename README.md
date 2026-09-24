@@ -97,7 +97,7 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 - Adjustment Layer creation is not included for now because Premiere UXP does not expose a reliable documented workflow for creating or inserting one.
 - Premiere UXP does not expose a documented API for creating native Graphic shape layers. The previous MOGRT-based Graphic tool has been removed.
 - Audio transitions are not exposed through a reliable documented UXP action.
-- Moving clips is currently limited to selected video clips and refuses an occupied destination track to avoid overwriting timeline material. Staircase and Tower actions require at least two selected clips; the descending staircase lifts the first clip so it also works from V1.
+- Moving clips refuse an occupied destination track to avoid overwriting timeline material. Staircase actions are limited to selected video clips; Tower accepts video or audio clips and requires at least two clips. The descending staircase lifts the first clip so it also works from V1.
 - Transition preset files can be parsed in part, but full transition preset application is not reliable enough for normal use.
 - Lumetri curve data can be preserved in exported Tool Bar JSON, but Premiere UXP does not expose a documented way to replay it.
 - Premiere UXP does not reliably capture or restore effect color picker values. This affects native effects such as Ultra Key and Tint, as well as third-party effects such as Glint (`AE.Impact_Glint_FX`); a captured preset may keep the default color or restore an incorrect color. Tool Bar displays a red warning beside captured effects where this limitation is detected.
