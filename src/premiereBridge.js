@@ -806,63 +806,73 @@
       throw new Error("Premiere UXP does not expose TickTime in this build.");
     }
     const videoItems = items.filter(isVideoItem);
-    if (videoItems.length !== items.length || videoItems.length < 2) {
-      throw new Error("Select at least two video clips to create a tower.");
+    const selectedAudioItems = items.filter(isAudioItem);
+    const audioItems = await addLinkedAudioItems(sequence, videoItems, selectedAudioItems);
+    if ((!videoItems.length && audioItems.length < 2) || (videoItems.length + audioItems.length < 2)) {
+      throw new Error("Select at least two video or audio clips to create a tower.");
     }
-    const videoTrackCount = await sequence.getVideoTrackCount();
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const actionFactories = [];
+    const groups = [
+      { items: videoItems, mediaType: "video", constant: app.Constants && app.Constants.MediaType && app.Constants.MediaType.VIDEO },
+      { items: audioItems, mediaType: "audio", constant: app.Constants && app.Constants.MediaType && app.Constants.MediaType.AUDIO }
+    ];
+    const allTargets = [];
+    for (const group of groups) {
+      if (!group.items.length) {
+        continue;
+      }
+      if (group.constant === null || group.constant === undefined) {
+        throw new Error("Premiere UXP does not expose the " + group.mediaType + " media type constant.");
+      }
+      const sources = await getTowerSources(group.items);
+      const anchorStart = Math.min.apply(null, sources.map((source) => source.timing.startNumber));
+      const targets = createTowerTargets(sources, anchorStart, group.mediaType);
+      const trackCount = group.mediaType === "audio" ? await sequence.getAudioTrackCount() : await sequence.getVideoTrackCount();
+      if (!await areTowerTargetsFree(app, sequence, sources, targets, trackCount, group.mediaType)) {
+        throw new Error("A tower destination track contains another " + group.mediaType + " clip.");
+      }
+      targets.forEach((target) => {
+        const timeOffset = app.TickTime.createWithSeconds(target.timing.startNumber - target.sourceTiming.startNumber);
+        actionFactories.push(() => editor.createCloneTrackItemAction(target.item, timeOffset, group.mediaType === "video" ? target.targetTrackIndex - target.sourceTrackIndex : 0, group.mediaType === "audio" ? target.targetTrackIndex - target.sourceTrackIndex : 0, false, false));
+        actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, group.constant));
+      });
+      allTargets.push.apply(allTargets, targets);
+    }
+    executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Tower Clips"));
+    await selectMovedTowerClips(app, sequence, allTargets);
+    await refreshSequenceView(sequence);
+    logBridge("info", "Created clip tower.", { clips: allTargets.length, videoClips: videoItems.length, audioClips: audioItems.length });
+    return { clips: allTargets.length };
+  }
+
+  // Build sorted source information shared by audio and video tower layouts.
+  async function getTowerSources(items) {
     const sources = [];
-    for (let index = 0; index < videoItems.length; index += 1) {
-      const item = videoItems[index];
-      const timing = await getTrackItemTiming(item);
+    for (let index = 0; index < items.length; index += 1) {
+      const timing = await getTrackItemTiming(items[index]);
       if (timing.startNumber === null || timing.endNumber === null) {
         throw new Error("Premiere could not read the timeline range of every selected clip.");
       }
-      sources.push({ item, sourceTrackIndex: await item.getTrackIndex(), timing, selectionIndex: index });
+      sources.push({ item: items[index], sourceTrackIndex: await items[index].getTrackIndex(), timing, selectionIndex: index });
     }
-    // Keep same-frame clips deterministic by preserving their selected order after track order.
-    sources.sort((left, right) => left.timing.startNumber - right.timing.startNumber
-      || left.sourceTrackIndex - right.sourceTrackIndex
-      || left.selectionIndex - right.selectionIndex);
-    const anchorStart = sources[0].timing.startNumber;
+    sources.sort((left, right) => left.timing.startNumber - right.timing.startNumber || left.sourceTrackIndex - right.sourceTrackIndex || left.selectionIndex - right.selectionIndex);
+    return sources;
+  }
+
+  // Place a media group on consecutive tracks while preserving duration at the aligned start time.
+  function createTowerTargets(sources, anchorStart, mediaType) {
     const baseTrackIndex = sources[0].sourceTrackIndex;
-    const targets = sources.map((source, index) => Object.assign({}, source, {
-      targetTrackIndex: baseTrackIndex + index,
-      sourceTiming: source.timing,
-      // Preserve each clip duration while evaluating collisions at its aligned destination time.
-      timing: Object.assign({}, source.timing, {
-        startNumber: anchorStart,
-        endNumber: anchorStart + (source.timing.endNumber - source.timing.startNumber)
-      })
-    }));
-    if (!await areTowerTargetsFree(app, sequence, sources, targets, videoTrackCount)) {
-      throw new Error("A tower destination track contains another clip. Move or deselect the blocking clips, then try again.");
-    }
-    const editor = app.SequenceEditor.getEditor(sequence);
-    const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : null;
-    if (mediaType === null || mediaType === undefined) {
-      throw new Error("Premiere UXP does not expose the video media type constant.");
-    }
-    const actionFactories = [];
-    // Build clone actions inside the transaction because Premiere invalidates delayed action proxies.
-    targets.forEach((target) => {
-      const timeOffset = app.TickTime.createWithSeconds(target.timing.startNumber - target.sourceTiming.startNumber);
-      actionFactories.push(() => editor.createCloneTrackItemAction(target.item, timeOffset, target.targetTrackIndex - target.sourceTrackIndex, 0, false, false));
-      actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
-    });
-    executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Tower Video Clips"));
-    await selectMovedVideoClips(app, sequence, targets);
-    await refreshSequenceView(sequence);
-    logBridge("info", "Created video clip tower.", { clips: targets.length, anchorStart, targetTracks: targets.map((target) => target.targetTrackIndex) });
-    return { clips: targets.length, anchorStart };
+    return sources.map((source, index) => Object.assign({}, source, { mediaType, targetTrackIndex: baseTrackIndex + index, sourceTiming: source.timing, timing: Object.assign({}, source.timing, { startNumber: anchorStart, endNumber: anchorStart + (source.timing.endNumber - source.timing.startNumber) }) }));
   }
 
   // Ensure aligned tower clips do not overwrite material that is not part of the current selection.
-  async function areTowerTargetsFree(app, sequence, sources, targets, videoTrackCount) {
+  async function areTowerTargetsFree(app, sequence, sources, targets, trackCount, mediaType) {
     for (const target of targets) {
-      if (target.targetTrackIndex >= videoTrackCount) {
+      if (target.targetTrackIndex >= trackCount) {
         continue;
       }
-      const destinationClips = await getTrackClips(app, sequence, "video", target.targetTrackIndex);
+      const destinationClips = await getTrackClips(app, sequence, mediaType, target.targetTrackIndex);
       for (const destinationClip of destinationClips) {
         const destinationTiming = await getTrackItemTiming(destinationClip);
         const isMovingSource = sources.some((source) => source.sourceTrackIndex === target.targetTrackIndex && hasSameTimelineRange(source.timing, destinationTiming));
@@ -872,6 +882,65 @@
       }
     }
     return true;
+  }
+
+  // Add audio that shares a source ProjectItem and exact timeline range with a selected video clip.
+  async function addLinkedAudioItems(sequence, videoItems, selectedAudioItems) {
+    const audioItems = selectedAudioItems.slice();
+    if (!videoItems.length || typeof sequence.getAudioTrackCount !== "function") {
+      return audioItems;
+    }
+    const videoKeys = [];
+    for (const item of videoItems) {
+      const key = await getLinkedClipKey(item);
+      if (key) {
+        videoKeys.push(key);
+      }
+    }
+    for (let trackIndex = 0; trackIndex < await sequence.getAudioTrackCount(); trackIndex += 1) {
+      const clips = await getTrackClips(null, sequence, "audio", trackIndex);
+      for (const clip of clips) {
+        if (audioItems.includes(clip)) {
+          continue;
+        }
+        const key = await getLinkedClipKey(clip);
+        if (key && videoKeys.includes(key)) {
+          audioItems.push(clip);
+        }
+      }
+    }
+    return audioItems;
+  }
+
+  // Build a conservative source-and-range identity for auto-detecting linked audio.
+  async function getLinkedClipKey(item) {
+    if (!item || typeof item.getProjectItem !== "function") {
+      return "";
+    }
+    const projectItem = await item.getProjectItem();
+    const projectId = projectItem && typeof projectItem.getId === "function" ? projectItem.getId() : "";
+    const timing = await getTrackItemTiming(item);
+    return projectId && timing.startNumber !== null && timing.endNumber !== null ? String(projectId) + "|" + timing.startNumber + "|" + timing.endNumber : "";
+  }
+
+  // Reselect both video and audio clones so a following Multi Action keeps the new tower selection.
+  async function selectMovedTowerClips(app, sequence, targets) {
+    const movedItems = [];
+    for (const target of targets) {
+      const clips = await getTrackClips(app, sequence, target.mediaType, target.targetTrackIndex);
+      for (const clip of clips) {
+        if (hasSameTimelineRange(target.timing, await getTrackItemTiming(clip))) {
+          movedItems.push(clip);
+          break;
+        }
+      }
+    }
+    if (movedItems.length === targets.length) {
+      app.TrackItemSelection.createEmptySelection((selection) => {
+        movedItems.forEach((item) => selection.addItem(item, false));
+        sequence.setSelection(selection);
+      });
+    }
   }
 
   // Spread selected clips onto consecutive video tracks, ordered left to right on the timeline.
