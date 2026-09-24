@@ -2080,16 +2080,19 @@
         { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
         { value: "moveVideoClipDown", label: root.PTB_I18N.t("actionMoveVideoClipDown") },
         { value: "staircaseVideoClipsUp", label: root.PTB_I18N.t("actionStaircaseVideoClipsUp") },
-        { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") }
+        { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") },
+        { value: "towerVideoClips", label: root.PTB_I18N.t("actionTowerVideoClips") }
       ], (value) => {
         button.action.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       setStyles(actionField, { flex: "0 1 auto" });
       wrap.appendChild(actionField);
-      const helpKey = button.action.id === "staircaseVideoClipsUp" || button.action.id === "staircaseVideoClipsDown"
-        ? "actionStaircaseVideoClipsHelp"
-        : "actionMoveVideoClipHelp";
+      const helpKey = button.action.id === "towerVideoClips"
+        ? "actionTowerVideoClipsHelp"
+        : (button.action.id === "staircaseVideoClipsUp" || button.action.id === "staircaseVideoClipsDown"
+          ? "actionStaircaseVideoClipsHelp"
+          : "actionMoveVideoClipHelp");
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(helpKey)));
       return wrap;
     }

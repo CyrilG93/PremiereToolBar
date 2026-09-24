@@ -787,7 +787,91 @@
     if (button.action.id === "staircaseVideoClipsDown") {
       return moveSelectedVideoClipsIntoStaircase(-1, button.label);
     }
+    if (button.action.id === "towerVideoClips") {
+      return moveSelectedVideoClipsIntoTower(button.label);
+    }
     throw new Error("This Action command is not supported by this Tool Bar version.");
+  }
+
+  // Stack selected clips on consecutive tracks and align each timeline start with the earliest selected clip.
+  async function moveSelectedVideoClipsIntoTower(undoLabel) {
+    const { app, project, sequence, items } = await getSelectedItems();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
+      throw new Error("Premiere UXP does not expose SequenceEditor in this build.");
+    }
+    if (!app.TrackItemSelection || typeof app.TrackItemSelection.createEmptySelection !== "function") {
+      throw new Error("Premiere UXP does not expose TrackItemSelection in this build.");
+    }
+    if (!app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
+      throw new Error("Premiere UXP does not expose TickTime in this build.");
+    }
+    const videoItems = items.filter(isVideoItem);
+    if (videoItems.length !== items.length || videoItems.length < 2) {
+      throw new Error("Select at least two video clips to create a tower.");
+    }
+    const videoTrackCount = await sequence.getVideoTrackCount();
+    const sources = [];
+    for (let index = 0; index < videoItems.length; index += 1) {
+      const item = videoItems[index];
+      const timing = await getTrackItemTiming(item);
+      if (timing.startNumber === null || timing.endNumber === null) {
+        throw new Error("Premiere could not read the timeline range of every selected clip.");
+      }
+      sources.push({ item, sourceTrackIndex: await item.getTrackIndex(), timing, selectionIndex: index });
+    }
+    // Keep same-frame clips deterministic by preserving their selected order after track order.
+    sources.sort((left, right) => left.timing.startNumber - right.timing.startNumber
+      || left.sourceTrackIndex - right.sourceTrackIndex
+      || left.selectionIndex - right.selectionIndex);
+    const anchorStart = sources[0].timing.startNumber;
+    const baseTrackIndex = sources[0].sourceTrackIndex;
+    const targets = sources.map((source, index) => Object.assign({}, source, {
+      targetTrackIndex: baseTrackIndex + index,
+      sourceTiming: source.timing,
+      // Preserve each clip duration while evaluating collisions at its aligned destination time.
+      timing: Object.assign({}, source.timing, {
+        startNumber: anchorStart,
+        endNumber: anchorStart + (source.timing.endNumber - source.timing.startNumber)
+      })
+    }));
+    if (!await areTowerTargetsFree(app, sequence, sources, targets, videoTrackCount)) {
+      throw new Error("A tower destination track contains another clip. Move or deselect the blocking clips, then try again.");
+    }
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : null;
+    if (mediaType === null || mediaType === undefined) {
+      throw new Error("Premiere UXP does not expose the video media type constant.");
+    }
+    const actionFactories = [];
+    // Build clone actions inside the transaction because Premiere invalidates delayed action proxies.
+    targets.forEach((target) => {
+      const timeOffset = app.TickTime.createWithSeconds(target.timing.startNumber - target.sourceTiming.startNumber);
+      actionFactories.push(() => editor.createCloneTrackItemAction(target.item, timeOffset, target.targetTrackIndex - target.sourceTrackIndex, 0, false, false));
+      actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
+    });
+    executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Tower Video Clips"));
+    await selectMovedVideoClips(app, sequence, targets);
+    await refreshSequenceView(sequence);
+    logBridge("info", "Created video clip tower.", { clips: targets.length, anchorStart, targetTracks: targets.map((target) => target.targetTrackIndex) });
+    return { clips: targets.length, anchorStart };
+  }
+
+  // Ensure aligned tower clips do not overwrite material that is not part of the current selection.
+  async function areTowerTargetsFree(app, sequence, sources, targets, videoTrackCount) {
+    for (const target of targets) {
+      if (target.targetTrackIndex >= videoTrackCount) {
+        continue;
+      }
+      const destinationClips = await getTrackClips(app, sequence, "video", target.targetTrackIndex);
+      for (const destinationClip of destinationClips) {
+        const destinationTiming = await getTrackItemTiming(destinationClip);
+        const isMovingSource = sources.some((source) => source.sourceTrackIndex === target.targetTrackIndex && hasSameTimelineRange(source.timing, destinationTiming));
+        if (!isMovingSource && itemsOverlapOrTouchingRange(target.timing, destinationTiming)) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   // Spread selected clips onto consecutive video tracks, ordered left to right on the timeline.

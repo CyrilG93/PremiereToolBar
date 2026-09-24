@@ -64,6 +64,8 @@
     actionStaircaseVideoClipsUp: "Staircase Up",
     actionStaircaseVideoClipsDown: "Staircase Down",
     actionStaircaseVideoClipsHelp: "Places selected video clips on consecutive tracks in timeline order. Staircase Down starts the first clip higher so it also works from V1. Linked audio is not moved.",
+    actionTowerVideoClips: "Tower",
+    actionTowerVideoClipsHelp: "Stacks selected video clips on consecutive tracks and aligns all timeline In points with the first selected clip. Linked audio is not moved.",
     toolOpenSettings: "Open Settings",
     toolCopyClipEffects: "Copy Clip Effects",
     toolPasteClipEffects: "Paste Clip Effects",

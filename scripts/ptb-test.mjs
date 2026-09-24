@@ -64,6 +64,8 @@ assert.equal(moveActionButton.actionType, "action");
 assert.equal(moveActionButton.action.id, "moveVideoClipDown");
 const staircaseActionButton = schema.createButton({ actionType: "action", action: { id: "staircaseVideoClipsDown" } });
 assert.equal(staircaseActionButton.action.id, "staircaseVideoClipsDown");
+const towerActionButton = schema.createButton({ actionType: "action", action: { id: "towerVideoClips" } });
+assert.equal(towerActionButton.action.id, "towerVideoClips");
 assert.equal(schema.createButton({ actionType: "action", action: { id: "unsupported" } }).action.id, "moveVideoClipUp");
 const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
   bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99 }]
@@ -2093,8 +2095,8 @@ async function moveVideoClipActionSmokeTest() {
 
 await moveVideoClipActionSmokeTest();
 
-// Verify staircase Actions use timeline order and create the mirrored track layout for both directions.
-async function staircaseVideoClipActionSmokeTest(actionId, expectedOffsets) {
+// Verify layout Actions use timeline order, track offsets, and horizontal offsets as expected.
+async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, expectedTimeOffsets) {
   const cloneOffsets = [];
   const sourceClips = [0, 1, 2].map((index) => ({
     id: index,
@@ -2107,9 +2109,9 @@ async function staircaseVideoClipActionSmokeTest(actionId, expectedOffsets) {
   const clonedClips = sourceClips.map((source, index) => ({
     // Preserve the same video-clip marker on the cloned mock items.
     createAddVideoTransitionAction() {},
-    getTrackIndex: async () => expectedOffsets[index],
-    getStartTime: async () => ({ seconds: 10 + index * 5 }),
-    getEndTime: async () => ({ seconds: 15 + index * 5 })
+    getTrackIndex: async () => expectedVideoOffsets[index],
+    getStartTime: async () => ({ seconds: 10 + expectedTimeOffsets[index] }),
+    getEndTime: async () => ({ seconds: 15 + expectedTimeOffsets[index] })
   }));
   const context = {
     console,
@@ -2122,7 +2124,7 @@ async function staircaseVideoClipActionSmokeTest(actionId, expectedOffsets) {
       }
       const editor = {
         createCloneTrackItemAction(item, timeOffset, videoOffset) {
-          assert.equal(timeOffset.seconds, 0);
+          assert.equal(timeOffset.seconds, expectedTimeOffsets[item.id]);
           cloneOffsets.push(videoOffset);
           return { type: "clone" };
         },
@@ -2149,7 +2151,7 @@ async function staircaseVideoClipActionSmokeTest(actionId, expectedOffsets) {
             getActiveSequence: async () => ({
               getSelection: async () => ({ getTrackItems: async () => sourceClips }),
               getVideoTrackCount: async () => 1,
-              getVideoTrack: async (trackIndex) => ({ getTrackItems: async () => clonedClips.filter((clip, index) => expectedOffsets[index] === trackIndex) }),
+              getVideoTrack: async (trackIndex) => ({ getTrackItems: async () => clonedClips.filter((clip, index) => expectedVideoOffsets[index] === trackIndex) }),
               getPlayerPosition: () => ({ seconds: 10 }),
               setPlayerPosition() {},
               setSelection() { return true; }
@@ -2163,11 +2165,12 @@ async function staircaseVideoClipActionSmokeTest(actionId, expectedOffsets) {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
   await context.PTB_PREMIERE.applyButton(schema.createButton({ label: "Staircase", actionType: "action", action: { id: actionId } }));
-  assert.deepEqual(cloneOffsets, expectedOffsets);
+  assert.deepEqual(cloneOffsets, expectedVideoOffsets);
 }
 
-await staircaseVideoClipActionSmokeTest("staircaseVideoClipsUp", [0, 1, 2]);
-await staircaseVideoClipActionSmokeTest("staircaseVideoClipsDown", [2, 1, 0]);
+await timelineLayoutActionSmokeTest("staircaseVideoClipsUp", [0, 1, 2], [0, 0, 0]);
+await timelineLayoutActionSmokeTest("staircaseVideoClipsDown", [2, 1, 0], [0, 0, 0]);
+await timelineLayoutActionSmokeTest("towerVideoClips", [0, 1, 2], [0, -5, -10]);
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");
