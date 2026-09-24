@@ -2098,11 +2098,15 @@ async function staircaseVideoClipActionSmokeTest(actionId, expectedOffsets) {
   const cloneOffsets = [];
   const sourceClips = [0, 1, 2].map((index) => ({
     id: index,
+    // Mark mocked track items as video clips for the bridge's runtime type check.
+    createAddVideoTransitionAction() {},
     getTrackIndex: async () => 0,
     getStartTime: async () => ({ seconds: 10 + index * 5 }),
     getEndTime: async () => ({ seconds: 15 + index * 5 })
   }));
   const clonedClips = sourceClips.map((source, index) => ({
+    // Preserve the same video-clip marker on the cloned mock items.
+    createAddVideoTransitionAction() {},
     getTrackIndex: async () => expectedOffsets[index],
     getStartTime: async () => ({ seconds: 10 + index * 5 }),
     getEndTime: async () => ({ seconds: 15 + index * 5 })
