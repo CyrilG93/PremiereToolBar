@@ -11,6 +11,7 @@
     restoreButtons: "Restore Buttons",
     addButton: "Add Button",
     duplicateButton: "Duplicate",
+    duplicateSelectedButton: "Duplicate Button",
     deleteButton: "Delete",
     capturePreset: "Capture Selected Preset",
     importPresetFile: "Import .prfpset (Experimental)",

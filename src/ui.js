@@ -1849,6 +1849,8 @@
     actions.appendChild(actionButton(root.PTB_I18N.t("backupButtons"), "ptb-button compact", () => exportPayload(false, "ToolBar-buttons-backup.json")));
     actions.appendChild(actionButton(root.PTB_I18N.t("restoreButtons"), "ptb-button compact", () => importPayload(false)));
     actions.appendChild(actionButton(root.PTB_I18N.t("addButton"), "ptb-button primary compact", () => createLibraryButton()));
+    // Duplicate the active library button directly from the always-visible settings menu.
+    actions.appendChild(actionButton(root.PTB_I18N.t("duplicateSelectedButton"), "ptb-button compact", () => duplicateLibraryButton(settingsState.selectedButtonId)));
     actions.appendChild(actionButton(root.PTB_I18N.t("addCollection"), "ptb-button compact", () => createNewCollection()));
     return actions;
   }
@@ -3168,6 +3170,7 @@
     config.buttons.push(copy);
     settingsState.selectedButtonId = copy.id;
     settingsState.collapsed.buttonGallery = false;
+    settingsState.collapsed.buttonEditor = false;
     saveAndRender(root.PTB_I18N.t("statusSaved"));
   }
 
