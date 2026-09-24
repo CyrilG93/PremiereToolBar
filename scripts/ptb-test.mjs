@@ -62,6 +62,8 @@ assert.equal(scriptButton.script.source, "alert('x');");
 const moveActionButton = schema.createButton({ actionType: "action", action: { id: "moveVideoClipDown" } });
 assert.equal(moveActionButton.actionType, "action");
 assert.equal(moveActionButton.action.id, "moveVideoClipDown");
+const staircaseActionButton = schema.createButton({ actionType: "action", action: { id: "staircaseVideoClipsDown" } });
+assert.equal(staircaseActionButton.action.id, "staircaseVideoClipsDown");
 assert.equal(schema.createButton({ actionType: "action", action: { id: "unsupported" } }).action.id, "moveVideoClipUp");
 const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
   bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99 }]
@@ -2090,6 +2092,78 @@ async function moveVideoClipActionSmokeTest() {
 }
 
 await moveVideoClipActionSmokeTest();
+
+// Verify staircase Actions use timeline order and create the mirrored track layout for both directions.
+async function staircaseVideoClipActionSmokeTest(actionId, expectedOffsets) {
+  const cloneOffsets = [];
+  const sourceClips = [0, 1, 2].map((index) => ({
+    id: index,
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: 10 + index * 5 }),
+    getEndTime: async () => ({ seconds: 15 + index * 5 })
+  }));
+  const clonedClips = sourceClips.map((source, index) => ({
+    getTrackIndex: async () => expectedOffsets[index],
+    getStartTime: async () => ({ seconds: 10 + index * 5 }),
+    getEndTime: async () => ({ seconds: 15 + index * 5 })
+  }));
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const editor = {
+        createCloneTrackItemAction(item, timeOffset, videoOffset) {
+          assert.equal(timeOffset.seconds, 0);
+          cloneOffsets.push(videoOffset);
+          return { type: "clone" };
+        },
+        createRemoveItemsAction() {
+          return { type: "remove" };
+        }
+      };
+      return {
+        Constants: { MediaType: { VIDEO: "video" }, TrackItemType: { CLIP: 1 } },
+        TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
+        SequenceEditor: { getEditor: () => editor },
+        TrackItemSelection: {
+          createEmptySelection(callback) {
+            callback({ items: [], addItem(item) { this.items.push(item); return true; } });
+          }
+        },
+        Project: {
+          getActiveProject: async () => ({
+            lockedAccess(callback) { callback(); },
+            executeTransaction(callback) {
+              callback({ addAction(action) { return action; } });
+              return true;
+            },
+            getActiveSequence: async () => ({
+              getSelection: async () => ({ getTrackItems: async () => sourceClips }),
+              getVideoTrackCount: async () => 1,
+              getVideoTrack: async (trackIndex) => ({ getTrackItems: async () => clonedClips.filter((clip, index) => expectedOffsets[index] === trackIndex) }),
+              getPlayerPosition: () => ({ seconds: 10 }),
+              setPlayerPosition() {},
+              setSelection() { return true; }
+            })
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({ label: "Staircase", actionType: "action", action: { id: actionId } }));
+  assert.deepEqual(cloneOffsets, expectedOffsets);
+}
+
+await staircaseVideoClipActionSmokeTest("staircaseVideoClipsUp", [0, 1, 2]);
+await staircaseVideoClipActionSmokeTest("staircaseVideoClipsDown", [2, 1, 0]);
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");

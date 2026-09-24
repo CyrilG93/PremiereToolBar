@@ -781,7 +781,70 @@
     if (button.action.id === "moveVideoClipDown") {
       return moveSelectedVideoClipsBetweenTracks(-1, button.label);
     }
+    if (button.action.id === "staircaseVideoClipsUp") {
+      return moveSelectedVideoClipsIntoStaircase(1, button.label);
+    }
+    if (button.action.id === "staircaseVideoClipsDown") {
+      return moveSelectedVideoClipsIntoStaircase(-1, button.label);
+    }
     throw new Error("This Action command is not supported by this Tool Bar version.");
+  }
+
+  // Spread selected clips onto consecutive video tracks, ordered left to right on the timeline.
+  async function moveSelectedVideoClipsIntoStaircase(direction, undoLabel) {
+    const { app, project, sequence, items } = await getSelectedItems();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
+      throw new Error("Premiere UXP does not expose SequenceEditor in this build.");
+    }
+    if (!app.TrackItemSelection || typeof app.TrackItemSelection.createEmptySelection !== "function") {
+      throw new Error("Premiere UXP does not expose TrackItemSelection in this build.");
+    }
+    if (!app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
+      throw new Error("Premiere UXP does not expose TickTime in this build.");
+    }
+    const videoItems = items.filter(isVideoItem);
+    if (videoItems.length !== items.length || videoItems.length < 2) {
+      throw new Error("Select at least two video clips to create a staircase.");
+    }
+    const videoTrackCount = await sequence.getVideoTrackCount();
+    const sources = [];
+    for (let index = 0; index < videoItems.length; index += 1) {
+      const item = videoItems[index];
+      const timing = await getTrackItemTiming(item);
+      if (timing.startNumber === null) {
+        throw new Error("Premiere could not read the start time of every selected clip.");
+      }
+      sources.push({ item, sourceTrackIndex: await item.getTrackIndex(), timing, selectionIndex: index });
+    }
+    // Keep same-frame clips deterministic by preserving their selected order after track order.
+    sources.sort((left, right) => left.timing.startNumber - right.timing.startNumber
+      || left.sourceTrackIndex - right.sourceTrackIndex
+      || left.selectionIndex - right.selectionIndex);
+    const targets = sources.map((source, index) => Object.assign({}, source, {
+      // A descending staircase lifts its first clip, allowing a valid result even when the selection begins on V1.
+      targetTrackIndex: source.sourceTrackIndex + (direction > 0 ? index : sources.length - 1 - index)
+    }));
+    const targetTracks = targets.map((target) => target.targetTrackIndex);
+    if (!await areGroupTargetsFree(app, sequence, sources, targetTracks, videoTrackCount)) {
+      throw new Error("A staircase destination track contains another clip. Move or deselect the blocking clips, then try again.");
+    }
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const zeroOffset = app.TickTime.createWithSeconds(0);
+    const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : null;
+    if (mediaType === null || mediaType === undefined) {
+      throw new Error("Premiere UXP does not expose the video media type constant.");
+    }
+    const actionFactories = [];
+    // Clone and remove one source at a time so source proxies remain valid throughout the transaction.
+    targets.forEach((target) => {
+      actionFactories.push(() => editor.createCloneTrackItemAction(target.item, zeroOffset, target.targetTrackIndex - target.sourceTrackIndex, 0, false, false));
+      actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
+    });
+    executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Staircase Video Clips"));
+    await selectMovedVideoClips(app, sequence, targets);
+    await refreshSequenceView(sequence);
+    logBridge("info", "Created video clip staircase.", { clips: targets.length, direction, targetTracks });
+    return { clips: targets.length, direction, targetTracks };
   }
 
   // Move selected video clips to the first free track in the requested direction without changing clips in between.

@@ -77,7 +77,7 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 - `Video Transition`: add a video transition to selected clips or an edit point.
 - `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later. The standard button name is used, so no separate preset name is required.
 - `Multi Action`: run several existing Tool Bar buttons in order.
-- `Actions`: move selected video clips to the first free track up or down. Linked audio is not moved.
+- `Actions`: move selected video clips to the first free track up or down, or create an ascending/descending staircase. A staircase orders clips from left to right and assigns each one to a consecutive video track. Linked audio is not moved.
 - `Tools`: open settings, copy/paste/remove effects.
 
 ## Backup
@@ -97,7 +97,7 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 - Adjustment Layer creation is not included for now because Premiere UXP does not expose a reliable documented workflow for creating or inserting one.
 - Premiere UXP does not expose a documented API for creating native Graphic shape layers. The previous MOGRT-based Graphic tool has been removed.
 - Audio transitions are not exposed through a reliable documented UXP action.
-- Moving clips is currently limited to selected video clips and refuses an occupied destination track to avoid overwriting timeline material.
+- Moving clips is currently limited to selected video clips and refuses an occupied destination track to avoid overwriting timeline material. Staircase actions require at least two selected clips; the descending version lifts the first clip so it also works from V1.
 - Transition preset files can be parsed in part, but full transition preset application is not reliable enough for normal use.
 - Lumetri curve data can be preserved in exported Tool Bar JSON, but Premiere UXP does not expose a documented way to replay it.
 - Premiere UXP does not reliably capture or restore effect color picker values. This affects native effects such as Ultra Key and Tint, as well as third-party effects such as Glint (`AE.Impact_Glint_FX`); a captured preset may keep the default color or restore an incorrect color. Tool Bar displays a red warning beside captured effects where this limitation is detected.

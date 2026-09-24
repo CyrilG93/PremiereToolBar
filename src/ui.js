@@ -2075,17 +2075,22 @@
   function renderActionFields(button) {
     const wrap = el("div", "ptb-fieldset");
     if (button.actionType === "action") {
-      // Keep the first Action category focused on documented, non-destructive timeline moves.
+      // Keep the Action category focused on documented, non-destructive timeline moves.
       const actionField = selectField(root.PTB_I18N.t("actionAction"), button.action.id, [
         { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
-        { value: "moveVideoClipDown", label: root.PTB_I18N.t("actionMoveVideoClipDown") }
+        { value: "moveVideoClipDown", label: root.PTB_I18N.t("actionMoveVideoClipDown") },
+        { value: "staircaseVideoClipsUp", label: root.PTB_I18N.t("actionStaircaseVideoClipsUp") },
+        { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") }
       ], (value) => {
         button.action.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       setStyles(actionField, { flex: "0 1 auto" });
       wrap.appendChild(actionField);
-      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("actionMoveVideoClipHelp")));
+      const helpKey = button.action.id === "staircaseVideoClipsUp" || button.action.id === "staircaseVideoClipsDown"
+        ? "actionStaircaseVideoClipsHelp"
+        : "actionMoveVideoClipHelp";
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(helpKey)));
       return wrap;
     }
     if (button.actionType === "tool") {
