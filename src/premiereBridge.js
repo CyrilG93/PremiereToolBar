@@ -801,13 +801,14 @@
       throw new Error("Select only video clips to move between video tracks.");
     }
     const videoTrackCount = await sequence.getVideoTrackCount();
-    const targets = [];
+    const sources = [];
     for (const item of videoItems) {
       const sourceTrackIndex = await item.getTrackIndex();
       const timing = await getTrackItemTiming(item);
-      const targetTrackIndex = await findFirstFreeVideoTrack(app, sequence, timing, sourceTrackIndex, verticalOffset, videoTrackCount);
-      targets.push({ item, sourceTrackIndex, targetTrackIndex, timing });
+      sources.push({ item, sourceTrackIndex, timing });
     }
+    const groupOffset = await findFirstFreeVideoTrackOffset(app, sequence, sources, verticalOffset, videoTrackCount);
+    const targets = sources.map((source) => Object.assign({}, source, { targetTrackIndex: source.sourceTrackIndex + groupOffset }));
     const editor = app.SequenceEditor.getEditor(sequence);
     const zeroOffset = app.TickTime.createWithSeconds(0);
     const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : null;
@@ -815,7 +816,11 @@
       throw new Error("Premiere UXP does not expose the video media type constant.");
     }
     const actionFactories = [];
-    targets.forEach((target) => {
+    // Release a selected destination before another stacked source reuses it in the same group move.
+    const orderedTargets = targets.slice().sort((left, right) => verticalOffset > 0
+      ? right.sourceTrackIndex - left.sourceTrackIndex
+      : left.sourceTrackIndex - right.sourceTrackIndex);
+    orderedTargets.forEach((target) => {
       const targetOffset = target.targetTrackIndex - target.sourceTrackIndex;
       actionFactories.push(() => editor.createCloneTrackItemAction(target.item, zeroOffset, targetOffset, 0, false, false));
       actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
@@ -855,26 +860,47 @@
     return true;
   }
 
-  // Find the nearest track with a free timeline range, skipping occupied tracks without touching them.
-  async function findFirstFreeVideoTrack(app, sequence, timing, sourceTrackIndex, direction, videoTrackCount) {
-    for (let trackIndex = sourceTrackIndex + direction; trackIndex >= 0 && trackIndex < videoTrackCount; trackIndex += direction) {
-      const destinationClips = await getTrackClips(app, sequence, "video", trackIndex);
-      let occupied = false;
-      for (const destinationClip of destinationClips) {
-        if (itemsOverlapOrTouchingRange(timing, await getTrackItemTiming(destinationClip))) {
-          occupied = true;
-          break;
+  // Find one common vertical offset so stacked selections keep their layout and never overwrite one another.
+  async function findFirstFreeVideoTrackOffset(app, sequence, sources, direction, videoTrackCount) {
+    const lowestSourceTrack = Math.min.apply(null, sources.map((source) => source.sourceTrackIndex));
+    const maximumOffset = direction > 0 ? videoTrackCount + sources.length : lowestSourceTrack;
+    for (let distance = 1; distance <= maximumOffset; distance += 1) {
+      const offset = distance * direction;
+      const targetTracks = sources.map((source) => source.sourceTrackIndex + offset);
+      if (targetTracks.some((trackIndex) => trackIndex < 0)) {
+        break;
+      }
+      if (await areGroupTargetsFree(app, sequence, sources, targetTracks, videoTrackCount)) {
+        return offset;
+      }
+    }
+    throw new Error(direction > 0 ? "No free video track could be created above the selected clips." : "No free video track exists below the selected clips.");
+  }
+
+  // Check existing clips and planned destinations together; selected sources are ignored because the same transaction removes them.
+  async function areGroupTargetsFree(app, sequence, sources, targetTracks, videoTrackCount) {
+    for (let leftIndex = 0; leftIndex < sources.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < sources.length; rightIndex += 1) {
+        if (targetTracks[leftIndex] === targetTracks[rightIndex] && itemsOverlapOrTouchingRange(sources[leftIndex].timing, sources[rightIndex].timing)) {
+          return false;
         }
       }
-      if (!occupied) {
-        return trackIndex;
+    }
+    for (let index = 0; index < sources.length; index += 1) {
+      const targetTrackIndex = targetTracks[index];
+      if (targetTrackIndex >= videoTrackCount) {
+        continue;
+      }
+      const destinationClips = await getTrackClips(app, sequence, "video", targetTrackIndex);
+      for (const destinationClip of destinationClips) {
+        const destinationTiming = await getTrackItemTiming(destinationClip);
+        const isMovingSource = sources.some((source) => source.sourceTrackIndex === targetTrackIndex && hasSameTimelineRange(source.timing, destinationTiming));
+        if (!isMovingSource && itemsOverlapOrTouchingRange(sources[index].timing, destinationTiming)) {
+          return false;
+        }
       }
     }
-    if (direction > 0) {
-      // Premiere resolves a clone target from its vertical offset; the first index after V-top asks it to create a new top track.
-      return videoTrackCount;
-    }
-    throw new Error("No free video track exists below the selected clip.");
+    return true;
   }
 
   // Treat any shared timeline range as occupied, while adjacent non-overlapping edits remain valid destinations.
