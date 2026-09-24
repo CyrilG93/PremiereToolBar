@@ -2010,6 +2010,7 @@
       { value: "preset", label: root.PTB_I18N.t("presetAction") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
       { value: "multi", label: root.PTB_I18N.t("multiAction") },
+      { value: "action", label: root.PTB_I18N.t("actionAction") },
       { value: "tool", label: root.PTB_I18N.t("toolAction") }
     ];
     if (audioTransitionsEnabled || button.actionType === "audioTransition") {
@@ -2071,6 +2072,20 @@
   // Render action-specific button fields.
   function renderActionFields(button) {
     const wrap = el("div", "ptb-fieldset");
+    if (button.actionType === "action") {
+      // Keep the first Action category focused on documented, non-destructive timeline moves.
+      const actionField = selectField(root.PTB_I18N.t("actionAction"), button.action.id, [
+        { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
+        { value: "moveVideoClipDown", label: root.PTB_I18N.t("actionMoveVideoClipDown") }
+      ], (value) => {
+        button.action.id = value;
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      });
+      setStyles(actionField, { flex: "0 1 auto" });
+      wrap.appendChild(actionField);
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("actionMoveVideoClipHelp")));
+      return wrap;
+    }
     if (button.actionType === "tool") {
       const toolField = selectField(root.PTB_I18N.t("toolAction"), button.tool.id, [
         { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") },

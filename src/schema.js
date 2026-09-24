@@ -15,7 +15,7 @@
   const MAX_BARS = 4;
   const BAR_IDS = ["bar-1", "bar-2", "bar-3", "bar-4"];
   const DEFAULT_BUTTON_SIZE = 34;
-  const ACTION_TYPES = ["tool", "effect", "transition", "transitionPreset", "audioTransition", "preset", "multi", "script"];
+  const ACTION_TYPES = ["tool", "action", "effect", "transition", "transitionPreset", "audioTransition", "preset", "multi", "script"];
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
@@ -25,6 +25,7 @@
     "pasteClipEffects",
     "removeClipEffects"
   ];
+  const ACTION_IDS = ["moveVideoClipUp", "moveVideoClipDown"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -76,6 +77,10 @@
         // Tool buttons run built-in utility commands that can grow over time.
         id: toolId,
         removeEffects: normalizeRemoveEffectsOptions(input.tool && input.tool.removeEffects)
+      },
+      action: {
+        // Action buttons run safe timeline operations exposed by Premiere's UXP API.
+        id: input.action && ACTION_IDS.includes(input.action.id) ? input.action.id : "moveVideoClipUp"
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),

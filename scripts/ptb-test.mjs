@@ -59,6 +59,10 @@ const scriptButton = schema.createButton({ actionType: "script", script: { name:
 assert.equal(scriptButton.actionType, "script");
 assert.equal(scriptButton.script.sourceFileName, "Sort Project.jsx");
 assert.equal(scriptButton.script.source, "alert('x');");
+const moveActionButton = schema.createButton({ actionType: "action", action: { id: "moveVideoClipDown" } });
+assert.equal(moveActionButton.actionType, "action");
+assert.equal(moveActionButton.action.id, "moveVideoClipDown");
+assert.equal(schema.createButton({ actionType: "action", action: { id: "unsupported" } }).action.id, "moveVideoClipUp");
 const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
   bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99 }]
 }));
@@ -1991,6 +1995,96 @@ async function inspectSelectionMatchNamesSmokeTest() {
 }
 
 await inspectSelectionMatchNamesSmokeTest();
+
+// Verify an Action button clones a selected video clip to the adjacent free track and removes its source in one transaction.
+async function moveVideoClipActionSmokeTest() {
+  const actionTypes = [];
+  let refreshRequested = false;
+  let cloneCreated = false;
+  let selectedMovedItems = [];
+  const sourceClip = {
+    createAddVideoTransitionAction() {},
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 15 })
+  };
+  const clonedClip = {
+    createAddVideoTransitionAction() {},
+    getTrackIndex: async () => 1,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 15 })
+  };
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const editor = {
+        createCloneTrackItemAction(item, timeOffset, videoOffset, audioOffset, alignToVideo, isInsert) {
+          assert.equal(item, sourceClip);
+          assert.equal(timeOffset.seconds, 0);
+          assert.equal(videoOffset, 1);
+          assert.equal(audioOffset, 0);
+          assert.equal(alignToVideo, false);
+          assert.equal(isInsert, false);
+          cloneCreated = true;
+          return { type: "clone" };
+        },
+        createRemoveItemsAction(selection, ripple, mediaType, shiftOverlapping) {
+          assert.deepEqual(selection.items, [sourceClip]);
+          assert.equal(ripple, false);
+          assert.equal(mediaType, "video");
+          assert.equal(shiftOverlapping, false);
+          return { type: "remove" };
+        }
+      };
+      return {
+        Constants: { MediaType: { VIDEO: "video" }, TrackItemType: { CLIP: 1 } },
+        TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
+        SequenceEditor: { getEditor: () => editor },
+        TrackItemSelection: {
+          createEmptySelection(callback) {
+            callback({ items: [], addItem(item) { this.items.push(item); return true; } });
+          }
+        },
+        Project: {
+          getActiveProject: async () => ({
+            lockedAccess(callback) { callback(); },
+            executeTransaction(callback) {
+              callback({ addAction(action) { actionTypes.push(action.type); } });
+              return true;
+            },
+            getActiveSequence: async () => ({
+              getSelection: async () => ({ getTrackItems: async () => [sourceClip] }),
+              getVideoTrackCount: async () => 2,
+              getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 && cloneCreated ? [clonedClip] : [] }),
+              getPlayerPosition: () => ({ seconds: 10 }),
+              setPlayerPosition() { refreshRequested = true; },
+              setSelection(selection) { selectedMovedItems = selection.items.slice(); return true; }
+            })
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    label: "Move Up",
+    actionType: "action",
+    action: { id: "moveVideoClipUp" }
+  }));
+  assert.deepEqual(actionTypes, ["clone", "remove"]);
+  assert.deepEqual(selectedMovedItems, [clonedClip]);
+  assert.equal(refreshRequested, true);
+}
+
+await moveVideoClipActionSmokeTest();
 
 // Report success for CI and local verification.
 console.log("ptb:test passed");

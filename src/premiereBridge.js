@@ -744,6 +744,9 @@
     if (normalizedButton.actionType === "tool") {
       return applyToolButton(normalizedButton);
     }
+    if (normalizedButton.actionType === "action") {
+      return applyTimelineActionButton(normalizedButton);
+    }
     if (normalizedButton.actionType === "multi") {
       return applyMultiButton(normalizedButton, config, recursionDepth);
     }
@@ -765,6 +768,138 @@
       return applyPresetButton(normalizedButton);
     }
     return applyEffectButton(normalizedButton);
+  }
+
+  // Run a documented Premiere timeline action selected in the Action button category.
+  async function applyTimelineActionButton(button) {
+    if (!button.action || !button.action.id) {
+      throw new Error("Choose an Action command first.");
+    }
+    if (button.action.id === "moveVideoClipUp") {
+      return moveSelectedVideoClipsBetweenTracks(1, button.label);
+    }
+    if (button.action.id === "moveVideoClipDown") {
+      return moveSelectedVideoClipsBetweenTracks(-1, button.label);
+    }
+    throw new Error("This Action command is not supported by this Tool Bar version.");
+  }
+
+  // Move selected video clips by cloning them to an empty adjacent track and removing the originals in one undoable transaction.
+  async function moveSelectedVideoClipsBetweenTracks(verticalOffset, undoLabel) {
+    const { app, project, sequence, items } = await getSelectedItems();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
+      throw new Error("Premiere UXP does not expose SequenceEditor in this build.");
+    }
+    if (!app.TrackItemSelection || typeof app.TrackItemSelection.createEmptySelection !== "function") {
+      throw new Error("Premiere UXP does not expose TrackItemSelection in this build.");
+    }
+    if (!app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
+      throw new Error("Premiere UXP does not expose TickTime in this build.");
+    }
+    const videoItems = items.filter(isVideoItem);
+    if (videoItems.length !== items.length || !videoItems.length) {
+      throw new Error("Select only video clips to move between video tracks.");
+    }
+    const videoTrackCount = await sequence.getVideoTrackCount();
+    const targets = [];
+    for (const item of videoItems) {
+      const sourceTrackIndex = await item.getTrackIndex();
+      const targetTrackIndex = sourceTrackIndex + verticalOffset;
+      if (targetTrackIndex < 0 || targetTrackIndex >= videoTrackCount) {
+        throw new Error("The selected clip cannot move beyond the available video tracks.");
+      }
+      const timing = await getTrackItemTiming(item);
+      targets.push({ item, sourceTrackIndex, targetTrackIndex, timing });
+    }
+    await assertDestinationTracksAreFree(app, sequence, targets);
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const zeroOffset = app.TickTime.createWithSeconds(0);
+    const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : null;
+    if (mediaType === null || mediaType === undefined) {
+      throw new Error("Premiere UXP does not expose the video media type constant.");
+    }
+    const actionFactories = [];
+    targets.forEach((target) => {
+      actionFactories.push(() => editor.createCloneTrackItemAction(target.item, zeroOffset, verticalOffset, 0, false, false));
+      actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
+    });
+    executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Move Video Clip"));
+    await selectMovedVideoClips(app, sequence, targets);
+    await refreshSequenceView(sequence);
+    logBridge("info", "Moved selected video clips between tracks.", { clips: targets.length, verticalOffset });
+    return { clips: targets.length, verticalOffset };
+  }
+
+  // Select moved clips again so a following Multi Action step targets the new track items rather than deleted proxies.
+  async function selectMovedVideoClips(app, sequence, targets) {
+    const movedItems = [];
+    for (const target of targets) {
+      const destinationClips = await getTrackClips(app, sequence, "video", target.targetTrackIndex);
+      // UXP getters are asynchronous, so resolve the exact clone without using Array.find's synchronous callback.
+      for (const destinationClip of destinationClips) {
+        const destinationTiming = await getTrackItemTiming(destinationClip);
+        if (hasSameTimelineRange(target.timing, destinationTiming)) {
+          movedItems.push(destinationClip);
+          break;
+        }
+      }
+    }
+    if (movedItems.length !== targets.length) {
+      logBridge("warn", "Moved clips could not all be reselected; a following Multi Action step may need a manual selection.", {
+        moved: movedItems.length,
+        expected: targets.length
+      });
+      return false;
+    }
+    app.TrackItemSelection.createEmptySelection((selection) => {
+      movedItems.forEach((item) => selection.addItem(item, false));
+      sequence.setSelection(selection);
+    });
+    return true;
+  }
+
+  // Reject occupied destinations before cloning so an Action button never overwrites a timeline clip.
+  async function assertDestinationTracksAreFree(app, sequence, targets) {
+    for (const target of targets) {
+      const destinationClips = await getTrackClips(app, sequence, "video", target.targetTrackIndex);
+      for (const destinationClip of destinationClips) {
+        const destinationTiming = await getTrackItemTiming(destinationClip);
+        if (itemsOverlapOrTouchingRange(target.timing, destinationTiming)) {
+          throw new Error("The destination video track contains a clip at the selected clip's time.");
+        }
+      }
+    }
+  }
+
+  // Treat any shared timeline range as occupied, while adjacent non-overlapping edits remain valid destinations.
+  function itemsOverlapOrTouchingRange(left, right) {
+    if (left.startNumber === null || left.endNumber === null || right.startNumber === null || right.endNumber === null) {
+      return true;
+    }
+    const tolerance = 0.0001;
+    return left.startNumber < right.endNumber - tolerance && right.startNumber < left.endNumber - tolerance;
+  }
+
+  // Match a clone by its exact sequence range after its destination was confirmed empty before the move.
+  function hasSameTimelineRange(left, right) {
+    if (left.startNumber === null || left.endNumber === null || right.startNumber === null || right.endNumber === null) {
+      return false;
+    }
+    const tolerance = 0.0001;
+    return Math.abs(left.startNumber - right.startNumber) < tolerance && Math.abs(left.endNumber - right.endNumber) < tolerance;
+  }
+
+  // Build the ephemeral selection inside its documented callback scope, then return the remove action to the transaction.
+  function createRemoveTrackItemAction(app, editor, item, mediaType) {
+    let removeAction = null;
+    app.TrackItemSelection.createEmptySelection((selection) => {
+      selection.addItem(item, false);
+      removeAction = editor.createRemoveItemsAction(selection, false, mediaType, false);
+    });
+    if (!removeAction) {
+      throw new Error("Premiere could not create the remove action for the selected clip.");
+    }
+    return removeAction;
   }
 
   // Run an imported JSX script only when Premiere exposes a compatible host API.
