@@ -784,7 +784,7 @@
     throw new Error("This Action command is not supported by this Tool Bar version.");
   }
 
-  // Move selected video clips by cloning them to an empty adjacent track and removing the originals in one undoable transaction.
+  // Move selected video clips to the first free track in the requested direction without changing clips in between.
   async function moveSelectedVideoClipsBetweenTracks(verticalOffset, undoLabel) {
     const { app, project, sequence, items } = await getSelectedItems();
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
@@ -804,14 +804,10 @@
     const targets = [];
     for (const item of videoItems) {
       const sourceTrackIndex = await item.getTrackIndex();
-      const targetTrackIndex = sourceTrackIndex + verticalOffset;
-      if (targetTrackIndex < 0 || targetTrackIndex >= videoTrackCount) {
-        throw new Error("The selected clip cannot move beyond the available video tracks.");
-      }
       const timing = await getTrackItemTiming(item);
+      const targetTrackIndex = await findFirstFreeVideoTrack(app, sequence, timing, sourceTrackIndex, verticalOffset, videoTrackCount);
       targets.push({ item, sourceTrackIndex, targetTrackIndex, timing });
     }
-    await assertDestinationTracksAreFree(app, sequence, targets);
     const editor = app.SequenceEditor.getEditor(sequence);
     const zeroOffset = app.TickTime.createWithSeconds(0);
     const mediaType = app.Constants && app.Constants.MediaType ? app.Constants.MediaType.VIDEO : null;
@@ -820,13 +816,14 @@
     }
     const actionFactories = [];
     targets.forEach((target) => {
-      actionFactories.push(() => editor.createCloneTrackItemAction(target.item, zeroOffset, verticalOffset, 0, false, false));
+      const targetOffset = target.targetTrackIndex - target.sourceTrackIndex;
+      actionFactories.push(() => editor.createCloneTrackItemAction(target.item, zeroOffset, targetOffset, 0, false, false));
       actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
     });
     executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Move Video Clip"));
     await selectMovedVideoClips(app, sequence, targets);
     await refreshSequenceView(sequence);
-    logBridge("info", "Moved selected video clips between tracks.", { clips: targets.length, verticalOffset });
+    logBridge("info", "Moved selected video clips between tracks.", { clips: targets.length, verticalOffset, targetTracks: targets.map((target) => target.targetTrackIndex) });
     return { clips: targets.length, verticalOffset };
   }
 
@@ -858,17 +855,26 @@
     return true;
   }
 
-  // Reject occupied destinations before cloning so an Action button never overwrites a timeline clip.
-  async function assertDestinationTracksAreFree(app, sequence, targets) {
-    for (const target of targets) {
-      const destinationClips = await getTrackClips(app, sequence, "video", target.targetTrackIndex);
+  // Find the nearest track with a free timeline range, skipping occupied tracks without touching them.
+  async function findFirstFreeVideoTrack(app, sequence, timing, sourceTrackIndex, direction, videoTrackCount) {
+    for (let trackIndex = sourceTrackIndex + direction; trackIndex >= 0 && trackIndex < videoTrackCount; trackIndex += direction) {
+      const destinationClips = await getTrackClips(app, sequence, "video", trackIndex);
+      let occupied = false;
       for (const destinationClip of destinationClips) {
-        const destinationTiming = await getTrackItemTiming(destinationClip);
-        if (itemsOverlapOrTouchingRange(target.timing, destinationTiming)) {
-          throw new Error("The destination video track contains a clip at the selected clip's time.");
+        if (itemsOverlapOrTouchingRange(timing, await getTrackItemTiming(destinationClip))) {
+          occupied = true;
+          break;
         }
       }
+      if (!occupied) {
+        return trackIndex;
+      }
     }
+    if (direction > 0) {
+      // Premiere resolves a clone target from its vertical offset; the first index after V-top asks it to create a new top track.
+      return videoTrackCount;
+    }
+    throw new Error("No free video track exists below the selected clip.");
   }
 
   // Treat any shared timeline range as occupied, while adjacent non-overlapping edits remain valid destinations.

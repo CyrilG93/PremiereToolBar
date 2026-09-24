@@ -2010,6 +2010,11 @@ async function moveVideoClipActionSmokeTest() {
   };
   const clonedClip = {
     createAddVideoTransitionAction() {},
+    getTrackIndex: async () => 2,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 15 })
+  };
+  const occupiedClip = {
     getTrackIndex: async () => 1,
     getStartTime: async () => ({ seconds: 10 }),
     getEndTime: async () => ({ seconds: 15 })
@@ -2027,7 +2032,7 @@ async function moveVideoClipActionSmokeTest() {
         createCloneTrackItemAction(item, timeOffset, videoOffset, audioOffset, alignToVideo, isInsert) {
           assert.equal(item, sourceClip);
           assert.equal(timeOffset.seconds, 0);
-          assert.equal(videoOffset, 1);
+          assert.equal(videoOffset, 2);
           assert.equal(audioOffset, 0);
           assert.equal(alignToVideo, false);
           assert.equal(isInsert, false);
@@ -2060,8 +2065,8 @@ async function moveVideoClipActionSmokeTest() {
             },
             getActiveSequence: async () => ({
               getSelection: async () => ({ getTrackItems: async () => [sourceClip] }),
-              getVideoTrackCount: async () => 2,
-              getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 && cloneCreated ? [clonedClip] : [] }),
+              getVideoTrackCount: async () => 3,
+              getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 ? [occupiedClip] : (index === 2 && cloneCreated ? [clonedClip] : []) }),
               getPlayerPosition: () => ({ seconds: 10 }),
               setPlayerPosition() { refreshRequested = true; },
               setSelection(selection) { selectedMovedItems = selection.items.slice(); return true; }

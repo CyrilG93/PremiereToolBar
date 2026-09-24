@@ -77,7 +77,7 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 - `Video Transition`: add a video transition to selected clips or an edit point.
 - `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later. The standard button name is used, so no separate preset name is required.
 - `Multi Action`: run several existing Tool Bar buttons in order.
-- `Actions`: move selected video clips one free track up or down. Linked audio is not moved.
+- `Actions`: move selected video clips to the first free track up or down. Linked audio is not moved.
 - `Tools`: open settings, copy/paste/remove effects.
 
 ## Backup

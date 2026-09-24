@@ -60,7 +60,7 @@
     actionAction: "Actions",
     actionMoveVideoClipUp: "Move Video Clip Up",
     actionMoveVideoClipDown: "Move Video Clip Down",
-    actionMoveVideoClipHelp: "Moves selected video clips one free video track up or down. Linked audio is not moved.",
+    actionMoveVideoClipHelp: "Moves selected video clips to the first free video track up or down. Linked audio is not moved.",
     toolOpenSettings: "Open Settings",
     toolCopyClipEffects: "Copy Clip Effects",
     toolPasteClipEffects: "Paste Clip Effects",
