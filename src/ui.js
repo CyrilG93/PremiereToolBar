@@ -12,7 +12,7 @@
     logs: true
   };
   const savedUiState = root.PTB_STORAGE.loadUiState ? root.PTB_STORAGE.loadUiState() : { collapsed: {}, scrollState: {} };
-  let catalogs = { videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [] };
+  let catalogs = { videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [], colorLabels: [] };
   let statusMessage = root.PTB_I18N.t("statusReady");
   let statusIsError = false;
   let settingsState = {
@@ -153,12 +153,13 @@
     }
     catalogLoadStarted = true;
     root.PTB_PREMIERE.loadCatalogs().then((loadedCatalogs) => {
-      catalogs = Object.assign({ videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [] }, loadedCatalogs || {});
+      catalogs = Object.assign({ videoEffects: [], audioEffects: [], videoTransitions: [], audioTransitions: [], colorLabels: [] }, loadedCatalogs || {});
       addInternalLog("info", "Premiere catalogs loaded.", {
         videoEffects: catalogs.videoEffects.length,
         audioEffects: catalogs.audioEffects.length,
         videoTransitions: catalogs.videoTransitions.length,
-        audioTransitions: catalogs.audioTransitions.length
+        audioTransitions: catalogs.audioTransitions.length,
+        colorLabels: catalogs.colorLabels.length
       }, true);
       renderAll();
     }).catch((error) => {
@@ -2085,6 +2086,7 @@
         { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
         { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
         { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
+        { value: "setClipLabel", label: root.PTB_I18N.t("actionSetClipLabel") },
         { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") },
         { value: "staircaseVideoClipsUp", label: root.PTB_I18N.t("actionStaircaseVideoClipsUp") },
         { value: "towerVideoClips", label: root.PTB_I18N.t("actionTowerVideoClips") }
@@ -2098,16 +2100,24 @@
         ? "actionTowerVideoClipsHelp"
         : (button.action.id === "copyClipEffects" || button.action.id === "pasteClipEffects" || button.action.id === "removeClipEffects"
           ? "actionClipEffectsHelp"
+        : (button.action.id === "setClipLabel"
+          ? "actionSetClipLabelHelp"
         : (button.action.id === "staircaseVideoClipsUp" || button.action.id === "staircaseVideoClipsDown"
           ? "actionStaircaseVideoClipsHelp"
           : (button.action.id === "extendClipInToPlayhead" || button.action.id === "extendClipOutToPlayhead"
             ? "actionExtendClipToPlayheadHelp"
             : (button.action.id === "invertTimelineSelection"
               ? "actionInvertTimelineSelectionHelp"
-              : "actionMoveVideoClipHelp"))));
+              : "actionMoveVideoClipHelp")))));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(helpKey)));
       if (button.action.id === "removeClipEffects") {
         wrap.appendChild(renderRemoveEffectsOptions(button));
+      }
+      if (button.action.id === "setClipLabel") {
+        wrap.appendChild(selectField(root.PTB_I18N.t("actionLabel"), button.action.labelKey || "VIOLET", getProjectItemLabelOptions(), (value) => {
+          button.action.labelKey = value;
+          saveAndRender(root.PTB_I18N.t("statusSaved"));
+        }));
       }
       return wrap;
     }
@@ -2240,6 +2250,18 @@
       wrap.appendChild(catalogPicker);
     }
     return wrap;
+  }
+
+  // Use Premiere's runtime label enum when available; custom preference names are not readable from UXP.
+  function getProjectItemLabelOptions() {
+    const fallbackKeys = ["VIOLET", "IRIS", "LAVENDER", "CERULEAN", "FOREST", "ROSE", "MANGO", "PURPLE", "BLUE", "TEAL", "MAGENTA", "TAN", "GREEN", "BROWN", "YELLOW"];
+    const labels = catalogs.colorLabels.length ? catalogs.colorLabels.map((label) => label.key) : fallbackKeys;
+    return labels.map((key) => ({ value: key, label: formatProjectItemLabel(key) }));
+  }
+
+  // Turn UXP enum-style label keys into compact labels suitable for the Settings select.
+  function formatProjectItemLabel(key) {
+    return String(key || "").toLowerCase().replace(/(^|_)([a-z])/g, (match, prefix, letter) => prefix + letter.toUpperCase());
   }
 
   // Render the options that decide which clip attributes the Remove Effects tool clears.

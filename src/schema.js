@@ -21,7 +21,8 @@
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
   const TOOL_IDS = ["openSettings"];
   const LEGACY_TOOL_ACTION_IDS = ["copyClipEffects", "pasteClipEffects", "removeClipEffects"];
-  const ACTION_IDS = ["copyClipEffects", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection", "moveVideoClipDown", "moveVideoClipUp", "pasteClipEffects", "removeClipEffects", "staircaseVideoClipsDown", "staircaseVideoClipsUp", "towerVideoClips"];
+  const ACTION_IDS = ["copyClipEffects", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection", "moveVideoClipDown", "moveVideoClipUp", "pasteClipEffects", "removeClipEffects", "setClipLabel", "staircaseVideoClipsDown", "staircaseVideoClipsUp", "towerVideoClips"];
+  const DEFAULT_LABEL_KEY = "VIOLET";
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -81,7 +82,9 @@
       },
       action: {
         // Action buttons run safe timeline operations exposed by Premiere's UXP API.
-        id: legacyToolActionId || (input.action && ACTION_IDS.includes(input.action.id) ? input.action.id : "moveVideoClipUp")
+        id: legacyToolActionId || (input.action && ACTION_IDS.includes(input.action.id) ? input.action.id : "moveVideoClipUp"),
+        // Store the stable Premiere label enum key; user label colors can be customized while retaining this index.
+        labelKey: safeString(input.action && input.action.labelKey, DEFAULT_LABEL_KEY).toUpperCase()
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),

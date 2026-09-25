@@ -708,6 +708,7 @@
     const audioDisplayNames = await app.AudioFilterFactory.getDisplayNames();
     const videoTransitionMatchNames = await getVideoTransitionMatchNames(app);
     const audioTransitionMatchNames = await getAudioTransitionMatchNames(app);
+    const colorLabels = getProjectItemColorLabels(app);
     return {
       videoEffects: videoMatchNames.map((matchName, index) => ({
         matchName,
@@ -724,8 +725,22 @@
       audioTransitions: audioTransitionMatchNames.map((matchName) => ({
         matchName,
         displayName: matchName
-      }))
+      })),
+      colorLabels
     };
+  }
+
+  // Read stable label enum keys exposed by this Premiere build; custom preference names are not exposed to UXP.
+  function getProjectItemColorLabels(app) {
+    const constants = app && (app.Constants || app.constants);
+    const labels = constants && constants.ProjectItemColorLabel;
+    if (!labels) {
+      return [];
+    }
+    return Object.keys(labels)
+      .filter((key) => typeof labels[key] === "number")
+      .map((key) => ({ key, index: labels[key] }))
+      .sort((left, right) => left.index - right.index);
   }
 
   // Apply a toolbar button to the current Premiere timeline selection.
@@ -790,6 +805,9 @@
     if (button.action.id === "removeClipEffects") {
       return removeSelectedClipEffects(button);
     }
+    if (button.action.id === "setClipLabel") {
+      return setSelectedClipProjectItemLabel(button);
+    }
     if (button.action.id === "staircaseVideoClipsUp") {
       return moveSelectedVideoClipsIntoStaircase(1, button.label);
     }
@@ -809,6 +827,43 @@
       return invertTimelineSelection();
     }
     throw new Error("This Action command is not supported by this Tool Bar version.");
+  }
+
+  // Set the Project panel label for the media behind selected timeline clips; every occurrence of that media follows.
+  async function setSelectedClipProjectItemLabel(button) {
+    const { app, project, sequence, items } = await getSelectedItems();
+    const labelKey = String(button.action && button.action.labelKey || "VIOLET").toUpperCase();
+    const constants = app.Constants || app.constants;
+    const labels = constants && constants.ProjectItemColorLabel;
+    const labelIndex = labels && labels[labelKey];
+    if (typeof labelIndex !== "number") {
+      throw new Error("The selected clip label is unavailable in this Premiere version.");
+    }
+    const projectItems = [];
+    const seenProjectIds = {};
+    for (const item of items) {
+      if (!item || typeof item.getProjectItem !== "function") {
+        continue;
+      }
+      const projectItem = await item.getProjectItem();
+      if (!projectItem || typeof projectItem.createSetColorLabelAction !== "function") {
+        continue;
+      }
+      const projectId = typeof projectItem.getId === "function" ? await projectItem.getId() : "";
+      const uniqueKey = projectId || String(projectItems.length);
+      if (!seenProjectIds[uniqueKey]) {
+        seenProjectIds[uniqueKey] = true;
+        projectItems.push(projectItem);
+      }
+    }
+    if (!projectItems.length) {
+      throw new Error("No selected clips expose a labelable Project item.");
+    }
+    // Create each label action inside the transaction, as required by Premiere 26.3+ action lifetimes.
+    executeActions(project, projectItems.map((projectItem) => () => projectItem.createSetColorLabelAction(labelIndex)), "Tool Bar: Set Clip Label");
+    await refreshSequenceView(sequence);
+    logBridge("info", "Set selected clip Project item label.", { clips: items.length, projectItems: projectItems.length, labelKey, labelIndex });
+    return { clips: items.length, projectItems: projectItems.length, labelKey, labelIndex };
   }
 
   // Replace the timeline selection with every regular audio and video clip that is currently unselected.

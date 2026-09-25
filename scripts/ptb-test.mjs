@@ -76,6 +76,9 @@ const invertActionButton = schema.createButton({ actionType: "action", action: {
 assert.equal(invertActionButton.action.id, "invertTimelineSelection");
 const copyEffectsActionButton = schema.createButton({ actionType: "action", action: { id: "copyClipEffects" } });
 assert.equal(copyEffectsActionButton.action.id, "copyClipEffects");
+const setLabelActionButton = schema.createButton({ actionType: "action", action: { id: "setClipLabel", labelKey: "rose" } });
+assert.equal(setLabelActionButton.action.id, "setClipLabel");
+assert.equal(setLabelActionButton.action.labelKey, "ROSE");
 assert.equal(schema.createButton({ actionType: "action", action: { id: "unsupported" } }).action.id, "moveVideoClipUp");
 const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
   bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99 }]
