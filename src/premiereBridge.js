@@ -778,8 +778,17 @@
     if (button.action.id === "moveVideoClipUp") {
       return moveSelectedVideoClipsBetweenTracks(1, button.label);
     }
+    if (button.action.id === "copyClipEffects") {
+      return copySelectedClipEffects();
+    }
     if (button.action.id === "moveVideoClipDown") {
       return moveSelectedVideoClipsBetweenTracks(-1, button.label);
+    }
+    if (button.action.id === "pasteClipEffects") {
+      return pasteCopiedClipEffects(button);
+    }
+    if (button.action.id === "removeClipEffects") {
+      return removeSelectedClipEffects(button);
     }
     if (button.action.id === "staircaseVideoClipsUp") {
       return moveSelectedVideoClipsIntoStaircase(1, button.label);

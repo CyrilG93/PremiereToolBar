@@ -2,5 +2,5 @@
   "use strict";
 
   // Expose the installed extension version to the settings header.
-  root.PTB_VERSION = "1.1.16";
+  root.PTB_VERSION = "1.1.17";
 }(typeof window !== "undefined" ? window : globalThis));

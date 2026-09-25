@@ -2075,16 +2075,19 @@
   function renderActionFields(button) {
     const wrap = el("div", "ptb-fieldset");
     if (button.actionType === "action") {
-      // Keep the Action category focused on documented, non-destructive timeline moves.
+      // Keep all built-in editing commands together in alphabetical user-facing order.
       const actionField = selectField(root.PTB_I18N.t("actionAction"), button.action.id, [
-        { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
-        { value: "moveVideoClipDown", label: root.PTB_I18N.t("actionMoveVideoClipDown") },
-        { value: "staircaseVideoClipsUp", label: root.PTB_I18N.t("actionStaircaseVideoClipsUp") },
-        { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") },
-        { value: "towerVideoClips", label: root.PTB_I18N.t("actionTowerVideoClips") },
+        { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
         { value: "extendClipInToPlayhead", label: root.PTB_I18N.t("actionExtendClipInToPlayhead") },
         { value: "extendClipOutToPlayhead", label: root.PTB_I18N.t("actionExtendClipOutToPlayhead") },
-        { value: "invertTimelineSelection", label: root.PTB_I18N.t("actionInvertTimelineSelection") }
+        { value: "invertTimelineSelection", label: root.PTB_I18N.t("actionInvertTimelineSelection") },
+        { value: "moveVideoClipDown", label: root.PTB_I18N.t("actionMoveVideoClipDown") },
+        { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
+        { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
+        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
+        { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") },
+        { value: "staircaseVideoClipsUp", label: root.PTB_I18N.t("actionStaircaseVideoClipsUp") },
+        { value: "towerVideoClips", label: root.PTB_I18N.t("actionTowerVideoClips") }
       ], (value) => {
         button.action.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
@@ -2093,31 +2096,30 @@
       wrap.appendChild(actionField);
       const helpKey = button.action.id === "towerVideoClips"
         ? "actionTowerVideoClipsHelp"
+        : (button.action.id === "copyClipEffects" || button.action.id === "pasteClipEffects" || button.action.id === "removeClipEffects"
+          ? "actionClipEffectsHelp"
         : (button.action.id === "staircaseVideoClipsUp" || button.action.id === "staircaseVideoClipsDown"
           ? "actionStaircaseVideoClipsHelp"
           : (button.action.id === "extendClipInToPlayhead" || button.action.id === "extendClipOutToPlayhead"
             ? "actionExtendClipToPlayheadHelp"
             : (button.action.id === "invertTimelineSelection"
               ? "actionInvertTimelineSelectionHelp"
-              : "actionMoveVideoClipHelp")));
+              : "actionMoveVideoClipHelp"))));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(helpKey)));
+      if (button.action.id === "removeClipEffects") {
+        wrap.appendChild(renderRemoveEffectsOptions(button));
+      }
       return wrap;
     }
     if (button.actionType === "tool") {
       const toolField = selectField(root.PTB_I18N.t("toolAction"), button.tool.id, [
-        { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") },
-        { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
-        { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
-        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") }
+        { value: "openSettings", label: root.PTB_I18N.t("toolOpenSettings") }
       ], (value) => {
         button.tool.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
       });
       setStyles(toolField, { flex: "0 1 auto" });
       wrap.appendChild(toolField);
-      if (button.tool.id === "removeClipEffects") {
-        wrap.appendChild(renderRemoveEffectsOptions(button));
-      }
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("toolHelp")));
       return wrap;
     }

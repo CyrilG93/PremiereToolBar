@@ -19,13 +19,9 @@
   const MEDIA_TYPES = ["video", "audio"];
   const DISPLAY_MODES = ["icon", "text", "both"];
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
-  const TOOL_IDS = [
-    "openSettings",
-    "copyClipEffects",
-    "pasteClipEffects",
-    "removeClipEffects"
-  ];
-  const ACTION_IDS = ["moveVideoClipUp", "moveVideoClipDown", "staircaseVideoClipsUp", "staircaseVideoClipsDown", "towerVideoClips", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection"];
+  const TOOL_IDS = ["openSettings"];
+  const LEGACY_TOOL_ACTION_IDS = ["copyClipEffects", "pasteClipEffects", "removeClipEffects"];
+  const ACTION_IDS = ["copyClipEffects", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection", "moveVideoClipDown", "moveVideoClipUp", "pasteClipEffects", "removeClipEffects", "staircaseVideoClipsDown", "staircaseVideoClipsUp", "towerVideoClips"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -58,11 +54,16 @@
     const input = overrides || {};
     // Migrate the old captured-stack action name to the user-facing preset action.
     const requestedActionType = input.actionType === "stack" ? "preset" : (input.actionType === "settings" ? "tool" : input.actionType);
-    const actionType = ACTION_TYPES.includes(requestedActionType) ? requestedActionType : "effect";
+    const legacyToolActionId = requestedActionType === "tool" && input.tool && LEGACY_TOOL_ACTION_IDS.includes(input.tool.id)
+      ? input.tool.id
+      : "";
+    // Migrate clip-effect tools into Actions while keeping their existing button IDs and option payloads.
+    const actionType = legacyToolActionId ? "action" : (ACTION_TYPES.includes(requestedActionType) ? requestedActionType : "effect");
     const mediaType = MEDIA_TYPES.includes(input.mediaType) ? input.mediaType : "video";
     const toolId = input.actionType === "settings"
       ? "openSettings"
-      : (input.tool && TOOL_IDS.includes(input.tool.id) ? input.tool.id : "openSettings");
+      // Preserve legacy tool metadata because Remove Effects still stores its options in this object.
+      : (input.tool && (TOOL_IDS.includes(input.tool.id) || LEGACY_TOOL_ACTION_IDS.includes(input.tool.id)) ? input.tool.id : "openSettings");
     const button = {
       id: safeString(input.id, createId("button")),
       label: safeString(input.label, actionType === "tool" ? "Settings" : (actionType === "script" ? "Script" : "Button")),
@@ -80,7 +81,7 @@
       },
       action: {
         // Action buttons run safe timeline operations exposed by Premiere's UXP API.
-        id: input.action && ACTION_IDS.includes(input.action.id) ? input.action.id : "moveVideoClipUp"
+        id: legacyToolActionId || (input.action && ACTION_IDS.includes(input.action.id) ? input.action.id : "moveVideoClipUp")
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
@@ -537,7 +538,8 @@
       createButton({
         id: "button-mpmo8f1s-l684ylss",
         label: "Copy Effects",
-        actionType: "tool",
+        actionType: "action",
+        action: { id: "copyClipEffects" },
         tool: { id: "copyClipEffects" },
         icon: "flask",
         iconColor: "#e11d48",
@@ -548,7 +550,8 @@
       createButton({
         id: "button-mpmo9to4-ksq3d5xt",
         label: "Paste Effects",
-        actionType: "tool",
+        actionType: "action",
+        action: { id: "pasteClipEffects" },
         tool: { id: "pasteClipEffects" },
         icon: "flask-fill",
         iconColor: "#e11d48",
@@ -559,7 +562,8 @@
       createButton({
         id: "button-mpuvg1ck-fx86h10z",
         label: "Remove Effects",
-        actionType: "tool",
+        actionType: "action",
+        action: { id: "removeClipEffects" },
         tool: { id: "removeClipEffects", removeEffects: { includeIntrinsic: false, includeVideoEffects: true } },
         icon: "bootstrap-reboot",
         iconColor: "#e11d48",

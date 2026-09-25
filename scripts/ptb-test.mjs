@@ -31,6 +31,8 @@ const removeEffectsButton = schema.createButton({
   actionType: "tool",
   tool: { id: "removeClipEffects", removeEffects: { includeIntrinsic: false, includeVideoEffects: true } }
 });
+assert.equal(removeEffectsButton.actionType, "action");
+assert.equal(removeEffectsButton.action.id, "removeClipEffects");
 assert.equal(removeEffectsButton.tool.id, "removeClipEffects");
 assert.equal(removeEffectsButton.tool.removeEffects.includeIntrinsic, false);
 assert.equal(removeEffectsButton.tool.removeEffects.includeVideoEffects, true);
@@ -72,6 +74,8 @@ const extendOutActionButton = schema.createButton({ actionType: "action", action
 assert.equal(extendOutActionButton.action.id, "extendClipOutToPlayhead");
 const invertActionButton = schema.createButton({ actionType: "action", action: { id: "invertTimelineSelection" } });
 assert.equal(invertActionButton.action.id, "invertTimelineSelection");
+const copyEffectsActionButton = schema.createButton({ actionType: "action", action: { id: "copyClipEffects" } });
+assert.equal(copyEffectsActionButton.action.id, "copyClipEffects");
 assert.equal(schema.createButton({ actionType: "action", action: { id: "unsupported" } }).action.id, "moveVideoClipUp");
 const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
   bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99 }]

@@ -77,8 +77,8 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 - `Video Transition`: add a video transition to selected clips or an edit point.
 - `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later. The standard button name is used, so no separate preset name is required.
 - `Multi Action`: run several existing Tool Bar buttons in order.
-- `Actions`: move selected video clips to the first free track up or down, create an ascending/descending staircase, build a tower, set selected clip In/Out points at the playhead, or invert the timeline selection. The In/Out actions work with selected video and audio clips across several tracks, never clone clips, and can extend or shorten a clip while preserving a positive duration. Invert Timeline Selection selects every regular video and audio clip that was not selected, and clears the previous selection. A tower places video or audio clips on consecutive tracks and aligns their timeline In points with the first clip. Audio linked to a selected video follows when it has the same source media and timeline range.
-- `Tools`: open settings, copy/paste/remove effects.
+- `Actions`: copy/paste/remove effects, move selected video clips to the first free track up or down, create an ascending/descending staircase, build a tower, set selected clip In/Out points at the playhead, or invert the timeline selection. The In/Out actions work with selected video and audio clips across several tracks, never clone clips, and can extend or shorten a clip while preserving a positive duration. Invert Timeline Selection selects every regular video and audio clip that was not selected, and clears the previous selection. A tower places video or audio clips on consecutive tracks and aligns their timeline In points with the first clip. Audio linked to a selected video follows when it has the same source media and timeline range.
+- `Tools`: open Settings.
 
 ## Backup
 
