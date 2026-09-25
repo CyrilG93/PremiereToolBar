@@ -77,7 +77,7 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 - `Video Transition`: add a video transition to selected clips or an edit point.
 - `Effect Preset`: capture exposed clip parameters, effects, and keyframes from a selected clip, then apply them later. The standard button name is used, so no separate preset name is required.
 - `Multi Action`: run several existing Tool Bar buttons in order.
-- `Actions`: move selected video clips to the first free track up or down, create an ascending/descending staircase, build a tower, or extend selected clip In/Out points to the playhead. The extension actions work with selected video and audio clips across several tracks, never clone clips, and only extend: place the playhead before every selected In point or after every selected Out point. A tower places video or audio clips on consecutive tracks and aligns their timeline In points with the first clip. Audio linked to a selected video follows when it has the same source media and timeline range.
+- `Actions`: move selected video clips to the first free track up or down, create an ascending/descending staircase, build a tower, or set selected clip In/Out points at the playhead. The In/Out actions work with selected video and audio clips across several tracks, never clone clips, and can extend or shorten a clip while preserving a positive duration. A tower places video or audio clips on consecutive tracks and aligns their timeline In points with the first clip. Audio linked to a selected video follows when it has the same source media and timeline range.
 - `Tools`: open settings, copy/paste/remove effects.
 
 ## Backup

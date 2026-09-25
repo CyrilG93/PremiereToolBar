@@ -799,7 +799,7 @@
     throw new Error("This Action command is not supported by this Tool Bar version.");
   }
 
-  // Extend the selected clip edges to the playhead without cloning or moving the existing track items.
+  // Set the selected clip edges at the playhead without cloning or moving the existing track items.
   async function extendSelectedClipsToPlayhead(edge, undoLabel) {
     const { project, sequence, items } = await getSelectedItems();
     if (typeof sequence.getPlayerPosition !== "function") {
@@ -814,26 +814,26 @@
     const tolerance = 0.0001;
     for (const item of items) {
       const timing = await getTrackItemTiming(item);
-      const targetTime = edge === "in" ? timing.startNumber : timing.endNumber;
+      const oppositeEdgeTime = edge === "in" ? timing.endNumber : timing.startNumber;
       const actionName = edge === "in" ? "createSetStartAction" : "createSetEndAction";
-      if (targetTime === null || typeof item[actionName] !== "function") {
+      if (oppositeEdgeTime === null || typeof item[actionName] !== "function") {
         throw new Error("Every selected item must be a regular audio or video clip.");
       }
-      // An extend command must only grow the selected range; it must never silently shorten a clip.
-      const canExtend = edge === "in"
-        ? playheadNumber < targetTime - tolerance
-        : playheadNumber > targetTime + tolerance;
-      if (!canExtend) {
+      // The new edge may extend or shorten the clip, but it must always leave a positive duration.
+      const keepsPositiveDuration = edge === "in"
+        ? playheadNumber < oppositeEdgeTime - tolerance
+        : playheadNumber > oppositeEdgeTime + tolerance;
+      if (!keepsPositiveDuration) {
         throw new Error(edge === "in"
-          ? "Place the playhead before the In point of every selected clip."
-          : "Place the playhead after the Out point of every selected clip.");
+          ? "Place the playhead before the Out point of every selected clip."
+          : "Place the playhead after the In point of every selected clip.");
       }
       // Build the direct trim action in the transaction to keep Premiere's action proxy valid.
       actionFactories.push(() => item[actionName](playhead));
     }
     executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || (edge === "in" ? "Extend Clip In" : "Extend Clip Out")));
     await refreshSequenceView(sequence);
-    logBridge("info", "Extended selected clips to playhead.", { clips: items.length, edge, playhead: playheadNumber });
+    logBridge("info", "Set selected clip edges at playhead.", { clips: items.length, edge, playhead: playheadNumber });
     return { clips: items.length, edge, playhead: playheadNumber };
   }
 

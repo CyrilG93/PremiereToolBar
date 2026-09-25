@@ -68,7 +68,7 @@
     actionTowerVideoClipsHelp: "Stacks selected video or audio clips on consecutive tracks and aligns all timeline In points with the first clip. Matching linked audio follows selected video clips.",
     actionExtendClipInToPlayhead: "Extend Clip In to Playhead",
     actionExtendClipOutToPlayhead: "Extend Clip Out to Playhead",
-    actionExtendClipToPlayheadHelp: "Extends every selected video or audio clip edge to the playhead. The playhead must be before all selected In points or after all selected Out points; clips are never shortened.",
+    actionExtendClipToPlayheadHelp: "Sets every selected video or audio clip In or Out edge at the playhead. It can extend or shorten clips, but never creates a zero-length or reversed clip.",
     toolOpenSettings: "Open Settings",
     toolCopyClipEffects: "Copy Clip Effects",
     toolPasteClipEffects: "Paste Clip Effects",
