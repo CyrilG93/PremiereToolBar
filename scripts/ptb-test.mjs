@@ -2106,6 +2106,13 @@ async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, exp
     getStartTime: async () => ({ seconds: 10 + index * 5 }),
     getEndTime: async () => ({ seconds: 15 + index * 5 })
   }));
+  const linkedAudioClip = {
+    // Mark this mocked linked item as audio so Staircase must ignore it.
+    getComponentChain: async () => ({}),
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 15 })
+  };
   const clonedClips = sourceClips.map((source, index) => ({
     // Preserve the same video-clip marker on the cloned mock items.
     createAddVideoTransitionAction() {},
@@ -2149,7 +2156,10 @@ async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, exp
               return true;
             },
             getActiveSequence: async () => ({
-              getSelection: async () => ({ getTrackItems: async () => sourceClips }),
+              getSelection: async () => ({
+                // Simulate Premiere's normal selection that includes linked audio with selected video clips.
+                getTrackItems: async () => actionId.includes("staircase") ? sourceClips.concat([linkedAudioClip]) : sourceClips
+              }),
               getVideoTrackCount: async () => 1,
               getVideoTrack: async (trackIndex) => ({ getTrackItems: async () => clonedClips.filter((clip, index) => expectedVideoOffsets[index] === trackIndex) }),
               getPlayerPosition: () => ({ seconds: 10 }),

@@ -956,7 +956,8 @@
       throw new Error("Premiere UXP does not expose TickTime in this build.");
     }
     const videoItems = items.filter(isVideoItem);
-    if (videoItems.length !== items.length || videoItems.length < 2) {
+    // Premiere includes linked audio in the timeline selection; Staircase intentionally ignores it.
+    if (videoItems.length < 2) {
       throw new Error("Select at least two video clips to create a staircase.");
     }
     const videoTrackCount = await sequence.getVideoTrackCount();
