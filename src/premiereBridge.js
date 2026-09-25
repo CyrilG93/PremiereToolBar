@@ -796,7 +796,55 @@
     if (button.action.id === "extendClipOutToPlayhead") {
       return extendSelectedClipsToPlayhead("out", button.label);
     }
+    if (button.action.id === "invertTimelineSelection") {
+      return invertTimelineSelection();
+    }
     throw new Error("This Action command is not supported by this Tool Bar version.");
+  }
+
+  // Replace the timeline selection with every regular audio and video clip that is currently unselected.
+  async function invertTimelineSelection() {
+    const app = getPremiere();
+    if (!app) {
+      throw new Error(root.PTB_I18N.t("noPremiereApi"));
+    }
+    if (!app.TrackItemSelection || typeof app.TrackItemSelection.createEmptySelection !== "function") {
+      throw new Error("Premiere UXP does not expose TrackItemSelection in this build.");
+    }
+    const project = await app.Project.getActiveProject();
+    const sequence = project ? await project.getActiveSequence() : null;
+    if (!sequence) {
+      throw new Error("Open a Premiere sequence first.");
+    }
+    const invertedItems = [];
+    for (const mediaType of ["video", "audio"]) {
+      const countGetter = mediaType === "video" ? "getVideoTrackCount" : "getAudioTrackCount";
+      if (typeof sequence[countGetter] !== "function") {
+        continue;
+      }
+      const trackCount = await sequence[countGetter]();
+      for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+        const clips = await getTrackClips(app, sequence, mediaType, trackIndex);
+        for (const clip of clips) {
+          // Ask Premiere for each item's native selection state instead of comparing potentially stale UXP proxies.
+          if (typeof clip.getIsSelected === "function" && !await clip.getIsSelected()) {
+            invertedItems.push(clip);
+          }
+        }
+      }
+    }
+    let selectionUpdate = null;
+    app.TrackItemSelection.createEmptySelection((selection) => {
+      invertedItems.forEach((item) => selection.addItem(item, false));
+      // Keep setSelection inside the callback because this is the documented lifetime of the selection object.
+      selectionUpdate = sequence.setSelection(selection);
+    });
+    if (selectionUpdate && typeof selectionUpdate.then === "function") {
+      await selectionUpdate;
+    }
+    await refreshSequenceView(sequence);
+    logBridge("info", "Inverted timeline selection.", { selected: invertedItems.length });
+    return { selected: invertedItems.length };
   }
 
   // Set the selected clip edges at the playhead without cloning or moving the existing track items.

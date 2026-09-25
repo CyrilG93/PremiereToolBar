@@ -25,7 +25,7 @@
     "pasteClipEffects",
     "removeClipEffects"
   ];
-  const ACTION_IDS = ["moveVideoClipUp", "moveVideoClipDown", "staircaseVideoClipsUp", "staircaseVideoClipsDown", "towerVideoClips", "extendClipInToPlayhead", "extendClipOutToPlayhead"];
+  const ACTION_IDS = ["moveVideoClipUp", "moveVideoClipDown", "staircaseVideoClipsUp", "staircaseVideoClipsDown", "towerVideoClips", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection"];
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {

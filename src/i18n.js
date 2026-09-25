@@ -69,6 +69,8 @@
     actionExtendClipInToPlayhead: "Extend Clip In to Playhead",
     actionExtendClipOutToPlayhead: "Extend Clip Out to Playhead",
     actionExtendClipToPlayheadHelp: "Sets every selected video or audio clip In or Out edge at the playhead. It can extend or shorten clips, but never creates a zero-length or reversed clip.",
+    actionInvertTimelineSelection: "Invert Timeline Selection",
+    actionInvertTimelineSelectionHelp: "Deselects selected regular video and audio clips, then selects every other regular clip in the active sequence.",
     toolOpenSettings: "Open Settings",
     toolCopyClipEffects: "Copy Clip Effects",
     toolPasteClipEffects: "Paste Clip Effects",

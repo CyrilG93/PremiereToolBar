@@ -70,6 +70,8 @@ const extendInActionButton = schema.createButton({ actionType: "action", action:
 assert.equal(extendInActionButton.action.id, "extendClipInToPlayhead");
 const extendOutActionButton = schema.createButton({ actionType: "action", action: { id: "extendClipOutToPlayhead" } });
 assert.equal(extendOutActionButton.action.id, "extendClipOutToPlayhead");
+const invertActionButton = schema.createButton({ actionType: "action", action: { id: "invertTimelineSelection" } });
+assert.equal(invertActionButton.action.id, "invertTimelineSelection");
 assert.equal(schema.createButton({ actionType: "action", action: { id: "unsupported" } }).action.id, "moveVideoClipUp");
 const sizedBarConfig = schema.normalizeConfig(Object.assign(schema.createDefaultConfig(), {
   bars: [{ id: "bar-1", collectionId: "collection-base-effects", buttonSize: 99 }]
