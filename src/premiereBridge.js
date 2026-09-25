@@ -790,7 +790,51 @@
     if (button.action.id === "towerVideoClips") {
       return moveSelectedVideoClipsIntoTower(button.label);
     }
+    if (button.action.id === "extendClipInToPlayhead") {
+      return extendSelectedClipsToPlayhead("in", button.label);
+    }
+    if (button.action.id === "extendClipOutToPlayhead") {
+      return extendSelectedClipsToPlayhead("out", button.label);
+    }
     throw new Error("This Action command is not supported by this Tool Bar version.");
+  }
+
+  // Extend the selected clip edges to the playhead without cloning or moving the existing track items.
+  async function extendSelectedClipsToPlayhead(edge, undoLabel) {
+    const { project, sequence, items } = await getSelectedItems();
+    if (typeof sequence.getPlayerPosition !== "function") {
+      throw new Error("Premiere UXP does not expose the timeline playhead in this build.");
+    }
+    const playhead = await sequence.getPlayerPosition();
+    const playheadNumber = timeToNumber(playhead);
+    if (playheadNumber === null) {
+      throw new Error("Premiere could not read the timeline playhead position.");
+    }
+    const actionFactories = [];
+    const tolerance = 0.0001;
+    for (const item of items) {
+      const timing = await getTrackItemTiming(item);
+      const targetTime = edge === "in" ? timing.startNumber : timing.endNumber;
+      const actionName = edge === "in" ? "createSetStartAction" : "createSetEndAction";
+      if (targetTime === null || typeof item[actionName] !== "function") {
+        throw new Error("Every selected item must be a regular audio or video clip.");
+      }
+      // An extend command must only grow the selected range; it must never silently shorten a clip.
+      const canExtend = edge === "in"
+        ? playheadNumber < targetTime - tolerance
+        : playheadNumber > targetTime + tolerance;
+      if (!canExtend) {
+        throw new Error(edge === "in"
+          ? "Place the playhead before the In point of every selected clip."
+          : "Place the playhead after the Out point of every selected clip.");
+      }
+      // Build the direct trim action in the transaction to keep Premiere's action proxy valid.
+      actionFactories.push(() => item[actionName](playhead));
+    }
+    executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || (edge === "in" ? "Extend Clip In" : "Extend Clip Out")));
+    await refreshSequenceView(sequence);
+    logBridge("info", "Extended selected clips to playhead.", { clips: items.length, edge, playhead: playheadNumber });
+    return { clips: items.length, edge, playhead: playheadNumber };
   }
 
   // Stack selected clips on consecutive tracks and align each timeline start with the earliest selected clip.
