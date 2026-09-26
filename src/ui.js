@@ -2086,9 +2086,11 @@
         { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
         { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
         { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
+        { value: "reverseTowerVideoClips", label: root.PTB_I18N.t("actionReverseTowerVideoClips") },
         { value: "setClipLabel", label: root.PTB_I18N.t("actionSetClipLabel") },
         { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") },
         { value: "staircaseVideoClipsUp", label: root.PTB_I18N.t("actionStaircaseVideoClipsUp") },
+        { value: "towerOffsetVideoClips", label: root.PTB_I18N.t("actionTowerOffsetVideoClips") },
         { value: "towerVideoClips", label: root.PTB_I18N.t("actionTowerVideoClips") }
       ], (value) => {
         button.action.id = value;
@@ -2096,7 +2098,9 @@
       });
       setStyles(actionField, { flex: "0 1 auto" });
       wrap.appendChild(actionField);
-      const helpKey = button.action.id === "towerVideoClips"
+      const helpKey = button.action.id === "towerOffsetVideoClips"
+        ? "actionTowerOffsetVideoClipsHelp"
+        : (button.action.id === "towerVideoClips" || button.action.id === "reverseTowerVideoClips"
         ? "actionTowerVideoClipsHelp"
         : (button.action.id === "copyClipEffects" || button.action.id === "pasteClipEffects" || button.action.id === "removeClipEffects"
           ? "actionClipEffectsHelp"
@@ -2108,7 +2112,7 @@
             ? "actionExtendClipToPlayheadHelp"
             : (button.action.id === "invertTimelineSelection"
               ? "actionInvertTimelineSelectionHelp"
-              : "actionMoveVideoClipHelp")))));
+              : "actionMoveVideoClipHelp"))))));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(helpKey)));
       if (button.action.id === "removeClipEffects") {
         wrap.appendChild(renderRemoveEffectsOptions(button));
@@ -2116,6 +2120,12 @@
       if (button.action.id === "setClipLabel") {
         wrap.appendChild(selectField(root.PTB_I18N.t("actionLabel"), button.action.labelKey || "VIOLET", getProjectItemLabelOptions(), (value) => {
           button.action.labelKey = value;
+          saveAndRender(root.PTB_I18N.t("statusSaved"));
+        }));
+      }
+      if (button.action.id === "towerOffsetVideoClips") {
+        wrap.appendChild(numberField(root.PTB_I18N.t("actionTowerOffsetFrames"), button.action.towerOffsetFrames || 1, (value) => {
+          button.action.towerOffsetFrames = Math.max(0, Math.round(Number(value) || 0));
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         }));
       }

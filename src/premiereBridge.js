@@ -817,6 +817,12 @@
     if (button.action.id === "towerVideoClips") {
       return moveSelectedVideoClipsIntoTower(button.label);
     }
+    if (button.action.id === "reverseTowerVideoClips") {
+      return moveSelectedVideoClipsIntoTower(button.label, true);
+    }
+    if (button.action.id === "towerOffsetVideoClips") {
+      return moveSelectedVideoClipsIntoTower(button.label, false, button.action.towerOffsetFrames);
+    }
     if (button.action.id === "extendClipInToPlayhead") {
       return extendSelectedClipsToPlayhead("in", button.label);
     }
@@ -950,7 +956,7 @@
   }
 
   // Stack selected clips on consecutive tracks and align each timeline start with the earliest selected clip.
-  async function moveSelectedVideoClipsIntoTower(undoLabel) {
+  async function moveSelectedVideoClipsIntoTower(undoLabel, reverseTracks, offsetFrames) {
     const { app, project, sequence, items } = await getSelectedItems();
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function") {
       throw new Error("Premiere UXP does not expose SequenceEditor in this build.");
@@ -968,6 +974,7 @@
       throw new Error("Select at least two video or audio clips to create a tower.");
     }
     const editor = app.SequenceEditor.getEditor(sequence);
+    const frameDurationSeconds = offsetFrames ? await getSequenceFrameDurationSeconds(app, sequence) : 0;
     const actionFactories = [];
     const groups = [
       { items: videoItems, mediaType: "video", constant: app.Constants && app.Constants.MediaType && app.Constants.MediaType.VIDEO },
@@ -983,7 +990,7 @@
       }
       const sources = await getTowerSources(group.items);
       const anchorStart = Math.min.apply(null, sources.map((source) => source.timing.startNumber));
-      const targets = createTowerTargets(sources, anchorStart, group.mediaType);
+      const targets = createTowerTargets(sources, anchorStart, group.mediaType, Boolean(reverseTracks), frameDurationSeconds * (Number(offsetFrames) || 0));
       const trackCount = group.mediaType === "audio" ? await sequence.getAudioTrackCount() : await sequence.getVideoTrackCount();
       if (!await areTowerTargetsFree(app, sequence, sources, targets, trackCount, group.mediaType)) {
         throw new Error("A tower destination track contains another " + group.mediaType + " clip.");
@@ -1017,9 +1024,23 @@
   }
 
   // Place a media group on consecutive tracks while preserving duration at the aligned start time.
-  function createTowerTargets(sources, anchorStart, mediaType) {
+  function createTowerTargets(sources, anchorStart, mediaType, reverseTracks, offsetSeconds) {
     const baseTrackIndex = sources[0].sourceTrackIndex;
-    return sources.map((source, index) => Object.assign({}, source, { mediaType, targetTrackIndex: baseTrackIndex + index, sourceTiming: source.timing, timing: Object.assign({}, source.timing, { startNumber: anchorStart, endNumber: anchorStart + (source.timing.endNumber - source.timing.startNumber) }) }));
+    return sources.map((source, index) => Object.assign({}, source, { mediaType, targetTrackIndex: baseTrackIndex + (reverseTracks ? sources.length - 1 - index : index), sourceTiming: source.timing, timing: Object.assign({}, source.timing, { startNumber: anchorStart + index * (offsetSeconds || 0), endNumber: anchorStart + index * (offsetSeconds || 0) + (source.timing.endNumber - source.timing.startNumber) }) }));
+  }
+
+  // Convert an exact sequence-frame count to seconds without assuming a project frame rate.
+  async function getSequenceFrameDurationSeconds(app, sequence) {
+    if (sequence && typeof sequence.getSettings === "function" && app.TickTime && typeof app.TickTime.createWithFrameAndFrameRate === "function") {
+      const settings = await sequence.getSettings();
+      if (settings && typeof settings.getVideoFrameRate === "function") {
+        const frameTime = app.TickTime.createWithFrameAndFrameRate(1, await settings.getVideoFrameRate());
+        if (typeof frameTime.seconds === "number") {
+          return frameTime.seconds;
+        }
+      }
+    }
+    throw new Error("Premiere could not read the sequence frame rate for Tower with Offset.");
   }
 
   // Ensure aligned tower clips do not overwrite material that is not part of the current selection.
