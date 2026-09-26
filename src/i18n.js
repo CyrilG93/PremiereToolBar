@@ -75,6 +75,8 @@
     actionExtendClipToPlayheadHelp: "Sets every selected video or audio clip In or Out edge at the playhead. It can extend or shorten clips, but never creates a zero-length or reversed clip.",
     actionInvertTimelineSelection: "Invert Timeline Selection",
     actionInvertTimelineSelectionHelp: "Deselects selected regular video and audio clips, then selects every other regular clip in the active sequence.",
+    actionReverseTimelineClipOrder: "Reverse Clip Order",
+    actionReverseTimelineClipOrderHelp: "Reverses the timeline order of selected clips while keeping every clip's content, duration, track, and gaps intact.",
     actionSetClipLabel: "Set Clip Label",
     actionSetClipLabelHelp: "Sets the selected clips' Project panel label. Every timeline occurrence of the same media receives the chosen label; custom label names are not readable through Premiere UXP.",
     actionLabel: "Label",

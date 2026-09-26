@@ -832,6 +832,9 @@
     if (button.action.id === "invertTimelineSelection") {
       return invertTimelineSelection();
     }
+    if (button.action.id === "reverseTimelineClipOrder") {
+      return reverseSelectedTimelineClipOrder(button.label);
+    }
     throw new Error("This Action command is not supported by this Tool Bar version.");
   }
 
@@ -1027,6 +1030,49 @@
   function createTowerTargets(sources, anchorStart, mediaType, reverseTracks, offsetSeconds) {
     const baseTrackIndex = sources[0].sourceTrackIndex;
     return sources.map((source, index) => Object.assign({}, source, { mediaType, targetTrackIndex: baseTrackIndex + (reverseTracks ? sources.length - 1 - index : index), sourceTiming: source.timing, timing: Object.assign({}, source.timing, { startNumber: anchorStart + index * (offsetSeconds || 0), endNumber: anchorStart + index * (offsetSeconds || 0) + (source.timing.endNumber - source.timing.startNumber) }) }));
+  }
+
+  // Mirror selected clip ranges inside their shared timeline span to reverse their chronological order.
+  async function reverseSelectedTimelineClipOrder(undoLabel) {
+    const { app, project, sequence, items } = await getSelectedItems();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function" || !app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
+      throw new Error("Premiere UXP does not expose the timeline APIs needed to reverse clip order.");
+    }
+    const mediaType = items.every(isVideoItem) ? "video" : (items.every(isAudioItem) ? "audio" : "");
+    if (!mediaType || items.length < 2) {
+      throw new Error("Select at least two video clips or two audio clips to reverse their order.");
+    }
+    const sources = await getTowerSources(items);
+    const firstStart = Math.min.apply(null, sources.map((source) => source.timing.startNumber));
+    const lastEnd = Math.max.apply(null, sources.map((source) => source.timing.endNumber));
+    const targets = sources.map((source) => Object.assign({}, source, {
+      mediaType,
+      targetTrackIndex: source.sourceTrackIndex,
+      sourceTiming: source.timing,
+      timing: Object.assign({}, source.timing, {
+        startNumber: firstStart + lastEnd - source.timing.endNumber,
+        endNumber: firstStart + lastEnd - source.timing.startNumber
+      })
+    }));
+    const trackCount = mediaType === "video" ? await sequence.getVideoTrackCount() : await sequence.getAudioTrackCount();
+    if (!await areTowerTargetsFree(app, sequence, sources, targets, trackCount, mediaType)) {
+      throw new Error("Reversing these clips would overlap an unselected " + mediaType + " clip.");
+    }
+    const mediaConstant = app.Constants && app.Constants.MediaType && (mediaType === "video" ? app.Constants.MediaType.VIDEO : app.Constants.MediaType.AUDIO);
+    if (mediaConstant === null || mediaConstant === undefined) {
+      throw new Error("Premiere UXP does not expose the " + mediaType + " media type constant.");
+    }
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const actions = [];
+    targets.forEach((target) => {
+      const timeOffset = app.TickTime.createWithSeconds(target.timing.startNumber - target.sourceTiming.startNumber);
+      actions.push(() => editor.createCloneTrackItemAction(target.item, timeOffset, 0, 0, false, false));
+      actions.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaConstant));
+    });
+    executeActions(project, actions, "Tool Bar: " + (undoLabel || "Reverse Clip Order"));
+    await selectMovedTowerClips(app, sequence, targets);
+    await refreshSequenceView(sequence);
+    return { clips: targets.length, mediaType };
   }
 
   // Convert an exact sequence-frame count to seconds without assuming a project frame rate.

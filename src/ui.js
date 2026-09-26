@@ -2086,6 +2086,7 @@
         { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
         { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
         { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
+        { value: "reverseTimelineClipOrder", label: root.PTB_I18N.t("actionReverseTimelineClipOrder") },
         { value: "reverseTowerVideoClips", label: root.PTB_I18N.t("actionReverseTowerVideoClips") },
         { value: "setClipLabel", label: root.PTB_I18N.t("actionSetClipLabel") },
         { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") },
@@ -2102,6 +2103,8 @@
         ? "actionTowerOffsetVideoClipsHelp"
         : (button.action.id === "towerVideoClips" || button.action.id === "reverseTowerVideoClips"
         ? "actionTowerVideoClipsHelp"
+        : (button.action.id === "reverseTimelineClipOrder"
+          ? "actionReverseTimelineClipOrderHelp"
         : (button.action.id === "copyClipEffects" || button.action.id === "pasteClipEffects" || button.action.id === "removeClipEffects"
           ? "actionClipEffectsHelp"
         : (button.action.id === "setClipLabel"
@@ -2112,7 +2115,7 @@
             ? "actionExtendClipToPlayheadHelp"
             : (button.action.id === "invertTimelineSelection"
               ? "actionInvertTimelineSelectionHelp"
-              : "actionMoveVideoClipHelp"))))));
+              : "actionMoveVideoClipHelp")))))));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(helpKey)));
       if (button.action.id === "removeClipEffects") {
         wrap.appendChild(renderRemoveEffectsOptions(button));

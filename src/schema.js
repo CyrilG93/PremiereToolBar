@@ -21,7 +21,7 @@
   const PRESET_TIMING_MODES = ["anchorIn", "anchorOut", "scale", "absolute"];
   const TOOL_IDS = ["openSettings"];
   const LEGACY_TOOL_ACTION_IDS = ["copyClipEffects", "pasteClipEffects", "removeClipEffects"];
-  const ACTION_IDS = ["copyClipEffects", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection", "moveVideoClipDown", "moveVideoClipUp", "pasteClipEffects", "removeClipEffects", "reverseTowerVideoClips", "setClipLabel", "staircaseVideoClipsDown", "staircaseVideoClipsUp", "towerOffsetVideoClips", "towerVideoClips"];
+  const ACTION_IDS = ["copyClipEffects", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection", "moveVideoClipDown", "moveVideoClipUp", "pasteClipEffects", "removeClipEffects", "reverseTimelineClipOrder", "reverseTowerVideoClips", "setClipLabel", "staircaseVideoClipsDown", "staircaseVideoClipsUp", "towerOffsetVideoClips", "towerVideoClips"];
   const DEFAULT_LABEL_KEY = "VIOLET";
 
   // Create stable ids without relying on external dependencies.
