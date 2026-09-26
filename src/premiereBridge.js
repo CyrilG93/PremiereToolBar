@@ -835,6 +835,9 @@
     if (button.action.id === "reverseTimelineClipOrder") {
       return reverseSelectedTimelineClipOrder(button.label);
     }
+    if (button.action.id === "randomizeTimelineClipOrder") {
+      return randomizeSelectedTimelineClipOrder(button.label);
+    }
     throw new Error("This Action command is not supported by this Tool Bar version.");
   }
 
@@ -1070,6 +1073,48 @@
       actions.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaConstant));
     });
     executeActions(project, actions, "Tool Bar: " + (undoLabel || "Reverse Clip Order"));
+    await selectMovedTowerClips(app, sequence, targets);
+    await refreshSequenceView(sequence);
+    return { clips: targets.length, mediaType };
+  }
+
+  // Shuffle clips into the same timeline span, preserving their durations and the original gaps between slots.
+  async function randomizeSelectedTimelineClipOrder(undoLabel) {
+    const { app, project, sequence, items } = await getSelectedItems();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function" || !app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
+      throw new Error("Premiere UXP does not expose the timeline APIs needed to randomize clip order.");
+    }
+    const mediaType = items.every(isVideoItem) ? "video" : (items.every(isAudioItem) ? "audio" : "");
+    if (!mediaType || items.length < 2) {
+      throw new Error("Select at least two video clips or two audio clips to randomize their order.");
+    }
+    const sources = await getTowerSources(items);
+    if (!sources.every((source) => source.sourceTrackIndex === sources[0].sourceTrackIndex)) {
+      throw new Error("Select clips from one " + mediaType + " track to randomize their order.");
+    }
+    const shuffled = sources.slice();
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      const swapped = shuffled[index];
+      shuffled[index] = shuffled[swapIndex];
+      shuffled[swapIndex] = swapped;
+    }
+    let nextStart = sources[0].timing.startNumber;
+    const targets = shuffled.map((source, index) => {
+      const duration = source.timing.endNumber - source.timing.startNumber;
+      const target = Object.assign({}, source, { mediaType, targetTrackIndex: source.sourceTrackIndex, sourceTiming: source.timing, timing: Object.assign({}, source.timing, { startNumber: nextStart, endNumber: nextStart + duration }) });
+      const nextSource = sources[index + 1];
+      nextStart = target.timing.endNumber + (nextSource ? nextSource.timing.startNumber - sources[index].timing.endNumber : 0);
+      return target;
+    });
+    const mediaConstant = app.Constants && app.Constants.MediaType && (mediaType === "video" ? app.Constants.MediaType.VIDEO : app.Constants.MediaType.AUDIO);
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const actions = [];
+    targets.forEach((target) => {
+      actions.push(() => editor.createCloneTrackItemAction(target.item, app.TickTime.createWithSeconds(target.timing.startNumber - target.sourceTiming.startNumber), 0, 0, false, false));
+      actions.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaConstant));
+    });
+    executeActions(project, actions, "Tool Bar: " + (undoLabel || "Randomize Clip Order"));
     await selectMovedTowerClips(app, sequence, targets);
     await refreshSequenceView(sequence);
     return { clips: targets.length, mediaType };

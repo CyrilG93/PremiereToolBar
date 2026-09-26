@@ -77,6 +77,8 @@
     actionInvertTimelineSelectionHelp: "Deselects selected regular video and audio clips, then selects every other regular clip in the active sequence.",
     actionReverseTimelineClipOrder: "Reverse Clip Order",
     actionReverseTimelineClipOrderHelp: "Reverses the timeline order of selected clips while keeping every clip's content, duration, track, and gaps intact.",
+    actionRandomizeTimelineClipOrder: "Randomize Clip Order",
+    actionRandomizeTimelineClipOrderHelp: "Randomly reorders selected clips on one track while preserving every clip's duration and the selection's gaps.",
     actionSetClipLabel: "Set Clip Label",
     actionSetClipLabelHelp: "Sets the selected clips' Project panel label. Every timeline occurrence of the same media receives the chosen label; custom label names are not readable through Premiere UXP.",
     actionLabel: "Label",
