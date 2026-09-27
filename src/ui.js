@@ -1518,6 +1518,8 @@
     wrap.appendChild(row);
     if (settingsState.openColorPicker === pickerKey) {
       const popover = el("div", "ptb-popover ptb-hsv-popover");
+      // Apply critical dimensions inline because Premiere UXP can retain an older stylesheet after a reload.
+      setStyles(popover, { width: "220px" });
       if (settings.allowTransparent) {
         const transparent = clickControl(isTransparentColor(current) ? "ptb-color-transparent active" : "ptb-color-transparent", () => {
           onChange("transparent");
@@ -1525,20 +1527,26 @@
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         });
         transparent.title = root.PTB_I18N.t("transparent");
+        setStyles(transparent, { display: "flex", alignItems: "center", gap: "6px", minHeight: "28px", padding: "4px 7px" });
         applyColorPreviewBackground(transparent, "transparent");
         transparent.appendChild(el("span", "", root.PTB_I18N.t("transparent")));
         popover.appendChild(transparent);
       }
       const hsv = hexToHsv(isTransparentColor(current) ? "#8fd6ff" : current);
       const surface = el("div", "ptb-hsv-surface");
+      // Keep the HSV area visible even when the external stylesheet is cached by the UXP host.
+      setStyles(surface, { position: "relative", width: "100%", height: "138px", border: "1px solid var(--ptb-line)", borderRadius: "6px", cursor: "crosshair" });
       surface.setAttribute("role", "slider");
       surface.setAttribute("aria-label", label + " saturation and brightness");
       const surfaceHandle = el("div", "ptb-hsv-handle");
+      setStyles(surfaceHandle, { position: "absolute", width: "12px", height: "12px", border: "2px solid #ffffff", borderRadius: "50%", background: "transparent", boxShadow: "0 0 0 1px rgba(0,0,0,.72)", pointerEvents: "none", transform: "translate(-50%, 50%)" });
       surface.appendChild(surfaceHandle);
       const hue = el("div", "ptb-hue-strip");
+      setStyles(hue, { position: "relative", width: "100%", height: "16px", border: "1px solid var(--ptb-line)", borderRadius: "5px", background: "linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)", cursor: "ew-resize" });
       hue.setAttribute("role", "slider");
       hue.setAttribute("aria-label", label + " hue");
       const hueHandle = el("div", "ptb-hue-handle");
+      setStyles(hueHandle, { position: "absolute", top: "50%", width: "12px", height: "12px", border: "2px solid #ffffff", borderRadius: "50%", background: "transparent", boxShadow: "0 0 0 1px rgba(0,0,0,.72)", pointerEvents: "none", transform: "translate(-50%, -50%)" });
       hue.appendChild(hueHandle);
       const refreshHsvControls = (updateCurrent) => {
         const next = hsvToHex(hsv.hue, hsv.saturation, hsv.value);
