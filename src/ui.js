@@ -2281,16 +2281,22 @@
         wrap.appendChild(renderRemoveEffectsOptions(button));
       }
       if (button.action.id === "setClipLabel") {
-        wrap.appendChild(selectField(root.PTB_I18N.t("actionLabel"), button.action.labelKey || "VIOLET", getProjectItemLabelOptions(), (value) => {
+        const labelField = selectField(root.PTB_I18N.t("actionLabel"), button.action.labelKey || "VIOLET", getProjectItemLabelOptions(), (value) => {
           button.action.labelKey = value;
           saveAndRender(root.PTB_I18N.t("statusSaved"));
-        }));
+        });
+        // Do not let one optional field consume the editor's remaining vertical space in Premiere UXP.
+        setStyles(labelField, { flex: "0 1 auto" });
+        wrap.appendChild(labelField);
       }
       if (button.action.id === "towerOffsetVideoClips") {
-        wrap.appendChild(numberField(root.PTB_I18N.t("actionTowerOffsetFrames"), button.action.towerOffsetFrames || 1, (value) => {
+        const offsetField = numberField(root.PTB_I18N.t("actionTowerOffsetFrames"), button.action.towerOffsetFrames || 1, (value) => {
           button.action.towerOffsetFrames = Math.max(0, Math.round(Number(value) || 0));
           saveAndRender(root.PTB_I18N.t("statusSaved"));
-        }));
+        });
+        // Keep optional numeric settings compact so the icon controls immediately follow them.
+        setStyles(offsetField, { flex: "0 1 auto" });
+        wrap.appendChild(offsetField);
       }
       return wrap;
     }
