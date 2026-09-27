@@ -1023,6 +1023,75 @@ button {
   background: var(--ptb-popover-bg);
 }
 
+/* Keep the advanced picker inside an opaque, scroll-safe UXP popover. */
+.ptb-hsv-popover {
+  width: 220px;
+}
+
+/* Render saturation and brightness with CSS gradients instead of the unreliable native color input. */
+.ptb-hsv-surface {
+  position: relative;
+  width: 100%;
+  height: 138px;
+  border: 1px solid var(--ptb-line);
+  border-radius: 6px;
+  cursor: crosshair;
+}
+
+/* Mark the current saturation and brightness without obscuring the chosen color. */
+.ptb-hsv-handle,
+.ptb-hue-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72);
+  pointer-events: none;
+  transform: translate(-50%, 50%);
+}
+
+/* Provide all hues in one compact horizontal control. */
+.ptb-hue-strip {
+  position: relative;
+  width: 100%;
+  height: 16px;
+  border: 1px solid var(--ptb-line);
+  border-radius: 5px;
+  background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+  cursor: ew-resize;
+}
+
+/* Align the hue marker vertically in its thinner control. */
+.ptb-hue-handle {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Let backgrounds opt into transparency without hiding the choice label. */
+.ptb-color-transparent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  border: 1px solid var(--ptb-line);
+  border-radius: 6px;
+  padding: 4px 7px;
+  cursor: pointer;
+}
+
+.ptb-color-transparent.active {
+  border-color: var(--ptb-accent);
+  box-shadow: 0 0 0 1px var(--ptb-accent);
+}
+
+/* Separate suggested colors from the precision HSV controls. */
+.ptb-suggested-colors {
+  padding-top: 2px;
+}
+
 .ptb-icon-picker {
   flex: 1 1 220px;
 }

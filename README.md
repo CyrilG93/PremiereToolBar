@@ -67,6 +67,7 @@ Open `Tool Bar Settings` to manage everything:
 - Right-click a button inside a collection to remove it from that collection.
 - Assign collections to `Tool Bar 1` through `Tool Bar 4`.
 - Set each toolbar to horizontal, vertical, and change the overall size per bar.
+- Choose each icon and button background color with the visual color picker, a precise HEX value, or the suggested colors. Button backgrounds can also be transparent.
 - Export or import complete button packs.
 
 New installations start with the bundled `Base Effects` collection. Updates and reinstallations keep existing buttons when Tool Bar can restore the saved configuration from local storage or its external backup file.

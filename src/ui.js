@@ -1413,10 +1413,80 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
-  // Create a compact custom color picker because native type=color is unreliable in Premiere UXP.
+  // Convert a saved six-digit HEX color into picker-friendly HSV values.
+  function hexToHsv(hex) {
+    const normalized = normalizeColor(hex, "#000000").slice(1);
+    const red = parseInt(normalized.slice(0, 2), 16) / 255;
+    const green = parseInt(normalized.slice(2, 4), 16) / 255;
+    const blue = parseInt(normalized.slice(4, 6), 16) / 255;
+    const maximum = Math.max(red, green, blue);
+    const minimum = Math.min(red, green, blue);
+    const delta = maximum - minimum;
+    let hue = 0;
+    if (delta) {
+      if (maximum === red) {
+        hue = 60 * (((green - blue) / delta) % 6);
+      } else if (maximum === green) {
+        hue = 60 * (((blue - red) / delta) + 2);
+      } else {
+        hue = 60 * (((red - green) / delta) + 4);
+      }
+    }
+    return {
+      hue: (hue + 360) % 360,
+      saturation: maximum ? (delta / maximum) * 100 : 0,
+      value: maximum * 100
+    };
+  }
+
+  // Convert HSV picker values back to the six-digit HEX format stored in button settings.
+  function hsvToHex(hue, saturation, value) {
+    const safeHue = ((Number(hue) % 360) + 360) % 360;
+    const safeSaturation = clampNumber(Number(saturation), 0, 0, 100) / 100;
+    const safeValue = clampNumber(Number(value), 0, 0, 100) / 100;
+    const chroma = safeValue * safeSaturation;
+    const segment = safeHue / 60;
+    const secondary = chroma * (1 - Math.abs((segment % 2) - 1));
+    const match = safeValue - chroma;
+    let channels = [0, 0, 0];
+    if (segment < 1) {
+      channels = [chroma, secondary, 0];
+    } else if (segment < 2) {
+      channels = [secondary, chroma, 0];
+    } else if (segment < 3) {
+      channels = [0, chroma, secondary];
+    } else if (segment < 4) {
+      channels = [0, secondary, chroma];
+    } else if (segment < 5) {
+      channels = [secondary, 0, chroma];
+    } else {
+      channels = [chroma, 0, secondary];
+    }
+    return "#" + channels.map((channel) => {
+      const number = Math.round((channel + match) * 255);
+      return number.toString(16).padStart(2, "0");
+    }).join("");
+  }
+
+  // Read a pointer position as a percentage within a custom picker surface.
+  function getPickerPercent(event, node, vertical) {
+    if (!event || !node || typeof node.getBoundingClientRect !== "function") {
+      return 0;
+    }
+    const rect = node.getBoundingClientRect();
+    const size = vertical ? rect.height : rect.width;
+    const start = vertical ? rect.top : rect.left;
+    const point = vertical ? event.clientY : event.clientX;
+    if (!size || typeof point !== "number") {
+      return 0;
+    }
+    return clampNumber((point - start) / size, 0, 0, 1);
+  }
+
+  // Create a custom HSV color picker because native type=color is unreliable in Premiere UXP.
   function colorPicker(id, label, value, onChange, options) {
     const settings = options || {};
-    const current = settings.allowTransparent ? normalizeButtonBackground(value, "#8fd6ff") : normalizeColor(value, "#8fd6ff");
+    let current = settings.allowTransparent ? normalizeButtonBackground(value, "#8fd6ff") : normalizeColor(value, "#8fd6ff");
     const wrap = el("div", "ptb-picker");
     wrap.appendChild(el("span", "ptb-field-label", label));
     const row = el("div", "ptb-color-row");
@@ -1429,6 +1499,7 @@
     applyColorPreviewBackground(preview, current);
     row.appendChild(preview);
     const input = el("input", "ptb-input ptb-color-input");
+    let refreshInteractiveColor = null;
     input.value = current;
     input.addEventListener("input", () => {
       const typedValue = input.value.trim();
@@ -1436,6 +1507,9 @@
         const next = isTransparentColor(typedValue) ? "transparent" : typedValue;
         applyColorPreviewBackground(preview, next);
         onChange(next);
+        if (refreshInteractiveColor && !isTransparentColor(next)) {
+          refreshInteractiveColor(next);
+        }
         statusMessage = root.PTB_I18N.t("statusSaved");
       }
     });
@@ -1443,18 +1517,93 @@
     row.appendChild(input);
     wrap.appendChild(row);
     if (settingsState.openColorPicker === pickerKey) {
-      const popover = el("div", "ptb-popover");
-      const grid = el("div", "ptb-color-grid");
+      const popover = el("div", "ptb-popover ptb-hsv-popover");
       if (settings.allowTransparent) {
-        const transparent = clickControl(isTransparentColor(current) ? "ptb-color-choice ptb-transparent-choice active" : "ptb-color-choice ptb-transparent-choice", () => {
+        const transparent = clickControl(isTransparentColor(current) ? "ptb-color-transparent active" : "ptb-color-transparent", () => {
           onChange("transparent");
           settingsState.openColorPicker = "";
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         });
         transparent.title = root.PTB_I18N.t("transparent");
         applyColorPreviewBackground(transparent, "transparent");
-        grid.appendChild(transparent);
+        transparent.appendChild(el("span", "", root.PTB_I18N.t("transparent")));
+        popover.appendChild(transparent);
       }
+      const hsv = hexToHsv(isTransparentColor(current) ? "#8fd6ff" : current);
+      const surface = el("div", "ptb-hsv-surface");
+      surface.setAttribute("role", "slider");
+      surface.setAttribute("aria-label", label + " saturation and brightness");
+      const surfaceHandle = el("div", "ptb-hsv-handle");
+      surface.appendChild(surfaceHandle);
+      const hue = el("div", "ptb-hue-strip");
+      hue.setAttribute("role", "slider");
+      hue.setAttribute("aria-label", label + " hue");
+      const hueHandle = el("div", "ptb-hue-handle");
+      hue.appendChild(hueHandle);
+      const refreshHsvControls = (updateCurrent) => {
+        const next = hsvToHex(hsv.hue, hsv.saturation, hsv.value);
+        surface.style.background = "linear-gradient(to top, #000000, transparent), linear-gradient(to right, #ffffff, hsl(" + Math.round(hsv.hue) + ", 100%, 50%))";
+        surfaceHandle.style.left = hsv.saturation + "%";
+        surfaceHandle.style.bottom = hsv.value + "%";
+        hueHandle.style.left = (hsv.hue / 360) * 100 + "%";
+        if (updateCurrent) {
+          input.value = next;
+          applyColorPreviewBackground(preview, next);
+          current = next;
+        }
+      };
+      // Keep the HSV controls synchronized when a precise HEX value is typed.
+      refreshInteractiveColor = (next) => {
+        const typedHsv = hexToHsv(next);
+        hsv.hue = typedHsv.hue;
+        hsv.saturation = typedHsv.saturation;
+        hsv.value = typedHsv.value;
+        current = next;
+        refreshHsvControls(false);
+      };
+      const applyHsv = (save) => {
+        refreshHsvControls(true);
+        onChange(current);
+        statusMessage = root.PTB_I18N.t("statusSaved");
+        if (save) {
+          persistConfig(statusMessage);
+        }
+      };
+      const bindPickerSurface = (node, update) => {
+        let dragging = false;
+        const move = (event) => {
+          if (!dragging) {
+            return;
+          }
+          update(event);
+          applyHsv(false);
+        };
+        const finish = () => {
+          if (dragging) {
+            dragging = false;
+            applyHsv(true);
+          }
+        };
+        node.addEventListener("mousedown", (event) => {
+          dragging = true;
+          update(event);
+          applyHsv(false);
+        });
+        node.addEventListener("mousemove", move);
+        node.addEventListener("mouseup", finish);
+        node.addEventListener("mouseleave", finish);
+      };
+      bindPickerSurface(surface, (event) => {
+        hsv.saturation = getPickerPercent(event, surface, false) * 100;
+        hsv.value = (1 - getPickerPercent(event, surface, true)) * 100;
+      });
+      bindPickerSurface(hue, (event) => {
+        hsv.hue = getPickerPercent(event, hue, false) * 360;
+      });
+      refreshHsvControls(!isTransparentColor(current));
+      popover.appendChild(surface);
+      popover.appendChild(hue);
+      const grid = el("div", "ptb-color-grid ptb-suggested-colors");
       colorPalette.forEach((color) => {
         const swatch = clickControl(color.toLowerCase() === current.toLowerCase() ? "ptb-color-choice active" : "ptb-color-choice", () => {
           onChange(color);

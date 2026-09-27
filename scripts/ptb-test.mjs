@@ -493,6 +493,23 @@ assert.ok(settingsRoot.textContent.includes("Import / Export"));
 assert.ok(settingsRoot.textContent.includes("Logs"));
 assert.ok(settingsRoot.textContent.includes("Bar Controls"));
 assert.ok(settingsRoot.textContent.includes("Button Scale"));
+
+// Verify the button color editor opens the custom HSV controls and persists a picked color.
+function customColorPickerRenderSmokeTest() {
+  const harness = renderSettingsHarness();
+  const colorButton = findByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-color-button"));
+  assert.ok(colorButton);
+  colorButton.onclick();
+  const hsvSurface = findByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-hsv-surface"));
+  const hueStrip = findByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-hue-strip"));
+  assert.ok(hsvSurface);
+  assert.ok(hueStrip);
+  hsvSurface.onmousedown({ clientX: 110, clientY: 18 });
+  hsvSurface.onmouseup();
+  assert.ok(harness.getSavedConfig());
+}
+
+customColorPickerRenderSmokeTest();
 assert.equal(countClass(settingsRoot, "ptb-scale-stepper"), 4);
 assert.equal(countClass(settingsRoot, "ptb-scale-button"), 8);
 const barControlGrid = findByPredicate(settingsRoot, (node) => String(node.className || "").split(/\s+/).includes("ptb-bar-control-grid"));
