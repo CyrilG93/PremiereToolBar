@@ -2235,22 +2235,22 @@
     if (button.actionType === "action") {
       // Keep all built-in editing commands together in alphabetical user-facing order.
       const actionField = selectField(root.PTB_I18N.t("actionAction"), button.action.id, [
-        { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
         { value: "extendClipInToPlayhead", label: root.PTB_I18N.t("actionExtendClipInToPlayhead") },
         { value: "extendClipOutToPlayhead", label: root.PTB_I18N.t("actionExtendClipOutToPlayhead") },
+        { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
+        { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
+        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
         { value: "invertTimelineSelection", label: root.PTB_I18N.t("actionInvertTimelineSelection") },
         { value: "moveVideoClipDown", label: root.PTB_I18N.t("actionMoveVideoClipDown") },
         { value: "moveVideoClipUp", label: root.PTB_I18N.t("actionMoveVideoClipUp") },
-        { value: "pasteClipEffects", label: root.PTB_I18N.t("toolPasteClipEffects") },
         { value: "randomizeTimelineClipOrder", label: root.PTB_I18N.t("actionRandomizeTimelineClipOrder") },
-        { value: "removeClipEffects", label: root.PTB_I18N.t("toolRemoveClipEffects") },
         { value: "reverseTimelineClipOrder", label: root.PTB_I18N.t("actionReverseTimelineClipOrder") },
-        { value: "reverseTowerVideoClips", label: root.PTB_I18N.t("actionReverseTowerVideoClips") },
         { value: "setClipLabel", label: root.PTB_I18N.t("actionSetClipLabel") },
         { value: "staircaseVideoClipsDown", label: root.PTB_I18N.t("actionStaircaseVideoClipsDown") },
         { value: "staircaseVideoClipsUp", label: root.PTB_I18N.t("actionStaircaseVideoClipsUp") },
-        { value: "towerOffsetVideoClips", label: root.PTB_I18N.t("actionTowerOffsetVideoClips") },
-        { value: "towerVideoClips", label: root.PTB_I18N.t("actionTowerVideoClips") }
+        { value: "towerVideoClips", label: root.PTB_I18N.t("actionTowerVideoClips") },
+        { value: "reverseTowerVideoClips", label: root.PTB_I18N.t("actionReverseTowerVideoClips") },
+        { value: "towerOffsetVideoClips", label: root.PTB_I18N.t("actionTowerOffsetVideoClips") }
       ], (value) => {
         button.action.id = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
