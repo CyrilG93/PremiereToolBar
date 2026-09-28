@@ -110,8 +110,7 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 ### 1.2.0 - 2026-09-28
 
 - Added a visual color picker for button icons and backgrounds, with precise HEX entry and transparent button backgrounds.
-- Made action-specific settings more compact and easier to scan.
-- Grouped related actions together in the action list, including Effects and Tower commands.
+- Improved the Actions menu by grouping related commands together, including Effects and Tower tools.
 
 ### 1.1.5 - 2026-07-10
 
