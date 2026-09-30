@@ -956,15 +956,23 @@ async function linkedAudioOnlyPresetCaptureSmokeTest() {
       if (name !== "premierepro") {
         throw new Error("Unexpected module: " + name);
       }
-      const audioParams = ["Transpose Ratio", "Precision", "Frequency", "Overlapping"].map((displayName, index) => ({
+      const makeAudioParam = (displayName, startValue, effectiveValue, keyTimes) => ({
         displayName,
         async getStartValue() {
-          return { value: index / 10, getTemporalInterpolationMode: async () => null };
+          return { value: startValue, getTemporalInterpolationMode: async () => null };
         },
-        isTimeVarying: () => false,
-        getKeyframeListAsTickTimes: async () => [],
-        getValueAtTime: async () => index / 10
-      }));
+        isTimeVarying: () => true,
+        getKeyframeListAsTickTimes: async () => keyTimes,
+        getKeyframePtr: async (time) => ({ position: time, value: effectiveValue }),
+        getValueAtTime: async () => effectiveValue
+      });
+      // Model Pitch Shifter's factory defaults, duplicate boundary keys, and keyless internal controls.
+      const audioParams = [
+        makeAudioParam("Transpose Ratio", 0.33333334326744, 0.27266666293144, [{ seconds: 12, ticks: "12" }]),
+        makeAudioParam("Precision", 0.16666667163372, 0.83333331346512, [{ seconds: 10, ticks: "10" }, { seconds: 12, ticks: "12" }]),
+        makeAudioParam("Frequency", 0.1, 0.08979851007462, []),
+        makeAudioParam("Overlapping", 0.2, 0.59065210819244, [])
+      ];
       const audioComponent = {
         getDisplayName: async () => "Pitch Shifter",
         getMatchName: async () => "164b4e8a-7105-406b-b23b-1ef2cc4d8957",
@@ -1004,6 +1012,11 @@ async function linkedAudioOnlyPresetCaptureSmokeTest() {
   assert.equal(stack.components[0].mediaType, "audio");
   assert.equal(stack.components[0].displayName, "Pitch Shifter");
   assert.equal(stack.components[0].params.length, 4);
+  assert.equal(stack.components[0].params.every((param) => param.timeVarying === false), true);
+  assert.equal(stack.components[0].params[0].startValue.value, 0.27266666293144);
+  assert.equal(stack.components[0].params[1].startValue.value, 0.83333331346512);
+  assert.equal(stack.components[0].params[2].startValue.value, 0.08979851007462);
+  assert.equal(stack.components[0].params[3].startValue.value, 0.59065210819244);
 }
 
 await linkedAudioOnlyPresetCaptureSmokeTest();

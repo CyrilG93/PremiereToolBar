@@ -2903,9 +2903,13 @@
   }
 
   // Prefer sampled static values only when getStartValue looks like a zero placeholder.
-  function chooseCapturedStaticValue(startValue, sampledValue) {
+  function chooseCapturedStaticValue(startValue, sampledValue, preferSampledValue) {
     if (sampledValue === undefined) {
       return startValue;
+    }
+    // Audio effects can return a factory default from getStartValue, so keep their effective clip value.
+    if (preferSampledValue) {
+      return sampledValue;
     }
     const startSnapshot = serializeValue(startValue);
     const sampledSnapshot = serializeValue(sampledValue);
@@ -2923,19 +2927,34 @@
     return startValue;
   }
 
+  // Treat repeated audio boundary keys as one static control value instead of fragile pseudo-animation.
+  function hasIdenticalKeyframeValues(keyframes) {
+    if (!Array.isArray(keyframes) || !keyframes.length) {
+      return false;
+    }
+    const firstValue = JSON.stringify(keyframes[0].value);
+    return keyframes.every((keyframe) => JSON.stringify(keyframe.value) === firstValue);
+  }
+
   // Capture one component parameter for the internal stack preset.
-  async function captureParam(app, param, index, sourceTiming) {
+  async function captureParam(app, param, index, sourceTiming, options) {
+    const captureOptions = options || {};
     const startKeyframe = await param.getStartValue();
-    const timeVarying = typeof param.isTimeVarying === "function" ? param.isTimeVarying() : false;
+    let timeVarying = typeof param.isTimeVarying === "function" ? await param.isTimeVarying() : false;
     const keyframeTimes = timeVarying && typeof param.getKeyframeListAsTickTimes === "function"
       ? await param.getKeyframeListAsTickTimes()
       : [];
-    const keyframes = [];
+    let keyframes = [];
     for (const time of keyframeTimes) {
       keyframes.push(await serializeKeyframe(param, time, sourceTiming));
     }
+    if (captureOptions.collapseIdenticalKeyframes && (!keyframes.length || hasIdenticalKeyframeValues(keyframes))) {
+      // Premiere's audio effects can report automation without keys or write the same implicit key at both boundaries.
+      keyframes = [];
+      timeVarying = false;
+    }
     const sampledStaticValue = keyframes.length ? undefined : await sampleStaticParamValue(app, param, sourceTiming);
-    const staticValue = chooseCapturedStaticValue(startKeyframe && startKeyframe.value, sampledStaticValue);
+    const staticValue = chooseCapturedStaticValue(startKeyframe && startKeyframe.value, sampledStaticValue, captureOptions.preferSampledStaticValue === true);
     const serializedStartValue = serializeValue(staticValue);
     if (isPointPresetValue(serializedStartValue)) {
       logBridge("info", "Captured point preset value.", {
@@ -3019,7 +3038,11 @@
         const params = [];
         for (let paramIndex = 0; paramIndex < paramCount; paramIndex += 1) {
           try {
-            params.push(await captureParam(app, component.getParam(paramIndex), paramIndex, sourceTiming));
+            params.push(await captureParam(app, component.getParam(paramIndex), paramIndex, sourceTiming, {
+              // Pitch Shifter and other audio effects expose internal controls as defaults or duplicate boundary keys.
+              preferSampledStaticValue: source.mediaType === "audio",
+              collapseIdenticalKeyframes: source.mediaType === "audio"
+            }));
           } catch (error) {
             console.warn("Tool Bar skipped unsupported parameter:", error);
           }
