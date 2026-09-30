@@ -507,7 +507,7 @@ button {
 .ptb-tool-text,
 .ptb-tool-caption {
   display: block;
-  max-width: 31px;
+  max-width: 32px;
   overflow: hidden;
   font-size: 10px;
   font-weight: 900;

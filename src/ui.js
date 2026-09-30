@@ -950,9 +950,9 @@
     return button ? (button.textOverride || button.label || "Button") : "Button";
   }
 
-  // Return the three-character label used only when the user chooses text mode.
+  // Return the four-character label used only when the user chooses text mode.
   function getButtonShortText(button) {
-    return getButtonName(button).replace(/\s+/g, "").slice(0, 3).toUpperCase() || "BTN";
+    return getButtonName(button).replace(/\s+/g, "").slice(0, 4).toUpperCase() || "BTN";
   }
 
   // Return the saved display mode with a safe fallback for older configs.
@@ -1066,7 +1066,7 @@
       const fontSize = mode === "both" ? Math.max(6, Math.round(8 * scale)) : Math.max(7, Math.round(10 * scale));
       const lineHeight = mode === "both" ? Math.max(6, Math.round(8 * scale)) : Math.max(8, Math.round(10 * scale));
       // Scale text with the button so one bar slider controls the whole visual footprint.
-      setStyles(text, { color: textColor, webkitTextFillColor: textColor, maxWidth: String(Math.max(18, size - 4)) + "px", fontSize: String(fontSize) + "px", lineHeight: String(lineHeight) + "px" });
+      setStyles(text, { color: textColor, webkitTextFillColor: textColor, maxWidth: String(Math.max(18, size - 2)) + "px", fontSize: String(fontSize) + "px", lineHeight: String(lineHeight) + "px" });
       face.appendChild(text);
     }
     return face;
