@@ -648,10 +648,10 @@
       setStyles(node, { display: "flex", flexWrap: "wrap", gap: "8px", padding: "12px" });
     }
     if (tokens.includes("ptb-gallery-card") || tokens.includes("ptb-collection-member")) {
-      setStyles(node, Object.assign({}, sharedButton, { display: "flex", alignItems: "center", gap: "9px", minWidth: "0", textAlign: "left" }));
+      setStyles(node, Object.assign({}, sharedButton, { display: "flex", alignItems: "center", gap: "0", minWidth: "0", textAlign: "left" }));
     }
     if (tokens.includes("ptb-gallery-card")) {
-      setStyles(node, { gap: "12px", width: "150px", minWidth: "150px", padding: "9px" });
+      setStyles(node, { width: "150px", minWidth: "150px", padding: "9px" });
     }
     if (tokens.includes("active")) {
       setStyles(node, { borderColor: "var(--ptb-accent)", background: "var(--ptb-active-bg)" });
@@ -660,7 +660,8 @@
       setStyles(node, { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", flex: "0 0 34px", borderRadius: "7px" });
     }
     if (tokens.includes("ptb-button-card-text")) {
-      setStyles(node, { display: "flex", flexDirection: "column", gap: "2px", minWidth: "0" });
+      // Keep a real label margin because flex gap is unreliable in Premiere UXP panels.
+      setStyles(node, { display: "flex", flexDirection: "column", gap: "2px", marginLeft: "10px", minWidth: "0" });
     }
     if (tokens.includes("ptb-editor-shell") || tokens.includes("ptb-icon-editor") || tokens.includes("ptb-import-export")) {
       setStyles(node, { display: "flex", flexDirection: "column", gap: "12px", minWidth: "0", padding: "12px" });

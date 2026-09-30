@@ -832,6 +832,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin-left: 10px;
   min-width: 0;
 }
 
@@ -1333,7 +1334,8 @@ button {
 .ptb-collection-member {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* Use the text margin below because Premiere UXP does not always paint flex gaps. */
+  gap: 0;
   min-width: 0;
   border: 1px solid var(--ptb-line);
   border-radius: 7px;
@@ -1344,7 +1346,6 @@ button {
 }
 
 .ptb-gallery-card {
-  gap: 12px;
   width: 150px;
   min-width: 150px;
   padding: 9px;
