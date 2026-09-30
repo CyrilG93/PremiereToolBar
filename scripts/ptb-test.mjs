@@ -57,6 +57,14 @@ const presetCaptureButton = schema.createButton({
 });
 assert.equal(presetCaptureButton.preset.captureOptions.includeIntrinsic, true);
 assert.equal(presetCaptureButton.preset.captureOptions.includeVideoEffects, false);
+assert.equal(presetCaptureButton.preset.captureOptions.includeAudioEffects, false);
+const audioOnlyCaptureButton = schema.createButton({
+  actionType: "preset",
+  preset: { captureOptions: { includeIntrinsic: false, includeVideoEffects: false, includeAudioEffects: true } }
+});
+assert.equal(audioOnlyCaptureButton.preset.captureOptions.includeIntrinsic, false);
+assert.equal(audioOnlyCaptureButton.preset.captureOptions.includeVideoEffects, false);
+assert.equal(audioOnlyCaptureButton.preset.captureOptions.includeAudioEffects, true);
 const scriptButton = schema.createButton({ actionType: "script", script: { name: "Sort Project", sourceFileName: "Sort Project.jsx", source: "alert('x');" } });
 assert.equal(scriptButton.actionType, "script");
 assert.equal(scriptButton.script.sourceFileName, "Sort Project.jsx");
@@ -559,7 +567,8 @@ function presetCaptureOptionsRenderSmokeTest() {
   // Keep preset naming tied to capture instead of exposing an ineffective text field.
   assert.equal(harness.rootNode.textContent.includes("Preset Name"), false);
   assert.ok(harness.rootNode.textContent.includes("Base parameters"));
-  assert.ok(harness.rootNode.textContent.includes("Clip effects"));
+  assert.ok(harness.rootNode.textContent.includes("Video effects"));
+  assert.ok(harness.rootNode.textContent.includes("Audio effects"));
   assert.equal(harness.rootNode.textContent.includes("Import .prfpset"), false);
 }
 
@@ -935,6 +944,69 @@ function findAllByPredicate(node, predicate, output = []) {
 }
 
 await capturePresetSmokeTest();
+
+// Verify audio-only capture ignores a linked video clip selected before the audio source.
+async function linkedAudioOnlyPresetCaptureSmokeTest() {
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const audioParams = ["Transpose Ratio", "Precision", "Frequency", "Overlapping"].map((displayName, index) => ({
+        displayName,
+        async getStartValue() {
+          return { value: index / 10, getTemporalInterpolationMode: async () => null };
+        },
+        isTimeVarying: () => false,
+        getKeyframeListAsTickTimes: async () => [],
+        getValueAtTime: async () => index / 10
+      }));
+      const audioComponent = {
+        getDisplayName: async () => "Pitch Shifter",
+        getMatchName: async () => "164b4e8a-7105-406b-b23b-1ef2cc4d8957",
+        getParamCount: () => audioParams.length,
+        getParam: (index) => audioParams[index]
+      };
+      const linkedVideo = {
+        createAddVideoTransitionAction() {},
+        getName: async () => "Linked Video",
+        getComponentChain: async () => ({ getComponentCount: () => 0, getComponentAtIndex: () => null })
+      };
+      const linkedAudio = {
+        getName: async () => "Linked Audio",
+        getComponentChain: async () => ({ getComponentCount: () => 1, getComponentAtIndex: () => audioComponent })
+      };
+      return {
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({ getTrackItems: async () => [linkedVideo, linkedAudio] })
+            })
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  const stack = await context.PTB_PREMIERE.captureSelectedStack({
+    includeIntrinsic: false,
+    includeVideoEffects: false,
+    includeAudioEffects: true
+  });
+  assert.equal(stack.sourceName, "Linked Audio");
+  assert.equal(stack.components.length, 1);
+  assert.equal(stack.components[0].mediaType, "audio");
+  assert.equal(stack.components[0].displayName, "Pitch Shifter");
+  assert.equal(stack.components[0].params.length, 4);
+}
+
+await linkedAudioOnlyPresetCaptureSmokeTest();
 
 // Verify preset replay anchors captured keyframes to the selected target clip.
 async function applyPresetTimingSmokeTest() {

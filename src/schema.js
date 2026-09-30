@@ -153,9 +153,14 @@
     const input = options && typeof options === "object" ? options : {};
     const includeIntrinsic = input.includeIntrinsic === true;
     const includeVideoEffects = input.includeVideoEffects !== false;
+    // Older configurations used one Clip effects switch for both media types.
+    const includeAudioEffects = typeof input.includeAudioEffects === "boolean"
+      ? input.includeAudioEffects
+      : includeVideoEffects;
     return {
-      includeIntrinsic: includeIntrinsic || !includeVideoEffects,
-      includeVideoEffects: includeVideoEffects || !includeIntrinsic
+      includeIntrinsic: includeIntrinsic || !includeVideoEffects && !includeAudioEffects,
+      includeVideoEffects: includeVideoEffects || !includeIntrinsic && !includeAudioEffects,
+      includeAudioEffects: includeAudioEffects || !includeIntrinsic && !includeVideoEffects
     };
   }
 

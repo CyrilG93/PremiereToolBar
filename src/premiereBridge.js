@@ -2963,7 +2963,7 @@
   function normalizePresetCaptureOptions(options) {
     return root.PTB_SCHEMA && typeof root.PTB_SCHEMA.normalizePresetCaptureOptions === "function"
       ? root.PTB_SCHEMA.normalizePresetCaptureOptions(options)
-      : { includeIntrinsic: false, includeVideoEffects: true };
+      : { includeIntrinsic: false, includeVideoEffects: true, includeAudioEffects: true };
   }
 
   // Return whether a built-in clip component should be captured as base media parameters.
@@ -2989,38 +2989,50 @@
   async function captureSelectedStack(options) {
     const { app, items } = await getSelectedItems();
     const captureOptions = normalizePresetCaptureOptions(options);
-    const item = items[0];
-    const mediaType = isVideoItem(item) ? "video" : "audio";
-    const itemName = typeof item.getName === "function" ? await item.getName() : "";
-    const sourceTiming = await getItemTimingSnapshot(item);
-    const chain = await item.getComponentChain();
-    const componentCount = typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
     const components = [];
-    for (let index = 0; index < componentCount; index += 1) {
-      const component = chain.getComponentAtIndex(index);
-      const displayName = typeof component.getDisplayName === "function" ? await component.getDisplayName() : "";
-      const matchName = typeof component.getMatchName === "function" ? await component.getMatchName() : "";
-      const isIntrinsic = INTRINSIC_COMPONENTS.includes(displayName);
-      if (isIntrinsic && (!captureOptions.includeIntrinsic || !isCapturablePresetIntrinsic(displayName, mediaType))) {
-        continue;
-      }
-      if (!isIntrinsic && !captureOptions.includeVideoEffects) {
-        continue;
-      }
-      const paramCount = typeof component.getParamCount === "function" ? component.getParamCount() : 0;
-      const params = [];
-      for (let paramIndex = 0; paramIndex < paramCount; paramIndex += 1) {
-        try {
-          params.push(await captureParam(app, component.getParam(paramIndex), paramIndex, sourceTiming));
-        } catch (error) {
-          console.warn("Tool Bar skipped unsupported parameter:", error);
+    const videoItem = items.find(isVideoItem);
+    const audioItem = items.find(isAudioItem);
+    // Keep one source per media type so linked selections capture both stacks without duplicating effects.
+    const sourceItems = [];
+    if (videoItem && (captureOptions.includeIntrinsic || captureOptions.includeVideoEffects)) {
+      sourceItems.push({ item: videoItem, mediaType: "video" });
+    }
+    if (audioItem && captureOptions.includeAudioEffects) {
+      sourceItems.push({ item: audioItem, mediaType: "audio" });
+    }
+    for (const source of sourceItems) {
+      const sourceTiming = await getItemTimingSnapshot(source.item);
+      const chain = await source.item.getComponentChain();
+      const componentCount = typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+      for (let index = 0; index < componentCount; index += 1) {
+        const component = chain.getComponentAtIndex(index);
+        const displayName = typeof component.getDisplayName === "function" ? await component.getDisplayName() : "";
+        const matchName = typeof component.getMatchName === "function" ? await component.getMatchName() : "";
+        const isIntrinsic = INTRINSIC_COMPONENTS.includes(displayName);
+        if (isIntrinsic && (!captureOptions.includeIntrinsic || !isCapturablePresetIntrinsic(displayName, source.mediaType))) {
+          continue;
         }
+        if (!isIntrinsic && (source.mediaType === "video" ? !captureOptions.includeVideoEffects : !captureOptions.includeAudioEffects)) {
+          continue;
+        }
+        const paramCount = typeof component.getParamCount === "function" ? component.getParamCount() : 0;
+        const params = [];
+        for (let paramIndex = 0; paramIndex < paramCount; paramIndex += 1) {
+          try {
+            params.push(await captureParam(app, component.getParam(paramIndex), paramIndex, sourceTiming));
+          } catch (error) {
+            console.warn("Tool Bar skipped unsupported parameter:", error);
+          }
+        }
+        components.push({ mediaType: source.mediaType, matchName, displayName, intrinsic: isIntrinsic, params });
       }
-      components.push({ mediaType, matchName, displayName, intrinsic: isIntrinsic, params });
     }
     if (!components.length) {
       throw new Error(root.PTB_I18N.t("noStackCaptured"));
     }
+    const primaryItem = sourceItems.length ? sourceItems[0].item : items[0];
+    const itemName = primaryItem && typeof primaryItem.getName === "function" ? await primaryItem.getName() : "";
+    const sourceTiming = primaryItem ? await getItemTimingSnapshot(primaryItem) : {};
     logBridge("info", "Captured Tool Bar preset.", {
       components: components.length,
       baseParameters: components.filter((component) => component.intrinsic).length,

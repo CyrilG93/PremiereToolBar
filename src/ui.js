@@ -2472,14 +2472,21 @@
     const panel = el("div", "ptb-tool-options");
     panel.appendChild(checkboxField(root.PTB_I18N.t("captureIntrinsicEffects"), options.includeIntrinsic === true, (checked) => {
       button.preset.captureOptions.includeIntrinsic = checked;
-      if (!button.preset.captureOptions.includeIntrinsic && !button.preset.captureOptions.includeVideoEffects) {
+      if (!button.preset.captureOptions.includeIntrinsic && !button.preset.captureOptions.includeVideoEffects && !button.preset.captureOptions.includeAudioEffects) {
         button.preset.captureOptions.includeVideoEffects = true;
       }
       saveAndRender(root.PTB_I18N.t("statusSaved"));
     }));
     panel.appendChild(checkboxField(root.PTB_I18N.t("captureVideoEffects"), options.includeVideoEffects !== false, (checked) => {
       button.preset.captureOptions.includeVideoEffects = checked;
-      if (!button.preset.captureOptions.includeIntrinsic && !button.preset.captureOptions.includeVideoEffects) {
+      if (!button.preset.captureOptions.includeIntrinsic && !button.preset.captureOptions.includeVideoEffects && !button.preset.captureOptions.includeAudioEffects) {
+        button.preset.captureOptions.includeIntrinsic = true;
+      }
+      saveAndRender(root.PTB_I18N.t("statusSaved"));
+    }));
+    panel.appendChild(checkboxField(root.PTB_I18N.t("captureAudioEffects"), options.includeAudioEffects !== false, (checked) => {
+      button.preset.captureOptions.includeAudioEffects = checked;
+      if (!button.preset.captureOptions.includeIntrinsic && !button.preset.captureOptions.includeVideoEffects && !button.preset.captureOptions.includeAudioEffects) {
         button.preset.captureOptions.includeIntrinsic = true;
       }
       saveAndRender(root.PTB_I18N.t("statusSaved"));
