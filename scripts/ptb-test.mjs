@@ -2286,6 +2286,7 @@ async function addAdjustmentLayerActionSmokeTest() {
       };
       return {
         Constants: { TrackItemType: { CLIP: 1 } },
+        Guid: { fromString: (value) => ({ toString: () => value }) },
         TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
         SequenceEditor: { getEditor: () => editor },
         Project: {
@@ -2301,7 +2302,7 @@ async function addAdjustmentLayerActionSmokeTest() {
             importSequences: async (projectPath, sequenceGuids) => {
               assert.equal(projectPath, "/plugin/assets/Templates/Adjustment Layer.prproj");
               // Compare the cross-context array by value because the bridge runs in a VM realm.
-              assert.equal(Array.from(sequenceGuids).join(","), "1b632752-01d3-4a0d-aa9f-e418ded759d0");
+              assert.equal(Array.from(sequenceGuids).map((guid) => guid.toString()).join(","), "1b632752-01d3-4a0d-aa9f-e418ded759d0");
               importedTemplate = true;
               return true;
             }

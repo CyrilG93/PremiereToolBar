@@ -869,7 +869,7 @@
     if (targetTiming.startNumber === null || targetTiming.endNumber === null || targetTiming.endNumber <= targetTiming.startNumber) {
       throw new Error("Premiere could not read the selected clip duration.");
     }
-    const templateSequence = await getImportedAdjustmentTemplateSequence(project);
+    const templateSequence = await runTimelineStage("Import Adjustment Layer template", { templateSequenceGuid: ADJUSTMENT_TEMPLATE_SEQUENCE_GUID }, () => getImportedAdjustmentTemplateSequence(app, project));
     const templateLayer = await findTemplateAdjustmentLayer(app, templateSequence);
     if (!templateLayer || templateLayer.timing.startNumber === null || typeof templateLayer.sourceTrackIndex !== "number") {
       throw new Error("The imported Tool Bar template does not contain a readable Adjustment Layer.");
@@ -918,15 +918,18 @@
   }
 
   // Import the source sequence once for each open project and reuse it for subsequent layer insertions.
-  async function getImportedAdjustmentTemplateSequence(project) {
+  async function getImportedAdjustmentTemplateSequence(app, project) {
+    if (!app || !app.Guid || typeof app.Guid.fromString !== "function") {
+      throw new Error("Premiere UXP does not expose Guid.fromString, required to import the Adjustment Layer template.");
+    }
     if (!project || typeof project.getSequences !== "function" || typeof project.importSequences !== "function") {
       throw new Error("Premiere UXP does not expose project sequence import in this build.");
     }
-    const projectKey = String(project.guid || project.path || "active-project");
+    const projectKey = getGuidString(project.guid) || String(project.path || "active-project");
     const cachedGuid = adjustmentTemplateSequences[projectKey];
     const sequencesBeforeImport = await project.getSequences();
     if (cachedGuid) {
-      const cachedSequence = sequencesBeforeImport.find((sequence) => String(sequence.guid || "") === cachedGuid);
+      const cachedSequence = sequencesBeforeImport.find((sequence) => getGuidString(sequence.guid) === cachedGuid);
       if (cachedSequence) {
         return cachedSequence;
       }
@@ -934,21 +937,32 @@
     }
     const knownGuids = {};
     sequencesBeforeImport.forEach((sequence) => {
-      knownGuids[String(sequence.guid || "")] = true;
+      knownGuids[getGuidString(sequence.guid)] = true;
     });
     const templatePath = await getAdjustmentTemplatePath();
-    const imported = await project.importSequences(templatePath, [ADJUSTMENT_TEMPLATE_SEQUENCE_GUID]);
+    // The host rejects a UUID string here: importSequences specifically requires a Premiere Guid object.
+    const templateSequenceGuid = app.Guid.fromString(ADJUSTMENT_TEMPLATE_SEQUENCE_GUID);
+    logBridge("info", "Importing Adjustment Layer template sequence.", { templatePath, templateSequenceGuid: getGuidString(templateSequenceGuid) });
+    const imported = await project.importSequences(templatePath, [templateSequenceGuid]);
     if (!imported) {
       throw new Error("Premiere could not import Tool Bar's Adjustment Layer template project.");
     }
     const sequencesAfterImport = await project.getSequences();
-    const importedSequence = sequencesAfterImport.find((sequence) => !knownGuids[String(sequence.guid || "")]);
+    const importedSequence = sequencesAfterImport.find((sequence) => !knownGuids[getGuidString(sequence.guid)]);
     if (!importedSequence || !importedSequence.guid) {
       throw new Error("Premiere imported the template project but did not expose its sequence.");
     }
-    adjustmentTemplateSequences[projectKey] = String(importedSequence.guid);
-    logBridge("info", "Imported Adjustment Layer template sequence.", { templatePath, sequenceGuid: importedSequence.guid });
+    adjustmentTemplateSequences[projectKey] = getGuidString(importedSequence.guid);
+    logBridge("info", "Imported Adjustment Layer template sequence.", { templatePath, sequenceGuid: getGuidString(importedSequence.guid) });
     return importedSequence;
+  }
+
+  // Convert native Guid proxies to stable string keys without assuming JavaScript string coercion works.
+  function getGuidString(guid) {
+    if (guid && typeof guid.toString === "function") {
+      return guid.toString();
+    }
+    return guid ? String(guid) : "";
   }
 
   // Scan the imported sequence instead of assuming a track index, keeping the template editable in Premiere.
