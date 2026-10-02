@@ -2215,10 +2215,12 @@ async function addAdjustmentLayerActionSmokeTest() {
   const transactionActions = [];
   let cloneCreated = false;
   let importedTemplate = false;
+  let templateFolderCreated = false;
   let refreshRequested = false;
   const selectedClip = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => false,
+    getTrackIndex: async () => 0,
     getStartTime: async () => ({ seconds: 10 }),
     getEndTime: async () => ({ seconds: 15 })
   };
@@ -2240,6 +2242,7 @@ async function addAdjustmentLayerActionSmokeTest() {
   };
   const templateSequence = {
     guid: "imported-template-guid",
+    getProjectItem: async () => ({ name: "Adjustment Layer Template" }),
     getVideoTrackCount: async () => 1,
     getVideoTrack: async () => ({ getTrackItems: async () => [templateLayer] })
   };
@@ -2269,7 +2272,7 @@ async function addAdjustmentLayerActionSmokeTest() {
         createCloneTrackItemAction(item, timeOffset, videoOffset, audioOffset, alignToVideo, isInsert) {
           assert.equal(item, templateLayer);
           assert.equal(timeOffset.seconds, 10);
-          assert.equal(videoOffset, 2);
+          assert.equal(videoOffset, 1);
           assert.equal(audioOffset, 0);
           assert.equal(alignToVideo, false);
           assert.equal(isInsert, false);
@@ -2280,12 +2283,13 @@ async function addAdjustmentLayerActionSmokeTest() {
       const activeSequence = {
         getSelection: async () => ({ getTrackItems: async () => [selectedClip] }),
         getVideoTrackCount: async () => 2,
-        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 && cloneCreated ? [clonedLayer] : [] }),
+        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 && cloneCreated ? [clonedLayer] : [] }),
         getPlayerPosition: () => ({ seconds: 10 }),
         setPlayerPosition() { refreshRequested = true; }
       };
       return {
-        Constants: { TrackItemType: { CLIP: 1 } },
+        Constants: { TrackItemType: { CLIP: 1 }, ProjectItemType: { BIN: "bin" } },
+        FolderItem: { cast: (item) => item.folder },
         Guid: { fromString: (value) => ({ toString: () => value }) },
         TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
         SequenceEditor: { getEditor: () => editor },
@@ -2299,6 +2303,20 @@ async function addAdjustmentLayerActionSmokeTest() {
             },
             getActiveSequence: async () => activeSequence,
             getSequences: async () => importedTemplate ? [templateSequence] : [],
+            getRootItem: async () => ({
+              getItems: async () => templateFolderCreated ? [{ name: "Tool Bar Templates", type: "bin", folder: { name: "Tool Bar Templates" } }] : [],
+              createBinAction(name, makeUnique) {
+                assert.equal(name, "Tool Bar Templates");
+                assert.equal(makeUnique, false);
+                templateFolderCreated = true;
+                return { type: "create-bin" };
+              },
+              createMoveItemAction(item, folder) {
+                assert.equal(item.name, "Adjustment Layer Template");
+                assert.equal(folder.name, "Tool Bar Templates");
+                return { type: "move-template" };
+              }
+            }),
             importSequences: async (projectPath, sequenceGuids) => {
               assert.equal(projectPath, "/plugin/assets/Templates/Adjustment Layer.prproj");
               // Compare the cross-context array by value because the bridge runs in a VM realm.
@@ -2319,7 +2337,7 @@ async function addAdjustmentLayerActionSmokeTest() {
     actionType: "action",
     action: { id: "addAdjustmentLayer" }
   }));
-  assert.deepEqual(transactionActions, ["clone", "trim"]);
+  assert.deepEqual(transactionActions, ["create-bin", "move-template", "clone", "trim"]);
   assert.equal(importedTemplate, true);
   assert.equal(refreshRequested, true);
 }

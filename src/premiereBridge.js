@@ -170,7 +170,7 @@
   }
 
   // Load the active sequence and selected timeline items.
-  async function getSelectedItems() {
+  async function getSelectedItems(allowEmptySelection) {
     const app = getPremiere();
     if (!app) {
       throw new Error(root.PTB_I18N.t("noPremiereApi"));
@@ -182,7 +182,7 @@
     }
     const selection = await sequence.getSelection();
     const items = selection ? await selection.getTrackItems() : [];
-    if (!items || !items.length) {
+    if ((!items || !items.length) && !allowEmptySelection) {
       throw new Error(root.PTB_I18N.t("noSelection"));
     }
     logBridge("info", "Premiere selection loaded.", { count: items.length });
@@ -799,7 +799,7 @@
       return moveSelectedVideoClipsBetweenTracks(1, button.label);
     }
     if (button.action.id === "addAdjustmentLayer") {
-      return addAdjustmentLayerToSelectedClip(button.label);
+      return addAdjustmentLayerToSelectedClip(button.label, button);
     }
     if (button.action.id === "copyClipEffects") {
       return copySelectedClipEffects();
@@ -849,9 +849,9 @@
     throw new Error("This Action command is not supported by this Tool Bar version.");
   }
 
-  // Add a copied Adjustment Layer above exactly one selected video clip without replacing timeline media.
-  async function addAdjustmentLayerToSelectedClip(undoLabel) {
-    const { app, project, sequence, items } = await getSelectedItems();
+  // Add a copied Adjustment Layer above one selected clip or at the playhead when no clip is selected.
+  async function addAdjustmentLayerToSelectedClip(undoLabel, button) {
+    const { app, project, sequence, items } = await getSelectedItems(true);
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function" || !app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
       throw new Error("Premiere UXP does not expose the timeline APIs needed to add an Adjustment Layer.");
     }
@@ -862,20 +862,24 @@
         videoItems.push(item);
       }
     }
-    if (videoItems.length !== 1) {
-      throw new Error("Select exactly one regular video clip before adding an Adjustment Layer.");
+    if (videoItems.length > 1) {
+      throw new Error("Select no more than one regular video clip before adding an Adjustment Layer.");
     }
-    const targetTiming = await getTrackItemTiming(videoItems[0]);
-    if (targetTiming.startNumber === null || targetTiming.endNumber === null || targetTiming.endNumber <= targetTiming.startNumber) {
-      throw new Error("Premiere could not read the selected clip duration.");
-    }
-    const templateSequence = await runTimelineStage("Import Adjustment Layer template", { templateSequenceGuid: ADJUSTMENT_TEMPLATE_SEQUENCE_GUID }, () => getImportedAdjustmentTemplateSequence(app, project));
+    const actionOptions = button && button.action ? button.action : {};
+    const durationMode = actionOptions.adjustmentDurationMode === "defaultDuration" ? "defaultDuration" : "selectedClip";
+    const defaultDurationSeconds = Math.max(0.1, Math.min(36000, Number(actionOptions.adjustmentDefaultDurationSeconds) || 5));
+    const targetTiming = await getAdjustmentTargetTiming(sequence, videoItems[0], durationMode, defaultDurationSeconds);
+    const minimumTrackIndex = videoItems.length
+      ? (await videoItems[0].getTrackIndex()) + 1
+      : (await getHighestOccupiedVideoTrackIndex(app, sequence, targetTiming)) + 1;
+    const templateFolderName = normalizeTemplateFolderName(actionOptions.adjustmentTemplateFolder);
+    const templateSequence = await runTimelineStage("Import Adjustment Layer template", { templateSequenceGuid: ADJUSTMENT_TEMPLATE_SEQUENCE_GUID, templateFolderName }, () => getImportedAdjustmentTemplateSequence(app, project, templateFolderName));
     const templateLayer = await findTemplateAdjustmentLayer(app, templateSequence);
     if (!templateLayer || templateLayer.timing.startNumber === null || typeof templateLayer.sourceTrackIndex !== "number") {
       throw new Error("The imported Tool Bar template does not contain a readable Adjustment Layer.");
     }
-    // Target a newly-created top track so the template's initial duration cannot overwrite existing edits.
-    const targetTrackIndex = await sequence.getVideoTrackCount();
+    // Reuse the first fully empty track above the target; create a new one only when no safe track exists.
+    const targetTrackIndex = await findFirstEmptyVideoTrackAtOrAbove(app, sequence, minimumTrackIndex);
     const editor = app.SequenceEditor.getEditor(sequence);
     const timeOffset = app.TickTime.createWithSeconds(targetTiming.startNumber - templateLayer.timing.startNumber);
     executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
@@ -892,7 +896,53 @@
       startSeconds: targetTiming.startNumber,
       endSeconds: targetTiming.endNumber
     });
-    return { targetTrackIndex, startSeconds: targetTiming.startNumber, endSeconds: targetTiming.endNumber };
+    return { targetTrackIndex, startSeconds: targetTiming.startNumber, endSeconds: targetTiming.endNumber, durationMode };
+  }
+
+  // Choose either the selected clip range or a fixed-length range anchored at the current playhead.
+  async function getAdjustmentTargetTiming(sequence, selectedVideoItem, durationMode, defaultDurationSeconds) {
+    if (selectedVideoItem && durationMode === "selectedClip") {
+      const selectedTiming = await getTrackItemTiming(selectedVideoItem);
+      if (selectedTiming.startNumber === null || selectedTiming.endNumber === null || selectedTiming.endNumber <= selectedTiming.startNumber) {
+        throw new Error("Premiere could not read the selected clip duration.");
+      }
+      return selectedTiming;
+    }
+    if (!sequence || typeof sequence.getPlayerPosition !== "function") {
+      throw new Error("Premiere could not read the playhead for the default Adjustment Layer duration.");
+    }
+    const playheadSeconds = timeToNumber(await sequence.getPlayerPosition());
+    if (playheadSeconds === null) {
+      throw new Error("Premiere could not read the playhead for the default Adjustment Layer duration.");
+    }
+    return { startNumber: playheadSeconds, endNumber: playheadSeconds + defaultDurationSeconds };
+  }
+
+  // Return the highest track containing material in the target range so an unselected layer still affects all visible clips.
+  async function getHighestOccupiedVideoTrackIndex(app, sequence, targetTiming) {
+    const trackCount = await sequence.getVideoTrackCount();
+    let highestIndex = -1;
+    for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+      const clips = await getTrackClips(app, sequence, "video", trackIndex);
+      for (const clip of clips) {
+        if (itemsOverlapOrTouchingRange(targetTiming, await getTrackItemTiming(clip))) {
+          highestIndex = trackIndex;
+          break;
+        }
+      }
+    }
+    return highestIndex;
+  }
+
+  // Find the first entirely empty video track above the target because the untrimmed template may otherwise overlap later edits.
+  async function findFirstEmptyVideoTrackAtOrAbove(app, sequence, minimumTrackIndex) {
+    const trackCount = await sequence.getVideoTrackCount();
+    for (let trackIndex = Math.max(0, minimumTrackIndex); trackIndex < trackCount; trackIndex += 1) {
+      if (!(await getTrackClips(app, sequence, "video", trackIndex)).length) {
+        return trackIndex;
+      }
+    }
+    return trackCount;
   }
 
   // Resolve the absolute path of the read-only project template shipped inside the plugin bundle.
@@ -918,7 +968,7 @@
   }
 
   // Import the source sequence once for each open project and reuse it for subsequent layer insertions.
-  async function getImportedAdjustmentTemplateSequence(app, project) {
+  async function getImportedAdjustmentTemplateSequence(app, project, templateFolderName) {
     if (!app || !app.Guid || typeof app.Guid.fromString !== "function") {
       throw new Error("Premiere UXP does not expose Guid.fromString, required to import the Adjustment Layer template.");
     }
@@ -931,6 +981,7 @@
     if (cachedGuid) {
       const cachedSequence = sequencesBeforeImport.find((sequence) => getGuidString(sequence.guid) === cachedGuid);
       if (cachedSequence) {
+        await placeTemplateSequenceInProjectFolder(app, project, cachedSequence, templateFolderName);
         return cachedSequence;
       }
       delete adjustmentTemplateSequences[projectKey];
@@ -952,9 +1003,65 @@
     if (!importedSequence || !importedSequence.guid) {
       throw new Error("Premiere imported the template project but did not expose its sequence.");
     }
+    await placeTemplateSequenceInProjectFolder(app, project, importedSequence, templateFolderName);
     adjustmentTemplateSequences[projectKey] = getGuidString(importedSequence.guid);
     logBridge("info", "Imported Adjustment Layer template sequence.", { templatePath, sequenceGuid: getGuidString(importedSequence.guid) });
     return importedSequence;
+  }
+
+  // Keep the reusable template sequence in a named root bin rather than deleting the source needed by later clicks.
+  async function placeTemplateSequenceInProjectFolder(app, project, templateSequence, folderName) {
+    if (!folderName) {
+      return;
+    }
+    if (!project || typeof project.getRootItem !== "function" || !templateSequence || typeof templateSequence.getProjectItem !== "function") {
+      throw new Error("Premiere UXP does not expose the Project panel APIs needed to organize the Adjustment Layer template.");
+    }
+    const rootFolder = await project.getRootItem();
+    const targetFolder = await getOrCreateRootProjectFolder(app, project, rootFolder, folderName);
+    const templateProjectItem = await templateSequence.getProjectItem();
+    if (!rootFolder || !targetFolder || !templateProjectItem || typeof rootFolder.createMoveItemAction !== "function") {
+      throw new Error("Premiere could not move the Adjustment Layer template sequence into its Project panel folder.");
+    }
+    executeActions(project, [() => rootFolder.createMoveItemAction(templateProjectItem, targetFolder)], "Tool Bar: Organize Adjustment Layer Template");
+  }
+
+  // Locate a named root bin or create it first because Premiere requires the new FolderItem before it can be a move target.
+  async function getOrCreateRootProjectFolder(app, project, rootFolder, folderName) {
+    const existingFolder = await findNamedRootProjectFolder(app, rootFolder, folderName);
+    if (existingFolder) {
+      return existingFolder;
+    }
+    if (!rootFolder || typeof rootFolder.createBinAction !== "function") {
+      throw new Error("Premiere could not create the Project panel folder for the Adjustment Layer template.");
+    }
+    executeActions(project, [() => rootFolder.createBinAction(folderName, false)], "Tool Bar: Create Adjustment Layer Template Folder");
+    const createdFolder = await findNamedRootProjectFolder(app, rootFolder, folderName);
+    if (!createdFolder) {
+      throw new Error("Premiere created the Adjustment Layer template folder but did not expose it to UXP.");
+    }
+    return createdFolder;
+  }
+
+  // Read only direct root bins so a user-entered name never moves assets into an unrelated nested folder.
+  async function findNamedRootProjectFolder(app, rootFolder, folderName) {
+    if (!rootFolder || typeof rootFolder.getItems !== "function") {
+      return null;
+    }
+    const constants = app && (app.Constants || app.constants);
+    const binType = constants && constants.ProjectItemType ? constants.ProjectItemType.BIN : undefined;
+    const items = await rootFolder.getItems();
+    for (const item of items || []) {
+      if (item && item.name === folderName && (binType === undefined || item.type === binType) && app.FolderItem && typeof app.FolderItem.cast === "function") {
+        return app.FolderItem.cast(item);
+      }
+    }
+    return null;
+  }
+
+  // Preserve an empty name as an explicit request to keep the template at the Project panel root.
+  function normalizeTemplateFolderName(value) {
+    return typeof value === "string" ? value.trim() : "Tool Bar Templates";
   }
 
   // Convert native Guid proxies to stable string keys without assuming JavaScript string coercion works.

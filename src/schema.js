@@ -23,6 +23,8 @@
   const LEGACY_TOOL_ACTION_IDS = ["copyClipEffects", "pasteClipEffects", "removeClipEffects"];
   const ACTION_IDS = ["addAdjustmentLayer", "copyClipEffects", "extendClipInToPlayhead", "extendClipOutToPlayhead", "invertTimelineSelection", "moveVideoClipDown", "moveVideoClipUp", "pasteClipEffects", "randomizeTimelineClipOrder", "removeClipEffects", "reverseTimelineClipOrder", "reverseTowerVideoClips", "setClipLabel", "staircaseVideoClipsDown", "staircaseVideoClipsUp", "towerOffsetVideoClips", "towerVideoClips"];
   const DEFAULT_LABEL_KEY = "VIOLET";
+  const ADJUSTMENT_DURATION_MODES = ["selectedClip", "defaultDuration"];
+  const DEFAULT_ADJUSTMENT_TEMPLATE_FOLDER = "Tool Bar Templates";
 
   // Create stable ids without relying on external dependencies.
   function createId(prefix) {
@@ -86,7 +88,16 @@
         // Store the stable Premiere label enum key; user label colors can be customized while retaining this index.
         labelKey: safeString(input.action && input.action.labelKey, DEFAULT_LABEL_KEY).toUpperCase(),
         // Keep a compact frame count for Tower with Offset; zero remains a useful aligned tower.
-        towerOffsetFrames: safeNumber(input.action && input.action.towerOffsetFrames, 1, 0, 9999)
+        towerOffsetFrames: safeNumber(input.action && input.action.towerOffsetFrames, 1, 0, 9999),
+        // Let each Adjustment Layer button choose clip-sized or fixed-length layers independently.
+        adjustmentDurationMode: ADJUSTMENT_DURATION_MODES.includes(input.action && input.action.adjustmentDurationMode)
+          ? input.action.adjustmentDurationMode
+          : "selectedClip",
+        adjustmentDefaultDurationSeconds: safeNumber(input.action && input.action.adjustmentDefaultDurationSeconds, 5, 0.1, 36000),
+        // Keep a simple root-bin name so the imported template remains reusable without cluttering the project root.
+        adjustmentTemplateFolder: typeof (input.action && input.action.adjustmentTemplateFolder) === "string"
+          ? input.action.adjustmentTemplateFolder.trim()
+          : DEFAULT_ADJUSTMENT_TEMPLATE_FOLDER
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),

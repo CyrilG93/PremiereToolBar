@@ -2293,6 +2293,33 @@
         setStyles(labelField, { flex: "0 1 auto" });
         wrap.appendChild(labelField);
       }
+      if (button.action.id === "addAdjustmentLayer") {
+        const durationModeField = selectField(root.PTB_I18N.t("actionAdjustmentDurationMode"), button.action.adjustmentDurationMode || "selectedClip", [
+          { value: "selectedClip", label: root.PTB_I18N.t("actionAdjustmentDurationSelectedClip") },
+          { value: "defaultDuration", label: root.PTB_I18N.t("actionAdjustmentDurationDefault") }
+        ], (value) => {
+          // Rebuild only after changing modes so the optional duration field appears or disappears correctly.
+          button.action.adjustmentDurationMode = value;
+          saveAndRender(root.PTB_I18N.t("statusSaved"));
+        });
+        setStyles(durationModeField, { flex: "0 1 auto" });
+        wrap.appendChild(durationModeField);
+        if (button.action.adjustmentDurationMode === "defaultDuration") {
+          const defaultDurationField = numberField(root.PTB_I18N.t("actionAdjustmentDefaultDuration"), button.action.adjustmentDefaultDurationSeconds || 5, (value) => {
+            button.action.adjustmentDefaultDurationSeconds = Math.max(0.1, Math.min(36000, Number(value) || 5));
+            saveAndRender(root.PTB_I18N.t("statusSaved"));
+          });
+          setStyles(defaultDurationField, { flex: "0 1 auto" });
+          wrap.appendChild(defaultDurationField);
+        }
+        const templateFolderField = textField(root.PTB_I18N.t("actionAdjustmentTemplateFolder"), button.action.adjustmentTemplateFolder || "", (value) => {
+          // Store a simple folder name per button so different template buttons can stay organized separately.
+          button.action.adjustmentTemplateFolder = value;
+        });
+        setStyles(templateFolderField, { flex: "0 1 auto" });
+        wrap.appendChild(templateFolderField);
+        wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("actionAdjustmentTemplateFolderHelp")));
+      }
       if (button.action.id === "towerOffsetVideoClips") {
         const offsetField = numberField(root.PTB_I18N.t("actionTowerOffsetFrames"), button.action.towerOffsetFrames || 1, (value) => {
           button.action.towerOffsetFrames = Math.max(0, Math.round(Number(value) || 0));
