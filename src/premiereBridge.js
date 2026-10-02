@@ -885,7 +885,8 @@
     executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
 
     // Resolve the fresh clone before trimming it because UXP action objects cannot be retained across transactions.
-    const clonedLayer = await findAdjustmentLayerAtTime(app, sequence, targetTrackIndex, targetTiming.startNumber);
+    const clonedLayerInfo = await findAdjustmentLayerAtOrAboveTime(app, sequence, targetTrackIndex, targetTiming.startNumber);
+    const clonedLayer = clonedLayerInfo && clonedLayerInfo.item;
     if (!clonedLayer || typeof clonedLayer.createSetEndAction !== "function") {
       throw new Error("Premiere added the template layer but Tool Bar could not trim it to the selected range.");
     }
@@ -900,12 +901,12 @@
     ], "Tool Bar: Trim and Scale Adjustment Layer");
     await refreshSequenceView(sequence);
     logBridge("info", "Added and trimmed Adjustment Layer.", {
-      targetTrackIndex,
+      targetTrackIndex: clonedLayerInfo.trackIndex,
       startSeconds: targetTiming.startNumber,
       endSeconds: targetTiming.endNumber,
       scalePercent
     });
-    return { targetTrackIndex, startSeconds: targetTiming.startNumber, endSeconds: targetTiming.endNumber, durationMode };
+    return { targetTrackIndex: clonedLayerInfo.trackIndex, startSeconds: targetTiming.startNumber, endSeconds: targetTiming.endNumber, durationMode };
   }
 
   // Scale one 1920x1080-style source layer enough to cover any target frame aspect ratio.
@@ -1146,13 +1147,16 @@
     return null;
   }
 
-  // Find the clone on its dedicated new track by its target start time before applying the trim action.
-  async function findAdjustmentLayerAtTime(app, sequence, trackIndex, startSeconds) {
-    const clips = await getTrackClips(app, sequence, "video", trackIndex);
-    for (const item of clips) {
-      const timing = await getTrackItemTiming(item);
-      if (typeof item.isAdjustmentLayer === "function" && await item.isAdjustmentLayer() && nearlyEqualTime(timing.startNumber, startSeconds)) {
-        return item;
+  // Find the clone at or above its requested track because Premiere skips locked destination tracks.
+  async function findAdjustmentLayerAtOrAboveTime(app, sequence, minimumTrackIndex, startSeconds) {
+    const trackCount = await sequence.getVideoTrackCount();
+    for (let trackIndex = Math.max(0, minimumTrackIndex); trackIndex < trackCount; trackIndex += 1) {
+      const clips = await getTrackClips(app, sequence, "video", trackIndex);
+      for (const item of clips) {
+        const timing = await getTrackItemTiming(item);
+        if (typeof item.isAdjustmentLayer === "function" && await item.isAdjustmentLayer() && nearlyEqualTime(timing.startNumber, startSeconds)) {
+          return { item, trackIndex };
+        }
       }
     }
     return null;

@@ -2269,7 +2269,7 @@ async function addAdjustmentLayerActionSmokeTest() {
     })
   };
   const laterClip = {
-    // Keep later media on V3 to prove a free target range can reuse a non-empty track.
+    // Keep later media on V3; Premiere will simulate skipping this locked destination to V4.
     createAddVideoTransitionAction() {},
     getStartTime: async () => ({ seconds: 40 }),
     getEndTime: async () => ({ seconds: 50 })
@@ -2317,8 +2317,8 @@ async function addAdjustmentLayerActionSmokeTest() {
       };
       const activeSequence = {
         getSelection: async () => ({ getTrackItems: async () => [selectedClip, secondSelectedClip] }),
-        getVideoTrackCount: async () => 3,
-        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 ? (cloneCreated ? [clonedLayer, laterClip] : [laterClip]) : [] }),
+        getVideoTrackCount: async () => 4,
+        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 ? [laterClip] : (index === 3 && cloneCreated ? [clonedLayer] : []) }),
         getFrameSize: async () => ({ width: 3840, height: 2160 }),
         getPlayerPosition: () => ({ seconds: 10 }),
         setPlayerPosition() { refreshRequested = true; }
