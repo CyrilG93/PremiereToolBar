@@ -2238,6 +2238,18 @@ async function addAdjustmentLayerActionSmokeTest() {
     getStartTime: async () => ({ seconds: 0 }),
     getEndTime: async () => ({ seconds: 60 })
   };
+  const scaleParam = {
+    createKeyframe(value) {
+      // A 3840x2160 sequence needs a 200% cover scale from the 1920x1080 template.
+      assert.equal(value, 200);
+      return { value };
+    },
+    createSetValueAction(keyframe, safeForPlayback) {
+      assert.equal(keyframe.value, 200);
+      assert.equal(safeForPlayback, true);
+      return { type: "scale" };
+    }
+  };
   const clonedLayer = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
@@ -2246,7 +2258,15 @@ async function addAdjustmentLayerActionSmokeTest() {
     createSetEndAction(endTime) {
       assert.equal(endTime.seconds, 35);
       return { type: "trim" };
-    }
+    },
+    getComponentChain: async () => ({
+      getComponentCount: () => 1,
+      getComponentAtIndex: () => ({
+        getDisplayName: async () => "Motion",
+        getMatchName: async () => "ADBE Motion",
+        getParam: (index) => index === 1 ? scaleParam : null
+      })
+    })
   };
   const laterClip = {
     // Keep later media on V3 to prove a free target range can reuse a non-empty track.
@@ -2257,6 +2277,7 @@ async function addAdjustmentLayerActionSmokeTest() {
   const templateSequence = {
     guid: "imported-template-guid",
     getProjectItem: async () => ({ name: "Adjustment Layer Template" }),
+    getFrameSize: async () => ({ width: 1920, height: 1080 }),
     getVideoTrackCount: async () => 1,
     getVideoTrack: async () => ({ getTrackItems: async () => [templateLayer] })
   };
@@ -2298,6 +2319,7 @@ async function addAdjustmentLayerActionSmokeTest() {
         getSelection: async () => ({ getTrackItems: async () => [selectedClip, secondSelectedClip] }),
         getVideoTrackCount: async () => 3,
         getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 ? (cloneCreated ? [clonedLayer, laterClip] : [laterClip]) : [] }),
+        getFrameSize: async () => ({ width: 3840, height: 2160 }),
         getPlayerPosition: () => ({ seconds: 10 }),
         setPlayerPosition() { refreshRequested = true; }
       };
@@ -2351,7 +2373,7 @@ async function addAdjustmentLayerActionSmokeTest() {
     actionType: "action",
     action: { id: "addAdjustmentLayer" }
   }));
-  assert.deepEqual(transactionActions, ["create-bin", "move-template", "clone", "trim"]);
+  assert.deepEqual(transactionActions, ["create-bin", "move-template", "clone", "trim", "scale"]);
   assert.equal(importedTemplate, true);
   assert.equal(refreshRequested, true);
 }
@@ -2368,6 +2390,10 @@ async function reuseSavedAdjustmentTemplateSequenceSmokeTest() {
     getStartTime: async () => ({ seconds: 0 }),
     getEndTime: async () => ({ seconds: 60 })
   };
+  const scaleParam = {
+    createKeyframe(value) { return { value }; },
+    createSetValueAction() { return { type: "scale" }; }
+  };
   const clonedLayer = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
@@ -2376,7 +2402,15 @@ async function reuseSavedAdjustmentTemplateSequenceSmokeTest() {
     createSetEndAction(endTime) {
       assert.equal(endTime.seconds, 15);
       return { type: "trim" };
-    }
+    },
+    getComponentChain: async () => ({
+      getComponentCount: () => 1,
+      getComponentAtIndex: () => ({
+        getDisplayName: async () => "Motion",
+        getMatchName: async () => "ADBE Motion",
+        getParam: (index) => index === 1 ? scaleParam : null
+      })
+    })
   };
   const savedTemplateSequence = {
     // Match the immutable GUID in the bundled project template after Premiere is reopened.

@@ -878,6 +878,8 @@
     }
     // Reuse the first track whose target range is free; source layers are ten seconds long before their immediate trim.
     const targetTrackIndex = await findFirstFreeVideoTrackAtOrAbove(app, sequence, minimumTrackIndex, targetTiming);
+    // Compute a cover scale from the source template dimensions to the active sequence dimensions.
+    const scalePercent = await getAdjustmentLayerCoverScalePercent(sequence, templateSequence);
     const editor = app.SequenceEditor.getEditor(sequence);
     const timeOffset = app.TickTime.createWithSeconds(targetTiming.startNumber - templateLayer.timing.startNumber);
     executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
@@ -887,14 +889,55 @@
     if (!clonedLayer || typeof clonedLayer.createSetEndAction !== "function") {
       throw new Error("Premiere added the template layer but Tool Bar could not trim it to the selected range.");
     }
-    executeActions(project, [() => clonedLayer.createSetEndAction(app.TickTime.createWithSeconds(targetTiming.endNumber))], "Tool Bar: Trim Adjustment Layer");
+    const scaleParam = await findAdjustmentLayerScaleParameter(clonedLayer);
+    if (!scaleParam) {
+      throw new Error("Premiere added the template layer but Tool Bar could not set its Scale to cover this sequence.");
+    }
+    executeActions(project, [
+      () => clonedLayer.createSetEndAction(app.TickTime.createWithSeconds(targetTiming.endNumber)),
+      // Construct the keyframe and its action inside the transaction to keep UXP proxies valid.
+      () => scaleParam.createSetValueAction(scaleParam.createKeyframe(scalePercent), true)
+    ], "Tool Bar: Trim and Scale Adjustment Layer");
     await refreshSequenceView(sequence);
     logBridge("info", "Added and trimmed Adjustment Layer.", {
       targetTrackIndex,
       startSeconds: targetTiming.startNumber,
-      endSeconds: targetTiming.endNumber
+      endSeconds: targetTiming.endNumber,
+      scalePercent
     });
     return { targetTrackIndex, startSeconds: targetTiming.startNumber, endSeconds: targetTiming.endNumber, durationMode };
+  }
+
+  // Scale one 1920x1080-style source layer enough to cover any target frame aspect ratio.
+  async function getAdjustmentLayerCoverScalePercent(targetSequence, templateSequence) {
+    const targetFrameSize = await getSequenceFrameSize(targetSequence);
+    const templateFrameSize = await getSequenceFrameSize(templateSequence);
+    const widthScale = targetFrameSize.width / templateFrameSize.width;
+    const heightScale = targetFrameSize.height / templateFrameSize.height;
+    return Math.max(widthScale, heightScale) * 100;
+  }
+
+  // Resolve the intrinsic Motion Scale parameter (index 1 in Premiere's Motion component).
+  async function findAdjustmentLayerScaleParameter(layer) {
+    if (!layer || typeof layer.getComponentChain !== "function") {
+      return null;
+    }
+    const chain = await layer.getComponentChain();
+    const count = chain && typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+    for (let index = 0; index < count; index += 1) {
+      const component = chain.getComponentAtIndex(index);
+      const displayName = await readComponentDisplayName(component);
+      const matchName = await readComponentMatchName(component);
+      // Match name remains stable in non-English Premiere installations; display name supports current hosts.
+      if (displayName !== "Motion" && !/motion/i.test(String(matchName || ""))) {
+        continue;
+      }
+      const scaleParam = component && typeof component.getParam === "function" ? component.getParam(1) : null;
+      if (scaleParam && typeof scaleParam.createKeyframe === "function" && typeof scaleParam.createSetValueAction === "function") {
+        return scaleParam;
+      }
+    }
+    return null;
   }
 
   // Choose the full selected-video range, or a fixed-length range anchored at the current playhead.
