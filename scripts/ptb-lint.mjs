@@ -35,6 +35,9 @@ assert(packageJson.version === manifestJson.version, "package.json and manifest.
 assert(versionSource.includes(`"${packageJson.version}"`), "src/version.js must match package.json version.");
 assert(indexHtml.includes(`styles.css?v=${packageJson.version}`), "index.html must cache-bust styles.css with the current version.");
 assert(indexHtml.includes(`src/ui.js?v=${packageJson.version}`), "index.html must cache-bust src/ui.js with the current version.");
+assert(indexHtml.includes(`src/storage.js?v=${packageJson.version}`), "index.html must load cache-busted src/storage.js.");
+// UI initializes from PTB_STORAGE, so the storage module must be loaded before the UI module.
+assert(indexHtml.indexOf(`src/storage.js?v=${packageJson.version}`) < indexHtml.indexOf(`src/ui.js?v=${packageJson.version}`), "index.html must load src/storage.js before src/ui.js.");
 assert(manifestJson.id === "com.cyrilplugin.toolbar", "manifest id must use the Cyril plugin namespace.");
 assert(manifestJson.host && manifestJson.host.app === "premierepro", "manifest must target Premiere Pro.");
 assert(Array.isArray(manifestJson.entrypoints) && manifestJson.entrypoints.length === 5, "manifest must declare four bars plus settings.");
