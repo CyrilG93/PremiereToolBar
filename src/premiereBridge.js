@@ -878,8 +878,8 @@
     if (!templateLayer || templateLayer.timing.startNumber === null || typeof templateLayer.sourceTrackIndex !== "number") {
       throw new Error("The imported Tool Bar template does not contain a readable Adjustment Layer.");
     }
-    // Reuse the first fully empty track above the target; create a new one only when no safe track exists.
-    const targetTrackIndex = await findFirstEmptyVideoTrackAtOrAbove(app, sequence, minimumTrackIndex);
+    // Reuse the first track whose target range is free; source layers are ten seconds long before their immediate trim.
+    const targetTrackIndex = await findFirstFreeVideoTrackAtOrAbove(app, sequence, minimumTrackIndex, targetTiming);
     const editor = app.SequenceEditor.getEditor(sequence);
     const timeOffset = app.TickTime.createWithSeconds(targetTiming.startNumber - templateLayer.timing.startNumber);
     executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
@@ -934,11 +934,13 @@
     return highestIndex;
   }
 
-  // Find the first entirely empty video track above the target because the untrimmed template may otherwise overlap later edits.
-  async function findFirstEmptyVideoTrackAtOrAbove(app, sequence, minimumTrackIndex) {
+  // Find the first track free over the exact requested range, allowing clips that sit safely before or after it.
+  async function findFirstFreeVideoTrackAtOrAbove(app, sequence, minimumTrackIndex, targetTiming) {
     const trackCount = await sequence.getVideoTrackCount();
     for (let trackIndex = Math.max(0, minimumTrackIndex); trackIndex < trackCount; trackIndex += 1) {
-      if (!(await getTrackClips(app, sequence, "video", trackIndex)).length) {
+      const clips = await getTrackClips(app, sequence, "video", trackIndex);
+      const hasOverlap = (await Promise.all(clips.map((clip) => getTrackItemTiming(clip)))).some((clipTiming) => itemsOverlapOrTouchingRange(targetTiming, clipTiming));
+      if (!hasOverlap) {
         return trackIndex;
       }
     }

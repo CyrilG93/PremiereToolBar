@@ -2240,6 +2240,12 @@ async function addAdjustmentLayerActionSmokeTest() {
       return { type: "trim" };
     }
   };
+  const laterClip = {
+    // Keep later media on V2 to prove a free target range can reuse a non-empty track.
+    createAddVideoTransitionAction() {},
+    getStartTime: async () => ({ seconds: 30 }),
+    getEndTime: async () => ({ seconds: 40 })
+  };
   const templateSequence = {
     guid: "imported-template-guid",
     getProjectItem: async () => ({ name: "Adjustment Layer Template" }),
@@ -2283,7 +2289,7 @@ async function addAdjustmentLayerActionSmokeTest() {
       const activeSequence = {
         getSelection: async () => ({ getTrackItems: async () => [selectedClip] }),
         getVideoTrackCount: async () => 2,
-        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 && cloneCreated ? [clonedLayer] : [] }),
+        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 ? (cloneCreated ? [clonedLayer, laterClip] : [laterClip]) : [] }),
         getPlayerPosition: () => ({ seconds: 10 }),
         setPlayerPosition() { refreshRequested = true; }
       };
