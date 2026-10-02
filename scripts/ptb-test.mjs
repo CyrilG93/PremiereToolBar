@@ -2210,7 +2210,7 @@ async function moveVideoClipActionSmokeTest() {
 
 await moveVideoClipActionSmokeTest();
 
-// Verify the experimental action imports the bundled sequence, clones its Adjustment Layer, and trims it to one selected clip.
+// Verify the action imports the bundled sequence, spans multiple selected clips, and trims one Adjustment Layer to that range.
 async function addAdjustmentLayerActionSmokeTest() {
   const transactionActions = [];
   let cloneCreated = false;
@@ -2224,6 +2224,14 @@ async function addAdjustmentLayerActionSmokeTest() {
     getStartTime: async () => ({ seconds: 10 }),
     getEndTime: async () => ({ seconds: 15 })
   };
+  const secondSelectedClip = {
+    // Select a second video clip on a higher track to verify one shared layer spans both clips.
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => false,
+    getTrackIndex: async () => 1,
+    getStartTime: async () => ({ seconds: 20 }),
+    getEndTime: async () => ({ seconds: 35 })
+  };
   const templateLayer = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
@@ -2236,15 +2244,15 @@ async function addAdjustmentLayerActionSmokeTest() {
     getStartTime: async () => ({ seconds: 10 }),
     getEndTime: async () => ({ seconds: 70 }),
     createSetEndAction(endTime) {
-      assert.equal(endTime.seconds, 15);
+      assert.equal(endTime.seconds, 35);
       return { type: "trim" };
     }
   };
   const laterClip = {
-    // Keep later media on V2 to prove a free target range can reuse a non-empty track.
+    // Keep later media on V3 to prove a free target range can reuse a non-empty track.
     createAddVideoTransitionAction() {},
-    getStartTime: async () => ({ seconds: 30 }),
-    getEndTime: async () => ({ seconds: 40 })
+    getStartTime: async () => ({ seconds: 40 }),
+    getEndTime: async () => ({ seconds: 50 })
   };
   const templateSequence = {
     guid: "imported-template-guid",
@@ -2278,7 +2286,7 @@ async function addAdjustmentLayerActionSmokeTest() {
         createCloneTrackItemAction(item, timeOffset, videoOffset, audioOffset, alignToVideo, isInsert) {
           assert.equal(item, templateLayer);
           assert.equal(timeOffset.seconds, 10);
-          assert.equal(videoOffset, 1);
+          assert.equal(videoOffset, 2);
           assert.equal(audioOffset, 0);
           assert.equal(alignToVideo, false);
           assert.equal(isInsert, false);
@@ -2287,9 +2295,9 @@ async function addAdjustmentLayerActionSmokeTest() {
         }
       };
       const activeSequence = {
-        getSelection: async () => ({ getTrackItems: async () => [selectedClip] }),
-        getVideoTrackCount: async () => 2,
-        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 ? (cloneCreated ? [clonedLayer, laterClip] : [laterClip]) : [] }),
+        getSelection: async () => ({ getTrackItems: async () => [selectedClip, secondSelectedClip] }),
+        getVideoTrackCount: async () => 3,
+        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 ? (cloneCreated ? [clonedLayer, laterClip] : [laterClip]) : [] }),
         getPlayerPosition: () => ({ seconds: 10 }),
         setPlayerPosition() { refreshRequested = true; }
       };

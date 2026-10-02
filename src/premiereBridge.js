@@ -849,7 +849,7 @@
     throw new Error("This Action command is not supported by this Tool Bar version.");
   }
 
-  // Add a copied Adjustment Layer above one selected clip or at the playhead when no clip is selected.
+  // Add a copied Adjustment Layer above one or more selected clips, or at the playhead when no clip is selected.
   async function addAdjustmentLayerToSelectedClip(undoLabel, button) {
     const { app, project, sequence, items } = await getSelectedItems(true);
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function" || !app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
@@ -857,20 +857,18 @@
     }
     const videoItems = [];
     for (const item of items) {
-      // Ignore linked audio while requiring one unambiguous video range as the layer's target.
+      // Ignore linked audio and source Adjustment Layers while collecting the target video range.
       if (isVideoItem(item) && !(typeof item.isAdjustmentLayer === "function" && await item.isAdjustmentLayer())) {
         videoItems.push(item);
       }
     }
-    if (videoItems.length > 1) {
-      throw new Error("Select no more than one regular video clip before adding an Adjustment Layer.");
-    }
     const actionOptions = button && button.action ? button.action : {};
     const durationMode = actionOptions.adjustmentDurationMode === "defaultDuration" ? "defaultDuration" : "selectedClip";
     const defaultDurationSeconds = Math.max(0.1, Math.min(36000, Number(actionOptions.adjustmentDefaultDurationSeconds) || 5));
-    const targetTiming = await getAdjustmentTargetTiming(sequence, videoItems[0], durationMode, defaultDurationSeconds);
+    const targetTiming = await getAdjustmentTargetTiming(sequence, videoItems, durationMode, defaultDurationSeconds);
     const minimumTrackIndex = videoItems.length
-      ? (await videoItems[0].getTrackIndex()) + 1
+      // Keep the layer above every selected video track so it affects the entire selected group.
+      ? Math.max.apply(null, await Promise.all(videoItems.map((item) => item.getTrackIndex()))) + 1
       : (await getHighestOccupiedVideoTrackIndex(app, sequence, targetTiming)) + 1;
     const templateFolderName = normalizeTemplateFolderName(actionOptions.adjustmentTemplateFolder);
     const templateSequence = await runTimelineStage("Import Adjustment Layer template", { templateSequenceGuid: ADJUSTMENT_TEMPLATE_SEQUENCE_GUID, templateFolderName }, () => getImportedAdjustmentTemplateSequence(app, project, templateFolderName));
@@ -887,7 +885,7 @@
     // Resolve the fresh clone before trimming it because UXP action objects cannot be retained across transactions.
     const clonedLayer = await findAdjustmentLayerAtTime(app, sequence, targetTrackIndex, targetTiming.startNumber);
     if (!clonedLayer || typeof clonedLayer.createSetEndAction !== "function") {
-      throw new Error("Premiere added the template layer but Tool Bar could not trim it to the selected clip.");
+      throw new Error("Premiere added the template layer but Tool Bar could not trim it to the selected range.");
     }
     executeActions(project, [() => clonedLayer.createSetEndAction(app.TickTime.createWithSeconds(targetTiming.endNumber))], "Tool Bar: Trim Adjustment Layer");
     await refreshSequenceView(sequence);
@@ -899,14 +897,18 @@
     return { targetTrackIndex, startSeconds: targetTiming.startNumber, endSeconds: targetTiming.endNumber, durationMode };
   }
 
-  // Choose either the selected clip range or a fixed-length range anchored at the current playhead.
-  async function getAdjustmentTargetTiming(sequence, selectedVideoItem, durationMode, defaultDurationSeconds) {
-    if (selectedVideoItem && durationMode === "selectedClip") {
-      const selectedTiming = await getTrackItemTiming(selectedVideoItem);
-      if (selectedTiming.startNumber === null || selectedTiming.endNumber === null || selectedTiming.endNumber <= selectedTiming.startNumber) {
+  // Choose the full selected-video range, or a fixed-length range anchored at the current playhead.
+  async function getAdjustmentTargetTiming(sequence, selectedVideoItems, durationMode, defaultDurationSeconds) {
+    if (selectedVideoItems.length && durationMode === "selectedClip") {
+      const selectedTimings = await Promise.all(selectedVideoItems.map((item) => getTrackItemTiming(item)));
+      if (selectedTimings.some((timing) => timing.startNumber === null || timing.endNumber === null || timing.endNumber <= timing.startNumber)) {
         throw new Error("Premiere could not read the selected clip duration.");
       }
-      return selectedTiming;
+      // Span from the earliest selected In point through the latest selected Out point as one layer.
+      return {
+        startNumber: Math.min.apply(null, selectedTimings.map((timing) => timing.startNumber)),
+        endNumber: Math.max.apply(null, selectedTimings.map((timing) => timing.endNumber))
+      };
     }
     if (!sequence || typeof sequence.getPlayerPosition !== "function") {
       throw new Error("Premiere could not read the playhead for the default Adjustment Layer duration.");
