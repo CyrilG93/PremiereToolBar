@@ -2358,6 +2358,101 @@ async function addAdjustmentLayerActionSmokeTest() {
 
 await addAdjustmentLayerActionSmokeTest();
 
+// Verify a template sequence saved in a reopened project is reused without importing a duplicate.
+async function reuseSavedAdjustmentTemplateSequenceSmokeTest() {
+  let cloneCreated = false;
+  let importAttempts = 0;
+  const templateLayer = {
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => true,
+    getStartTime: async () => ({ seconds: 0 }),
+    getEndTime: async () => ({ seconds: 60 })
+  };
+  const clonedLayer = {
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => true,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 70 }),
+    createSetEndAction(endTime) {
+      assert.equal(endTime.seconds, 15);
+      return { type: "trim" };
+    }
+  };
+  const savedTemplateSequence = {
+    // Match the immutable GUID in the bundled project template after Premiere is reopened.
+    guid: "1b632752-01d3-4a0d-aa9f-e418ded759d0",
+    getVideoTrackCount: async () => 1,
+    getVideoTrack: async () => ({ getTrackItems: async () => [templateLayer] })
+  };
+  const selectedClip = {
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => false,
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 15 })
+  };
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const editor = {
+        createCloneTrackItemAction(item, timeOffset, videoOffset) {
+          assert.equal(item, templateLayer);
+          assert.equal(timeOffset.seconds, 10);
+          assert.equal(videoOffset, 1);
+          cloneCreated = true;
+          return { type: "clone" };
+        }
+      };
+      const activeSequence = {
+        getSelection: async () => ({ getTrackItems: async () => [selectedClip] }),
+        getVideoTrackCount: async () => 2,
+        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 && cloneCreated ? [clonedLayer] : [] }),
+        setPlayerPosition() {}
+      };
+      return {
+        Constants: { TrackItemType: { CLIP: 1 } },
+        TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
+        SequenceEditor: { getEditor: () => editor },
+        Project: {
+          getActiveProject: async () => ({
+            guid: "reopened-project",
+            lockedAccess(callback) { callback(); },
+            executeTransaction(callback) {
+              callback({ addAction() {} });
+              return true;
+            },
+            getActiveSequence: async () => activeSequence,
+            getSequences: async () => [savedTemplateSequence],
+            importSequences: async () => {
+              importAttempts += 1;
+              throw new Error("A saved template sequence must be reused before import.");
+            }
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    label: "Adjustment",
+    actionType: "action",
+    // Keep the saved source at the root so the test needs no Project panel mocks.
+    action: { id: "addAdjustmentLayer", adjustmentTemplateFolder: "" }
+  }));
+  assert.equal(importAttempts, 0);
+  assert.equal(cloneCreated, true);
+}
+
+await reuseSavedAdjustmentTemplateSequenceSmokeTest();
+
 // Verify layout Actions use timeline order, track offsets, and horizontal offsets as expected.
 async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, expectedTimeOffsets) {
   const cloneOffsets = [];

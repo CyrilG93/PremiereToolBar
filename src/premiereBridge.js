@@ -971,13 +971,10 @@
     return templateFile.nativePath;
   }
 
-  // Import the source sequence once for each open project and reuse it for subsequent layer insertions.
+  // Import the source sequence once per project, including projects reopened after a Premiere restart.
   async function getImportedAdjustmentTemplateSequence(app, project, templateFolderName) {
-    if (!app || !app.Guid || typeof app.Guid.fromString !== "function") {
-      throw new Error("Premiere UXP does not expose Guid.fromString, required to import the Adjustment Layer template.");
-    }
-    if (!project || typeof project.getSequences !== "function" || typeof project.importSequences !== "function") {
-      throw new Error("Premiere UXP does not expose project sequence import in this build.");
+    if (!project || typeof project.getSequences !== "function") {
+      throw new Error("Premiere UXP does not expose project sequences in this build.");
     }
     const projectKey = getGuidString(project.guid) || String(project.path || "active-project");
     const cachedGuid = adjustmentTemplateSequences[projectKey];
@@ -989,6 +986,20 @@
         return cachedSequence;
       }
       delete adjustmentTemplateSequences[projectKey];
+    }
+    // importSequences preserves the template sequence GUID, so find a prior plugin import before creating a duplicate.
+    const existingTemplateSequence = sequencesBeforeImport.find((sequence) => getGuidString(sequence.guid) === ADJUSTMENT_TEMPLATE_SEQUENCE_GUID);
+    if (existingTemplateSequence) {
+      adjustmentTemplateSequences[projectKey] = getGuidString(existingTemplateSequence.guid);
+      await placeTemplateSequenceInProjectFolder(app, project, existingTemplateSequence, templateFolderName);
+      logBridge("info", "Reusing existing Adjustment Layer template sequence.", { sequenceGuid: adjustmentTemplateSequences[projectKey] });
+      return existingTemplateSequence;
+    }
+    if (!app || !app.Guid || typeof app.Guid.fromString !== "function") {
+      throw new Error("Premiere UXP does not expose Guid.fromString, required to import the Adjustment Layer template.");
+    }
+    if (typeof project.importSequences !== "function") {
+      throw new Error("Premiere UXP does not expose project sequence import in this build.");
     }
     const knownGuids = {};
     sequencesBeforeImport.forEach((sequence) => {

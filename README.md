@@ -95,7 +95,7 @@ Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
 Premiere's UXP API can add native effects, edit exposed parameters, and add video transitions. These areas are still limited for now:
 
 - `Remove Effects` removes registered video effects, including known Transform match-name aliases from existing clips. Text, shape, group, image, and video layers inside Essential Graphics clips are preserved.
-- `Add Adjustment Layer` uses an imported project template and a cloned timeline item because Premiere UXP does not expose direct Adjustment Layer creation.
+- `Add Adjustment Layer` uses an imported project template and a cloned timeline item because Premiere UXP does not expose direct Adjustment Layer creation. The template sequence is recognized and reused after reopening a project, so later clicks do not create duplicates.
 - Premiere UXP does not expose a documented API for creating native Graphic shape layers. The previous MOGRT-based Graphic tool has been removed.
 - Audio transitions are not exposed through a reliable documented UXP action.
 - Moving clips refuse an occupied destination track to avoid overwriting timeline material. Staircase actions are limited to selected video clips; Tower accepts video or audio clips and requires at least two clips. The descending staircase lifts the first clip so it also works from V1.
