@@ -24,6 +24,11 @@
   const AUDIO_TRANSITIONS_ENABLED = false;
   const CENTERED_TRANSITION_ALIGNMENT = 0.5;
   const EFFECT_CLIPBOARD_KEY = "com.cyrilplugin.toolbar.effectClipboard.v1";
+  // Keep the template identity stable because Premiere's importSequences API requires a source sequence GUID.
+  const ADJUSTMENT_TEMPLATE_SEQUENCE_GUID = "1b632752-01d3-4a0d-aa9f-e418ded759d0";
+  const ADJUSTMENT_TEMPLATE_FILE_NAME = "Adjustment Layer.prproj";
+  // Cache imported sequence GUIDs only for this UXP session to avoid duplicate template sequences per click.
+  const adjustmentTemplateSequences = {};
   // Premiere can expose the same registered video effect with older or alternate match names on existing clips.
   const KNOWN_VIDEO_EFFECT_MATCH_ALIASES = [
     {
@@ -793,6 +798,9 @@
     if (button.action.id === "moveVideoClipUp") {
       return moveSelectedVideoClipsBetweenTracks(1, button.label);
     }
+    if (button.action.id === "addAdjustmentLayer") {
+      return addAdjustmentLayerToSelectedClip(button.label);
+    }
     if (button.action.id === "copyClipEffects") {
       return copySelectedClipEffects();
     }
@@ -839,6 +847,136 @@
       return randomizeSelectedTimelineClipOrder(button.label);
     }
     throw new Error("This Action command is not supported by this Tool Bar version.");
+  }
+
+  // Add a copied Adjustment Layer above exactly one selected video clip without replacing timeline media.
+  async function addAdjustmentLayerToSelectedClip(undoLabel) {
+    const { app, project, sequence, items } = await getSelectedItems();
+    if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function" || !app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
+      throw new Error("Premiere UXP does not expose the timeline APIs needed to add an Adjustment Layer.");
+    }
+    const videoItems = [];
+    for (const item of items) {
+      // Ignore linked audio while requiring one unambiguous video range as the layer's target.
+      if (isVideoItem(item) && !(typeof item.isAdjustmentLayer === "function" && await item.isAdjustmentLayer())) {
+        videoItems.push(item);
+      }
+    }
+    if (videoItems.length !== 1) {
+      throw new Error("Select exactly one regular video clip before adding an Adjustment Layer.");
+    }
+    const targetTiming = await getTrackItemTiming(videoItems[0]);
+    if (targetTiming.startNumber === null || targetTiming.endNumber === null || targetTiming.endNumber <= targetTiming.startNumber) {
+      throw new Error("Premiere could not read the selected clip duration.");
+    }
+    const templateSequence = await getImportedAdjustmentTemplateSequence(project);
+    const templateLayer = await findTemplateAdjustmentLayer(app, templateSequence);
+    if (!templateLayer || templateLayer.timing.startNumber === null || typeof templateLayer.sourceTrackIndex !== "number") {
+      throw new Error("The imported Tool Bar template does not contain a readable Adjustment Layer.");
+    }
+    // Target a newly-created top track so the template's initial duration cannot overwrite existing edits.
+    const targetTrackIndex = await sequence.getVideoTrackCount();
+    const editor = app.SequenceEditor.getEditor(sequence);
+    const timeOffset = app.TickTime.createWithSeconds(targetTiming.startNumber - templateLayer.timing.startNumber);
+    executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
+
+    // Resolve the fresh clone before trimming it because UXP action objects cannot be retained across transactions.
+    const clonedLayer = await findAdjustmentLayerAtTime(app, sequence, targetTrackIndex, targetTiming.startNumber);
+    if (!clonedLayer || typeof clonedLayer.createSetEndAction !== "function") {
+      throw new Error("Premiere added the template layer but Tool Bar could not trim it to the selected clip.");
+    }
+    executeActions(project, [() => clonedLayer.createSetEndAction(app.TickTime.createWithSeconds(targetTiming.endNumber))], "Tool Bar: Trim Adjustment Layer");
+    await refreshSequenceView(sequence);
+    logBridge("info", "Added and trimmed Adjustment Layer.", {
+      targetTrackIndex,
+      startSeconds: targetTiming.startNumber,
+      endSeconds: targetTiming.endNumber
+    });
+    return { targetTrackIndex, startSeconds: targetTiming.startNumber, endSeconds: targetTiming.endNumber };
+  }
+
+  // Resolve the absolute path of the read-only project template shipped inside the plugin bundle.
+  async function getAdjustmentTemplatePath() {
+    let uxp = null;
+    try {
+      uxp = require("uxp");
+    } catch (error) {
+      throw new Error("UXP file access is unavailable, so Tool Bar cannot read its Adjustment Layer template.");
+    }
+    const localFileSystem = uxp && uxp.storage && uxp.storage.localFileSystem;
+    if (!localFileSystem || typeof localFileSystem.getPluginFolder !== "function") {
+      throw new Error("UXP does not expose the Tool Bar plugin folder.");
+    }
+    const pluginFolder = await localFileSystem.getPluginFolder();
+    const assetsFolder = await pluginFolder.getEntry("assets");
+    const templatesFolder = await assetsFolder.getEntry("Templates");
+    const templateFile = await templatesFolder.getEntry(ADJUSTMENT_TEMPLATE_FILE_NAME);
+    if (!templateFile || !templateFile.nativePath) {
+      throw new Error("Tool Bar could not resolve its bundled Adjustment Layer template path.");
+    }
+    return templateFile.nativePath;
+  }
+
+  // Import the source sequence once for each open project and reuse it for subsequent layer insertions.
+  async function getImportedAdjustmentTemplateSequence(project) {
+    if (!project || typeof project.getSequences !== "function" || typeof project.importSequences !== "function") {
+      throw new Error("Premiere UXP does not expose project sequence import in this build.");
+    }
+    const projectKey = String(project.guid || project.path || "active-project");
+    const cachedGuid = adjustmentTemplateSequences[projectKey];
+    const sequencesBeforeImport = await project.getSequences();
+    if (cachedGuid) {
+      const cachedSequence = sequencesBeforeImport.find((sequence) => String(sequence.guid || "") === cachedGuid);
+      if (cachedSequence) {
+        return cachedSequence;
+      }
+      delete adjustmentTemplateSequences[projectKey];
+    }
+    const knownGuids = {};
+    sequencesBeforeImport.forEach((sequence) => {
+      knownGuids[String(sequence.guid || "")] = true;
+    });
+    const templatePath = await getAdjustmentTemplatePath();
+    const imported = await project.importSequences(templatePath, [ADJUSTMENT_TEMPLATE_SEQUENCE_GUID]);
+    if (!imported) {
+      throw new Error("Premiere could not import Tool Bar's Adjustment Layer template project.");
+    }
+    const sequencesAfterImport = await project.getSequences();
+    const importedSequence = sequencesAfterImport.find((sequence) => !knownGuids[String(sequence.guid || "")]);
+    if (!importedSequence || !importedSequence.guid) {
+      throw new Error("Premiere imported the template project but did not expose its sequence.");
+    }
+    adjustmentTemplateSequences[projectKey] = String(importedSequence.guid);
+    logBridge("info", "Imported Adjustment Layer template sequence.", { templatePath, sequenceGuid: importedSequence.guid });
+    return importedSequence;
+  }
+
+  // Scan the imported sequence instead of assuming a track index, keeping the template editable in Premiere.
+  async function findTemplateAdjustmentLayer(app, templateSequence) {
+    const trackCount = templateSequence && typeof templateSequence.getVideoTrackCount === "function"
+      ? await templateSequence.getVideoTrackCount()
+      : 0;
+    for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+      const clips = await getTrackClips(app, templateSequence, "video", trackIndex);
+      for (const item of clips) {
+        if (typeof item.isAdjustmentLayer === "function" && await item.isAdjustmentLayer()) {
+          return { item, sourceTrackIndex: trackIndex, timing: await getTrackItemTiming(item) };
+        }
+      }
+    }
+    return null;
+  }
+
+  // Find the clone on its dedicated new track by its target start time before applying the trim action.
+  async function findAdjustmentLayerAtTime(app, sequence, trackIndex, startSeconds) {
+    const clips = await getTrackClips(app, sequence, "video", trackIndex);
+    for (const item of clips) {
+      const timing = await getTrackItemTiming(item);
+      if (typeof item.isAdjustmentLayer === "function" && await item.isAdjustmentLayer() && nearlyEqualTime(timing.startNumber, startSeconds)) {
+        return item;
+      }
+    }
+    return null;
   }
 
   // Set the Project panel label for the media behind selected timeline clips; every occurrence of that media follows.

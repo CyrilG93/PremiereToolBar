@@ -2236,6 +2236,7 @@
     if (button.actionType === "action") {
       // Keep all built-in editing commands together in alphabetical user-facing order.
       const actionField = selectField(root.PTB_I18N.t("actionAction"), button.action.id, [
+        { value: "addAdjustmentLayer", label: root.PTB_I18N.t("actionAddAdjustmentLayer") },
         { value: "extendClipInToPlayhead", label: root.PTB_I18N.t("actionExtendClipInToPlayhead") },
         { value: "extendClipOutToPlayhead", label: root.PTB_I18N.t("actionExtendClipOutToPlayhead") },
         { value: "copyClipEffects", label: root.PTB_I18N.t("toolCopyClipEffects") },
@@ -2260,6 +2261,8 @@
       wrap.appendChild(actionField);
       const helpKey = button.action.id === "towerOffsetVideoClips"
         ? "actionTowerOffsetVideoClipsHelp"
+        : (button.action.id === "addAdjustmentLayer"
+          ? "actionAddAdjustmentLayerHelp"
         : (button.action.id === "towerVideoClips" || button.action.id === "reverseTowerVideoClips"
         ? "actionTowerVideoClipsHelp"
         : (button.action.id === "randomizeTimelineClipOrder"
@@ -2276,7 +2279,7 @@
             ? "actionExtendClipToPlayheadHelp"
             : (button.action.id === "invertTimelineSelection"
               ? "actionInvertTimelineSelectionHelp"
-              : "actionMoveVideoClipHelp"))))))));
+              : "actionMoveVideoClipHelp")))))))));
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(helpKey)));
       if (button.action.id === "removeClipEffects") {
         wrap.appendChild(renderRemoveEffectsOptions(button));

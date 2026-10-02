@@ -58,6 +58,8 @@
     action: "Action",
     toolAction: "Tools",
     actionAction: "Actions",
+    actionAddAdjustmentLayer: "Add Adjustment Layer (Experimental)",
+    actionAddAdjustmentLayerHelp: "Imports Tool Bar's bundled adjustment-layer template once per project, then adds a trimmed copy above the selected video clip. The imported template sequence remains in the Project panel.",
     actionMoveVideoClipUp: "Move Video Clip Up",
     actionMoveVideoClipDown: "Move Video Clip Down",
     actionMoveVideoClipHelp: "Moves selected video clips to the first free video track up or down. Linked audio is not moved.",

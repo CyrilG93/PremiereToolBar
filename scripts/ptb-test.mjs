@@ -2210,6 +2210,121 @@ async function moveVideoClipActionSmokeTest() {
 
 await moveVideoClipActionSmokeTest();
 
+// Verify the experimental action imports the bundled sequence, clones its Adjustment Layer, and trims it to one selected clip.
+async function addAdjustmentLayerActionSmokeTest() {
+  const transactionActions = [];
+  let cloneCreated = false;
+  let importedTemplate = false;
+  let refreshRequested = false;
+  const selectedClip = {
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => false,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 15 })
+  };
+  const templateLayer = {
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => true,
+    getStartTime: async () => ({ seconds: 0 }),
+    getEndTime: async () => ({ seconds: 60 })
+  };
+  const clonedLayer = {
+    createAddVideoTransitionAction() {},
+    isAdjustmentLayer: async () => true,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 70 }),
+    createSetEndAction(endTime) {
+      assert.equal(endTime.seconds, 15);
+      return { type: "trim" };
+    }
+  };
+  const templateSequence = {
+    guid: "imported-template-guid",
+    getVideoTrackCount: async () => 1,
+    getVideoTrack: async () => ({ getTrackItems: async () => [templateLayer] })
+  };
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name === "uxp") {
+        return {
+          storage: {
+            localFileSystem: {
+              getPluginFolder: async () => ({
+                getEntry: async (entryName) => entryName === "assets"
+                  ? { getEntry: async () => ({ getEntry: async () => ({ nativePath: "/plugin/assets/Templates/Adjustment Layer.prproj" }) }) }
+                  : null
+              })
+            }
+          }
+        };
+      }
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const editor = {
+        createCloneTrackItemAction(item, timeOffset, videoOffset, audioOffset, alignToVideo, isInsert) {
+          assert.equal(item, templateLayer);
+          assert.equal(timeOffset.seconds, 10);
+          assert.equal(videoOffset, 2);
+          assert.equal(audioOffset, 0);
+          assert.equal(alignToVideo, false);
+          assert.equal(isInsert, false);
+          cloneCreated = true;
+          return { type: "clone" };
+        }
+      };
+      const activeSequence = {
+        getSelection: async () => ({ getTrackItems: async () => [selectedClip] }),
+        getVideoTrackCount: async () => 2,
+        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 && cloneCreated ? [clonedLayer] : [] }),
+        getPlayerPosition: () => ({ seconds: 10 }),
+        setPlayerPosition() { refreshRequested = true; }
+      };
+      return {
+        Constants: { TrackItemType: { CLIP: 1 } },
+        TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
+        SequenceEditor: { getEditor: () => editor },
+        Project: {
+          getActiveProject: async () => ({
+            guid: "destination-project",
+            lockedAccess(callback) { callback(); },
+            executeTransaction(callback) {
+              callback({ addAction(action) { transactionActions.push(action.type); } });
+              return true;
+            },
+            getActiveSequence: async () => activeSequence,
+            getSequences: async () => importedTemplate ? [templateSequence] : [],
+            importSequences: async (projectPath, sequenceGuids) => {
+              assert.equal(projectPath, "/plugin/assets/Templates/Adjustment Layer.prproj");
+              // Compare the cross-context array by value because the bridge runs in a VM realm.
+              assert.equal(Array.from(sequenceGuids).join(","), "1b632752-01d3-4a0d-aa9f-e418ded759d0");
+              importedTemplate = true;
+              return true;
+            }
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  await context.PTB_PREMIERE.applyButton(schema.createButton({
+    label: "Adjustment",
+    actionType: "action",
+    action: { id: "addAdjustmentLayer" }
+  }));
+  assert.deepEqual(transactionActions, ["clone", "trim"]);
+  assert.equal(importedTemplate, true);
+  assert.equal(refreshRequested, true);
+}
+
+await addAdjustmentLayerActionSmokeTest();
+
 // Verify layout Actions use timeline order, track offsets, and horizontal offsets as expected.
 async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, expectedTimeOffsets) {
   const cloneOffsets = [];
