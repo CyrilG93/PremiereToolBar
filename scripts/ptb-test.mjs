@@ -2240,7 +2240,8 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
     getStartTime: async () => ({ seconds: 0 }),
-    getEndTime: async () => ({ seconds: 60 })
+    // Match the one-second bundled Adjustment Layer source.
+    getEndTime: async () => ({ seconds: 1 })
   };
   const scaleParam = {
     createKeyframe(value) {
@@ -2258,7 +2259,7 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => true,
     getStartTime: async () => ({ seconds: 10 }),
-    getEndTime: async () => ({ seconds: 70 }),
+    getEndTime: async () => ({ seconds: 11 }),
     createSetEndAction(endTime) {
       assert.equal(endTime.seconds, 35);
       return { type: "trim" };
@@ -2273,7 +2274,7 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
     })
   };
   const laterClip = {
-    // Keep later media on V3 so the full 60-second temporary clone must choose V4 instead.
+    // Keep later media on V3; it is safely outside the one-second source layer and requested 10-35 range.
     createAddVideoTransitionAction() {},
     getStartTime: async () => ({ seconds: 40 }),
     getEndTime: async () => ({ seconds: 50 })
@@ -2311,7 +2312,7 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
         createCloneTrackItemAction(item, timeOffset, videoOffset, audioOffset, alignToVideo, isInsert) {
           assert.equal(item, templateLayer);
           assert.equal(timeOffset.seconds, 10);
-          assert.equal(videoOffset, 3);
+          assert.equal(videoOffset, 2);
           assert.equal(audioOffset, 0);
           assert.equal(alignToVideo, false);
           assert.equal(isInsert, false);
@@ -2322,7 +2323,7 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
       const activeSequence = {
         getSelection: async () => ({ getTrackItems: async () => [selectedClip, secondSelectedClip] }),
         getVideoTrackCount: async () => 4,
-        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 ? [laterClip] : (index === 3 && cloneCreated ? [clonedLayer] : []) }),
+        getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 ? (cloneCreated ? [laterClip, clonedLayer] : [laterClip]) : [] }),
         getFrameSize: async () => ({ width: 3840, height: 2160 }),
         // Start away from the selection to verify the clone temporarily targets the selected range.
         getPlayerPosition: () => ({ seconds: playerPosition }),
