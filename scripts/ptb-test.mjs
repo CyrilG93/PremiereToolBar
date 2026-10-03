@@ -2273,7 +2273,7 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
     })
   };
   const laterClip = {
-    // Keep later media on V3; Premiere will simulate skipping this locked destination to V4.
+    // Keep later media on V3 so the full 60-second temporary clone must choose V4 instead.
     createAddVideoTransitionAction() {},
     getStartTime: async () => ({ seconds: 40 }),
     getEndTime: async () => ({ seconds: 50 })
@@ -2311,7 +2311,7 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
         createCloneTrackItemAction(item, timeOffset, videoOffset, audioOffset, alignToVideo, isInsert) {
           assert.equal(item, templateLayer);
           assert.equal(timeOffset.seconds, 10);
-          assert.equal(videoOffset, 2);
+          assert.equal(videoOffset, 3);
           assert.equal(audioOffset, 0);
           assert.equal(alignToVideo, false);
           assert.equal(isInsert, false);

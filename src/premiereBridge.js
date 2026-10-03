@@ -880,11 +880,16 @@
     const templateFolderName = normalizeTemplateFolderName(actionOptions.adjustmentTemplateFolder);
     const templateSequence = await runTimelineStage("Import Adjustment Layer template", { templateSequenceGuid: ADJUSTMENT_TEMPLATE_SEQUENCE_GUID, templateFolderName }, () => getImportedAdjustmentTemplateSequence(app, project, templateFolderName));
     const templateLayer = await findTemplateAdjustmentLayer(app, templateSequence);
-    if (!templateLayer || templateLayer.timing.startNumber === null || typeof templateLayer.sourceTrackIndex !== "number") {
+    if (!templateLayer || templateLayer.timing.startNumber === null || templateLayer.timing.endNumber === null || templateLayer.timing.endNumber <= templateLayer.timing.startNumber || typeof templateLayer.sourceTrackIndex !== "number") {
       throw new Error("The imported Tool Bar template does not contain a readable Adjustment Layer.");
     }
-    // Reuse the first track whose target range is free; source layers are ten seconds long before their immediate trim.
-    const targetTrackIndex = await findFirstFreeVideoTrackAtOrAbove(app, sequence, minimumTrackIndex, targetTiming);
+    const templateDurationSeconds = templateLayer.timing.endNumber - templateLayer.timing.startNumber;
+    // Guard the full source duration because Premiere overwrites it before the following trim action runs.
+    const temporaryCloneTiming = {
+      startNumber: targetTiming.startNumber,
+      endNumber: targetTiming.startNumber + templateDurationSeconds
+    };
+    const targetTrackIndex = await findFirstFreeVideoTrackAtOrAbove(app, sequence, minimumTrackIndex, temporaryCloneTiming);
     // Compute a cover scale from the source template dimensions to the active sequence dimensions.
     const scalePercent = await getAdjustmentLayerCoverScalePercent(sequence, templateSequence);
     const editor = app.SequenceEditor.getEditor(sequence);
@@ -1008,12 +1013,12 @@
     return highestIndex;
   }
 
-  // Find the first track free over the exact requested range, allowing clips that sit safely before or after it.
-  async function findFirstFreeVideoTrackAtOrAbove(app, sequence, minimumTrackIndex, targetTiming) {
+  // Find the first track free throughout a clone operation, preventing its temporary source duration from overwriting later clips.
+  async function findFirstFreeVideoTrackAtOrAbove(app, sequence, minimumTrackIndex, cloneTiming) {
     const trackCount = await sequence.getVideoTrackCount();
     for (let trackIndex = Math.max(0, minimumTrackIndex); trackIndex < trackCount; trackIndex += 1) {
       const clips = await getTrackClips(app, sequence, "video", trackIndex);
-      const hasOverlap = (await Promise.all(clips.map((clip) => getTrackItemTiming(clip)))).some((clipTiming) => itemsOverlapOrTouchingRange(targetTiming, clipTiming));
+      const hasOverlap = (await Promise.all(clips.map((clip) => getTrackItemTiming(clip)))).some((clipTiming) => itemsOverlapOrTouchingRange(cloneTiming, clipTiming));
       if (!hasOverlap) {
         return trackIndex;
       }
