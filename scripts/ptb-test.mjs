@@ -2217,6 +2217,8 @@ async function addAdjustmentLayerActionSmokeTest() {
   let importedTemplate = false;
   let templateFolderCreated = false;
   let refreshRequested = false;
+  const playerPositions = [];
+  let playerPosition = 80;
   const selectedClip = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => false,
@@ -2320,8 +2322,13 @@ async function addAdjustmentLayerActionSmokeTest() {
         getVideoTrackCount: async () => 4,
         getVideoTrack: async (index) => ({ getTrackItems: async () => index === 2 ? [laterClip] : (index === 3 && cloneCreated ? [clonedLayer] : []) }),
         getFrameSize: async () => ({ width: 3840, height: 2160 }),
-        getPlayerPosition: () => ({ seconds: 10 }),
-        setPlayerPosition() { refreshRequested = true; }
+        // Start away from the selection to verify the clone temporarily targets the selected range.
+        getPlayerPosition: () => ({ seconds: playerPosition }),
+        setPlayerPosition(time) {
+          playerPosition = time.seconds;
+          playerPositions.push(playerPosition);
+          refreshRequested = true;
+        }
       };
       return {
         Constants: { TrackItemType: { CLIP: 1 }, ProjectItemType: { BIN: "bin" } },
@@ -2334,7 +2341,15 @@ async function addAdjustmentLayerActionSmokeTest() {
             guid: "destination-project",
             lockedAccess(callback) { callback(); },
             executeTransaction(callback) {
-              callback({ addAction(action) { transactionActions.push(action.type); } });
+              callback({
+                addAction(action) {
+                  // Keep the target active while Premiere resolves and trims the newly cloned layer.
+                  if (action.type === "trim" || action.type === "scale") {
+                    assert.equal(playerPosition, 10);
+                  }
+                  transactionActions.push(action.type);
+                }
+              });
               return true;
             },
             getActiveSequence: async () => activeSequence,
@@ -2375,6 +2390,7 @@ async function addAdjustmentLayerActionSmokeTest() {
   }));
   assert.deepEqual(transactionActions, ["create-bin", "move-template", "clone", "trim", "scale"]);
   assert.equal(importedTemplate, true);
+  assert.deepEqual(playerPositions.slice(0, 2), [10, 80]);
   assert.equal(refreshRequested, true);
 }
 

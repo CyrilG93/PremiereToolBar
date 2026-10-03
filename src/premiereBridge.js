@@ -882,23 +882,44 @@
     const scalePercent = await getAdjustmentLayerCoverScalePercent(sequence, templateSequence);
     const editor = app.SequenceEditor.getEditor(sequence);
     const timeOffset = app.TickTime.createWithSeconds(targetTiming.startNumber - templateLayer.timing.startNumber);
-    executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
+    const canPositionPlayer = typeof sequence.getPlayerPosition === "function" && typeof sequence.setPlayerPosition === "function";
+    const originalPlayerPosition = canPositionPlayer ? timeToNumber(await sequence.getPlayerPosition()) : null;
+    const shouldRestorePlayerPosition = canPositionPlayer && originalPlayerPosition !== null && !nearlyEqualTime(originalPlayerPosition, targetTiming.startNumber);
+    let clonedLayerInfo = null;
+    try {
+      if (shouldRestorePlayerPosition) {
+        // Premiere only clones this imported template reliably when its player is on the destination range.
+        await sequence.setPlayerPosition(app.TickTime.createWithSeconds(targetTiming.startNumber));
+      }
+      executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
 
-    // Resolve the fresh clone before trimming it because UXP action objects cannot be retained across transactions.
-    const clonedLayerInfo = await findAdjustmentLayerAtOrAboveTime(app, sequence, targetTrackIndex, targetTiming.startNumber);
-    const clonedLayer = clonedLayerInfo && clonedLayerInfo.item;
-    if (!clonedLayer || typeof clonedLayer.createSetEndAction !== "function") {
-      throw new Error("Premiere added the template layer but Tool Bar could not trim it to the selected range.");
+      // Keep Premiere on the target range until the clone has been resolved and updated.
+      clonedLayerInfo = await findAdjustmentLayerAtOrAboveTime(app, sequence, targetTrackIndex, targetTiming.startNumber);
+      const clonedLayer = clonedLayerInfo && clonedLayerInfo.item;
+      if (!clonedLayer || typeof clonedLayer.createSetEndAction !== "function") {
+        throw new Error("Premiere added the template layer but Tool Bar could not trim it to the selected range.");
+      }
+      const scaleParam = await findAdjustmentLayerScaleParameter(clonedLayer);
+      if (!scaleParam) {
+        throw new Error("Premiere added the template layer but Tool Bar could not set its Scale to cover this sequence.");
+      }
+      executeActions(project, [
+        () => clonedLayer.createSetEndAction(app.TickTime.createWithSeconds(targetTiming.endNumber)),
+        // Construct the keyframe and its action inside the transaction to keep UXP proxies valid.
+        () => scaleParam.createSetValueAction(scaleParam.createKeyframe(scalePercent), true)
+      ], "Tool Bar: Trim and Scale Adjustment Layer");
+    } finally {
+      if (shouldRestorePlayerPosition) {
+        // Restore the editor position immediately so the command never leaves the user at the selected clip.
+        try {
+          await sequence.setPlayerPosition(app.TickTime.createWithSeconds(originalPlayerPosition));
+        } catch (error) {
+          // Do not hide the clone failure if Premiere refuses this best-effort cleanup.
+          logBridge("warn", "Could not restore the Adjustment Layer playhead position.", { error: String(error && error.message || error) });
+        }
+      }
     }
-    const scaleParam = await findAdjustmentLayerScaleParameter(clonedLayer);
-    if (!scaleParam) {
-      throw new Error("Premiere added the template layer but Tool Bar could not set its Scale to cover this sequence.");
-    }
-    executeActions(project, [
-      () => clonedLayer.createSetEndAction(app.TickTime.createWithSeconds(targetTiming.endNumber)),
-      // Construct the keyframe and its action inside the transaction to keep UXP proxies valid.
-      () => scaleParam.createSetValueAction(scaleParam.createKeyframe(scalePercent), true)
-    ], "Tool Bar: Trim and Scale Adjustment Layer");
+
     await refreshSequenceView(sequence);
     logBridge("info", "Added and trimmed Adjustment Layer.", {
       targetTrackIndex: clonedLayerInfo.trackIndex,
