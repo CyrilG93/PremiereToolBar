@@ -59,7 +59,7 @@
     toolAction: "Tools",
     actionAction: "Actions",
     actionAddAdjustmentLayer: "Add Adjustment Layer",
-    actionAddAdjustmentLayerHelp: "Imports Tool Bar's bundled adjustment-layer template once per project. The first import can take a few seconds; subsequent uses are immediate. A selected clip range is used even when the playhead is elsewhere. The layer is automatically scaled to cover the full active sequence, whatever its resolution. Locked video tracks are skipped. It uses the first video-track range free above the target and keeps the reusable template sequence in the selected Project panel folder.",
+    actionAddAdjustmentLayerHelp: "Imports Tool Bar's bundled adjustment-layer template once per project. The first import can take a few seconds; subsequent uses are immediate. A selected clip range is used even when the playhead is elsewhere; a playhead already inside that range is left in place. The layer is automatically scaled to cover the full active sequence, whatever its resolution. Locked video tracks are skipped. It uses the first video-track range free above the target and keeps the reusable template sequence in the selected Project panel folder.",
     actionAdjustmentDurationMode: "Layer Duration",
     actionAdjustmentDurationSelectedClip: "Selected Clip Duration",
     actionAdjustmentDurationDefault: "Default Duration",

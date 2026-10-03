@@ -2211,14 +2211,16 @@ async function moveVideoClipActionSmokeTest() {
 await moveVideoClipActionSmokeTest();
 
 // Verify the action imports the bundled sequence, spans multiple selected clips, and trims one Adjustment Layer to that range.
-async function addAdjustmentLayerActionSmokeTest() {
+async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expectedPlayerPositions) {
   const transactionActions = [];
   let cloneCreated = false;
   let importedTemplate = false;
   let templateFolderCreated = false;
   let refreshRequested = false;
   const playerPositions = [];
-  let playerPosition = 80;
+  let playerPosition = initialPlayerPosition;
+  // The clone may use any player position already within the 10-35 second selected range.
+  const expectedPlayerPositionDuringEdit = initialPlayerPosition >= 10 && initialPlayerPosition <= 35 ? initialPlayerPosition : 10;
   const selectedClip = {
     createAddVideoTransitionAction() {},
     isAdjustmentLayer: async () => false,
@@ -2345,7 +2347,7 @@ async function addAdjustmentLayerActionSmokeTest() {
                 addAction(action) {
                   // Keep the target active while Premiere resolves and trims the newly cloned layer.
                   if (action.type === "trim" || action.type === "scale") {
-                    assert.equal(playerPosition, 10);
+                    assert.equal(playerPosition, expectedPlayerPositionDuringEdit);
                   }
                   transactionActions.push(action.type);
                 }
@@ -2390,11 +2392,14 @@ async function addAdjustmentLayerActionSmokeTest() {
   }));
   assert.deepEqual(transactionActions, ["create-bin", "move-template", "clone", "trim", "scale"]);
   assert.equal(importedTemplate, true);
-  assert.deepEqual(playerPositions.slice(0, 2), [10, 80]);
+  assert.deepEqual(playerPositions, expectedPlayerPositions);
   assert.equal(refreshRequested, true);
 }
 
-await addAdjustmentLayerActionSmokeTest();
+// Move to the target range only when the playhead is outside it, then restore its original position.
+await addAdjustmentLayerActionSmokeTest(80, [10, 80, 80]);
+// Keep an in-range playhead untouched instead of snapping it to the earliest selected clip.
+await addAdjustmentLayerActionSmokeTest(22, [22]);
 
 // Verify a template sequence saved in a reopened project is reused without importing a duplicate.
 async function reuseSavedAdjustmentTemplateSequenceSmokeTest() {

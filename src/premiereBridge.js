@@ -428,6 +428,13 @@
     return Math.abs(Number(left) - Number(right)) < 0.0001;
   }
 
+  // Keep the current player position when it already lies within the requested timeline span.
+  function isTimeWithinRange(time, timing) {
+    const tolerance = 0.0001;
+    return time !== null && timing && typeof timing.startNumber === "number" && typeof timing.endNumber === "number"
+      && Number(time) >= timing.startNumber - tolerance && Number(time) <= timing.endNumber + tolerance;
+  }
+
   // Read a track item's start/end/track details for edit-point matching.
   async function getTrackItemTiming(item) {
     const startTime = await readOptionalMethod(item, "getStartTime", null);
@@ -884,11 +891,11 @@
     const timeOffset = app.TickTime.createWithSeconds(targetTiming.startNumber - templateLayer.timing.startNumber);
     const canPositionPlayer = typeof sequence.getPlayerPosition === "function" && typeof sequence.setPlayerPosition === "function";
     const originalPlayerPosition = canPositionPlayer ? timeToNumber(await sequence.getPlayerPosition()) : null;
-    const shouldRestorePlayerPosition = canPositionPlayer && originalPlayerPosition !== null && !nearlyEqualTime(originalPlayerPosition, targetTiming.startNumber);
+    const shouldTemporarilyPositionPlayer = canPositionPlayer && originalPlayerPosition !== null && !isTimeWithinRange(originalPlayerPosition, targetTiming);
     let clonedLayerInfo = null;
     try {
-      if (shouldRestorePlayerPosition) {
-        // Premiere only clones this imported template reliably when its player is on the destination range.
+      if (shouldTemporarilyPositionPlayer) {
+        // Premiere only clones this imported template reliably when its player is outside the destination range.
         await sequence.setPlayerPosition(app.TickTime.createWithSeconds(targetTiming.startNumber));
       }
       executeActions(project, [() => editor.createCloneTrackItemAction(templateLayer.item, timeOffset, targetTrackIndex - templateLayer.sourceTrackIndex, 0, false, false)], "Tool Bar: " + (undoLabel || "Add Adjustment Layer"));
@@ -909,7 +916,7 @@
         () => scaleParam.createSetValueAction(scaleParam.createKeyframe(scalePercent), true)
       ], "Tool Bar: Trim and Scale Adjustment Layer");
     } finally {
-      if (shouldRestorePlayerPosition) {
+      if (shouldTemporarilyPositionPlayer) {
         // Restore the editor position immediately so the command never leaves the user at the selected clip.
         try {
           await sequence.setPlayerPosition(app.TickTime.createWithSeconds(originalPlayerPosition));
