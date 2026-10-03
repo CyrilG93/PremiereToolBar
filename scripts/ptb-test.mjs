@@ -3,10 +3,16 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 import schema from "../src/schema.js";
 
 // Resolve project files from this test script location.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+// Keep the bundled project template aligned with the GUID imported by the Adjustment Layer action.
+const adjustmentTemplateXml = gunzipSync(fs.readFileSync(path.join(repoRoot, "assets", "Templates", "Adjustment Layer.prproj"))).toString("utf8");
+assert.ok(adjustmentTemplateXml.includes('Sequence ObjectUID="e781e9b4-4f51-4b8c-82ce-590c70e50e8a"'));
+assert.ok(adjustmentTemplateXml.includes("<IsAdjustmentLayer>true</IsAdjustmentLayer>"));
 
 // Verify the first-run configuration always contains four dockable bars and the bundled Base Effects collection.
 const defaultConfig = schema.createDefaultConfig();
@@ -2374,7 +2380,7 @@ async function addAdjustmentLayerActionSmokeTest(initialPlayerPosition, expected
             importSequences: async (projectPath, sequenceGuids) => {
               assert.equal(projectPath, "/plugin/assets/Templates/Adjustment Layer.prproj");
               // Compare the cross-context array by value because the bridge runs in a VM realm.
-              assert.equal(Array.from(sequenceGuids).map((guid) => guid.toString()).join(","), "1b632752-01d3-4a0d-aa9f-e418ded759d0");
+              assert.equal(Array.from(sequenceGuids).map((guid) => guid.toString()).join(","), "e781e9b4-4f51-4b8c-82ce-590c70e50e8a");
               importedTemplate = true;
               return true;
             }
@@ -2436,7 +2442,7 @@ async function reuseSavedAdjustmentTemplateSequenceSmokeTest() {
   };
   const savedTemplateSequence = {
     // Match the immutable GUID in the bundled project template after Premiere is reopened.
-    guid: "1b632752-01d3-4a0d-aa9f-e418ded759d0",
+    guid: "e781e9b4-4f51-4b8c-82ce-590c70e50e8a",
     getVideoTrackCount: async () => 1,
     getVideoTrack: async () => ({ getTrackItems: async () => [templateLayer] })
   };

@@ -25,7 +25,8 @@
   const CENTERED_TRANSITION_ALIGNMENT = 0.5;
   const EFFECT_CLIPBOARD_KEY = "com.cyrilplugin.toolbar.effectClipboard.v1";
   // Keep the template identity stable because Premiere's importSequences API requires a source sequence GUID.
-  const ADJUSTMENT_TEMPLATE_SEQUENCE_GUID = "1b632752-01d3-4a0d-aa9f-e418ded759d0";
+  // Version the source sequence GUID so projects with a malformed older import recover automatically.
+  const ADJUSTMENT_TEMPLATE_SEQUENCE_GUID = "e781e9b4-4f51-4b8c-82ce-590c70e50e8a";
   const ADJUSTMENT_TEMPLATE_FILE_NAME = "Adjustment Layer.prproj";
   // Cache imported sequence GUIDs only for this UXP session to avoid duplicate template sequences per click.
   const adjustmentTemplateSequences = {};
