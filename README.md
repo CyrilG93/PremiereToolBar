@@ -114,7 +114,7 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 ### 1.3.0 - 2026-10-05
 
 - Added an Adjustment Layer action that creates a layer over the selected clips or at the playhead.
-- Improved Adjustment Layer placement, sizing, template reuse, and behavior around locked tracks.
+- Button name show up to 4 letter (was 3).
 
 ### 1.2.0 - 2026-09-28
 
