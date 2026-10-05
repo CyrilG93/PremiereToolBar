@@ -19,7 +19,7 @@ Tool Bar automatically follows Premiere Pro's Light, Dark, and Darkest interface
 3. Double-click the `.ccx` file in the unzipped folder, for example:
 
 ```text
-ToolBar-1.2.0.ccx
+ToolBar-1.3.0.ccx
 ```
 
 Creative Cloud Desktop should open Adobe's installer. Accept the installation, then reopen Premiere Pro.
@@ -110,6 +110,11 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 - Script buttons can store `.jsx` source, but direct script execution is not currently available through a documented Premiere UXP API.
 
 ## Changelog
+
+### 1.3.0 - 2026-10-05
+
+- Added an Adjustment Layer action that creates a layer over the selected clips or at the playhead.
+- Improved Adjustment Layer placement, sizing, template reuse, and behavior around locked tracks.
 
 ### 1.2.0 - 2026-09-28
 
