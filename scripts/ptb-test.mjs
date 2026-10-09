@@ -1815,7 +1815,8 @@ async function captureSelectedTransitionPresetSmokeTest() {
     getName: async () => "Cross Dissolve",
     getMatchName: async () => "AE.ADBE Cross Dissolve",
     getType: async () => 2,
-    getTrackIndex: async () => 0,
+    // Simulate Premiere returning an item index that differs from its internal track-enumeration order.
+    getTrackIndex: async () => 1,
     getStartTime: async () => ({ seconds: 9.5 }),
     getEndTime: async () => ({ seconds: 10.5 }),
     getInPoint: async () => ({ seconds: 0 }),
@@ -1832,7 +1833,7 @@ async function captureSelectedTransitionPresetSmokeTest() {
   };
   const followingClip = {
     getType: async () => 1,
-    getTrackIndex: async () => 0,
+    getTrackIndex: async () => 1,
     getStartTime: async () => ({ seconds: 10 }),
     getEndTime: async () => ({ seconds: 20 })
   };

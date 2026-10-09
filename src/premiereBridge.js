@@ -429,6 +429,14 @@
     return Math.abs(Number(left) - Number(right)) < 0.0001;
   }
 
+  // Premiere can enumerate video tracks in a different order from the track index carried by an item proxy.
+  function trackItemsShareTrack(leftInfo, rightInfo) {
+    if (leftInfo.trackIndex === null || leftInfo.trackIndex === undefined) {
+      return false;
+    }
+    return leftInfo.trackIndex === rightInfo.trackIndex || leftInfo.trackIndex === rightInfo.scannedTrackIndex;
+  }
+
   // Keep the current player position when it already lies within the requested timeline span.
   function isTimeWithinRange(time, timing) {
     const tolerance = 0.0001;
@@ -1803,7 +1811,7 @@
     let selectedEntries = scan.items.filter((entry) => items.indexOf(entry.item) >= 0 || selectedInfos.some((selectedInfo) => {
       return selectedInfo.type === getTransitionTrackItemType(app)
         && selectedInfo.matchName === entry.info.matchName
-        && selectedInfo.trackIndex === entry.info.scannedTrackIndex
+        && trackItemsShareTrack(selectedInfo, entry.info)
         && nearlyEqualTime(selectedInfo._startNumber, entry.info._startNumber)
         && nearlyEqualTime(selectedInfo._endNumber, entry.info._endNumber);
     }));
@@ -1811,7 +1819,7 @@
       // Premiere can return an adjacent clip instead of the selected edit-point transition in getSelection().
       selectedEntries = scan.items.filter((entry) => selectedInfos.some((selectedInfo) => {
         return selectedInfo.type !== getTransitionTrackItemType(app)
-          && selectedInfo.trackIndex === entry.info.scannedTrackIndex
+          && trackItemsShareTrack(selectedInfo, entry.info)
           && itemsOverlapOrTouch(selectedInfo, entry.info);
       }));
     }
@@ -1821,6 +1829,7 @@
         selectedItems: selectedInfos.map(publicTrackItemInfo),
         scannedTracks: scan.scannedTracks,
         transitionCount: scan.items.length,
+        transitions: scan.items.map((entry) => publicTrackItemInfo(entry.info)),
         scanErrors: scan.errors
       });
       throw new Error(selectedEntries.length
