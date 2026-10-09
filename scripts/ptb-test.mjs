@@ -1854,7 +1854,13 @@ async function captureSelectedTransitionPresetSmokeTest() {
               getSelection: async () => ({ getTrackItems: async () => [followingClip] }),
               getVideoTrackCount: async () => 1,
               getVideoTrack: async () => ({
-                getTrackItems: async (type) => type === 2 ? [transitionItem] : [followingClip]
+              getTrackItems: async (type, includeEmptyTrackItems) => {
+                // Simulate builds that expose transition items only when empty timeline items are included.
+                if (type === 2) {
+                  return includeEmptyTrackItems ? [transitionItem] : [];
+                }
+                return [followingClip];
+              }
               })
             })
           })

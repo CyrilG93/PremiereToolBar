@@ -144,7 +144,7 @@
     transitionBoth: "Clip Start + End",
     transitionDuration: "Duration Seconds",
     transitionHelp: "Premiere UXP expects a transition match name, not always the visible transition name.",
-    transitionPresetHelp: "Select one video transition or a clip with one adjacent transition in the timeline, then capture it here. Tool Bar stores its transition type, duration, and exposed custom settings. The Premiere transition or third-party plugin must stay installed.",
+    transitionPresetHelp: "Select the video clip immediately beside one transition in the timeline, then capture it here. Tool Bar stores its transition type, duration, and exposed custom settings. The Premiere transition or third-party plugin must stay installed.",
     audioTransitionHelp: "Audio transitions are runtime-detected because Adobe's documented UXP API does not currently expose audio transition creation.",
     audioTransitionDisabledHelp: "Audio transitions are hidden for now because the current Premiere UXP host does not apply them reliably.",
     icon: "Icon",

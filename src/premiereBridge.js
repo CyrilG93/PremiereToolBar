@@ -594,9 +594,13 @@
       try {
         const track = await sequence[trackGetter](trackIndex);
         output.scannedTracks += 1;
-        const trackTransitions = track && typeof track.getTrackItems === "function"
+        let trackTransitions = track && typeof track.getTrackItems === "function"
           ? await track.getTrackItems(transitionType, false)
           : [];
+        // Some Premiere builds omit transitions unless empty timeline items are requested as well.
+        if (!trackTransitions.length && track && typeof track.getTrackItems === "function") {
+          trackTransitions = await track.getTrackItems(transitionType, true);
+        }
         for (let transitionIndex = 0; transitionIndex < trackTransitions.length; transitionIndex += 1) {
           const transitionInfo = await inspectTrackItemIdentity(trackTransitions[transitionIndex], transitionIndex, mediaType, "trackTransition");
           transitionInfo.scannedTrackIndex = trackIndex;
@@ -1786,8 +1790,12 @@
 
   // Capture one selected video transition as a reusable Tool Bar transition-preset button payload.
   async function captureSelectedVideoTransitionPreset() {
-    const { app, sequence, items } = await getSelectedItems();
+    // Premiere's TrackItemSelection officially exposes clips rather than selected transition objects, so capture from an adjacent clip.
+    const { app, sequence, items } = await getSelectedItems(true);
     const scan = await getTransitionTrackItemsForMedia(app, sequence, "video");
+    if (!items.length) {
+      throw new Error("Select a video clip adjacent to the transition to capture a Transition Preset.");
+    }
     const selectedInfos = [];
     for (let index = 0; index < items.length; index += 1) {
       selectedInfos.push(await inspectTrackItemIdentity(items[index], index, "video", "selectedTransition"));
@@ -1808,6 +1816,13 @@
       }));
     }
     if (selectedEntries.length !== 1) {
+      // Include safe scan details so host-specific selection gaps can be diagnosed from the Settings logs.
+      logBridge("warn", "Could not match the selected clip to a video transition.", {
+        selectedItems: selectedInfos.map(publicTrackItemInfo),
+        scannedTracks: scan.scannedTracks,
+        transitionCount: scan.items.length,
+        scanErrors: scan.errors
+      });
       throw new Error(selectedEntries.length
         ? "The selected clip has multiple adjacent video transitions. Select a clip with one transition or isolate one edit point."
         : "Select a video transition, or a clip with one adjacent video transition, to capture a Transition Preset.");
