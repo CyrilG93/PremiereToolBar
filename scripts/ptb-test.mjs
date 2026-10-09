@@ -2127,6 +2127,12 @@ async function moveVideoClipActionSmokeTest() {
   let refreshRequested = false;
   let cloneCreated = false;
   let selectedMovedItems = [];
+  const sourceTransition = {
+    getMatchName: async () => "AE.ADBE Cross Dissolve",
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: 14 }),
+    getEndTime: async () => ({ seconds: 15 })
+  };
   const sourceClip = {
     createAddVideoTransitionAction() {},
     getTrackIndex: async () => 0,
@@ -2134,7 +2140,14 @@ async function moveVideoClipActionSmokeTest() {
     getEndTime: async () => ({ seconds: 15 })
   };
   const clonedClip = {
-    createAddVideoTransitionAction() {},
+    createAddVideoTransitionAction(transition, options) {
+      assert.equal(transition.matchName, "AE.ADBE Cross Dissolve");
+      assert.equal(options.applyToStart, false);
+      assert.equal(options.forceSingleSided, true);
+      assert.equal(options.alignment, 0.5);
+      assert.equal(options.duration.seconds, 1);
+      return { type: "restore-transition" };
+    },
     getTrackIndex: async () => 2,
     getStartTime: async () => ({ seconds: 10 }),
     getEndTime: async () => ({ seconds: 15 })
@@ -2172,8 +2185,16 @@ async function moveVideoClipActionSmokeTest() {
           return { type: "remove" };
         }
       };
+      function AddTransitionOptions() {
+        this.setApplyToStart = (value) => { this.applyToStart = value; };
+        this.setForceSingleSided = (value) => { this.forceSingleSided = value; };
+        this.setTransitionAlignment = (value) => { this.alignment = value; };
+        this.setDuration = (value) => { this.duration = value; };
+      }
       return {
-        Constants: { MediaType: { VIDEO: "video" }, TrackItemType: { CLIP: 1 } },
+        Constants: { MediaType: { VIDEO: "video" }, TrackItemType: { CLIP: 1, TRANSITION: 2 } },
+        AddTransitionOptions,
+        TransitionFactory: { createVideoTransition: async (matchName) => ({ matchName }) },
         TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
         SequenceEditor: { getEditor: () => editor },
         TrackItemSelection: {
@@ -2191,7 +2212,11 @@ async function moveVideoClipActionSmokeTest() {
             getActiveSequence: async () => ({
               getSelection: async () => ({ getTrackItems: async () => [sourceClip] }),
               getVideoTrackCount: async () => 3,
-              getVideoTrack: async (index) => ({ getTrackItems: async () => index === 1 ? [occupiedClip] : (index === 2 && cloneCreated ? [clonedClip] : []) }),
+              getVideoTrack: async (index) => ({
+                getTrackItems: async (type) => type === 2
+                  ? (index === 0 ? [sourceTransition] : [])
+                  : (index === 1 ? [occupiedClip] : (index === 2 && cloneCreated ? [clonedClip] : []))
+              }),
               getPlayerPosition: () => ({ seconds: 10 }),
               setPlayerPosition() { refreshRequested = true; },
               setSelection(selection) { selectedMovedItems = selection.items.slice(); return true; }
@@ -2209,7 +2234,7 @@ async function moveVideoClipActionSmokeTest() {
     actionType: "action",
     action: { id: "moveVideoClipUp" }
   }));
-  assert.deepEqual(actionTypes, ["clone", "remove"]);
+  assert.deepEqual(actionTypes, ["clone", "remove", "restore-transition"]);
   assert.deepEqual(selectedMovedItems, [clonedClip]);
   assert.equal(refreshRequested, true);
 }

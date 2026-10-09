@@ -1642,6 +1642,8 @@
       const timing = await getTrackItemTiming(item);
       sources.push({ item, sourceTrackIndex, timing });
     }
+    // Snapshot transitions before the source clips are removed, because Premiere removes them with their source track items.
+    const transitionSnapshots = await captureMovedVideoTransitionSnapshots(app, sequence, sources);
     const groupOffset = await findFirstFreeVideoTrackOffset(app, sequence, sources, verticalOffset, videoTrackCount);
     const targets = sources.map((source) => Object.assign({}, source, { targetTrackIndex: source.sourceTrackIndex + groupOffset }));
     const editor = app.SequenceEditor.getEditor(sequence);
@@ -1661,38 +1663,142 @@
       actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
     });
     executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Move Video Clip"));
-    await selectMovedVideoClips(app, sequence, targets);
+    const movedTargets = await selectMovedVideoClips(app, sequence, targets);
+    await restoreMovedVideoTransitions(app, project, transitionSnapshots, movedTargets, undoLabel);
     await refreshSequenceView(sequence);
-    logBridge("info", "Moved selected video clips between tracks.", { clips: targets.length, verticalOffset, targetTracks: targets.map((target) => target.targetTrackIndex) });
+    logBridge("info", "Moved selected video clips between tracks.", { clips: targets.length, verticalOffset, targetTracks: targets.map((target) => target.targetTrackIndex), restoredTransitions: transitionSnapshots.length });
     return { clips: targets.length, verticalOffset };
+  }
+
+  // Return the clip edge covered by a transition track item, if the transition belongs to that clip.
+  function getVideoTransitionEdgeForClip(clipTiming, transitionInfo) {
+    const transitionStart = transitionInfo && transitionInfo._startNumber;
+    const transitionEnd = transitionInfo && transitionInfo._endNumber;
+    if (!clipTiming || clipTiming.startNumber === null || clipTiming.endNumber === null || transitionStart === null || transitionEnd === null) {
+      return null;
+    }
+    const tolerance = 0.0001;
+    const coversStart = transitionStart <= clipTiming.startNumber + tolerance && transitionEnd >= clipTiming.startNumber - tolerance;
+    const coversEnd = transitionStart <= clipTiming.endNumber + tolerance && transitionEnd >= clipTiming.endNumber - tolerance;
+    if (coversStart && !coversEnd) {
+      return "start";
+    }
+    if (coversEnd && !coversStart) {
+      return "end";
+    }
+    if (!coversStart && !coversEnd) {
+      return null;
+    }
+    // A very short clip can be covered by transitions on both edges; keep the closest edge deterministic.
+    const startDistance = Math.min(Math.abs(transitionStart - clipTiming.startNumber), Math.abs(transitionEnd - clipTiming.startNumber));
+    const endDistance = Math.min(Math.abs(transitionStart - clipTiming.endNumber), Math.abs(transitionEnd - clipTiming.endNumber));
+    return startDistance <= endDistance ? "start" : "end";
+  }
+
+  // Capture each transition once, preferring the following selected clip at a shared edit point.
+  async function captureMovedVideoTransitionSnapshots(app, sequence, sources) {
+    const scan = await getTransitionTrackItemsForMedia(app, sequence, "video");
+    const snapshotsByTransition = {};
+    for (const entry of scan.items) {
+      const transitionInfo = entry.info;
+      const candidates = [];
+      for (const source of sources) {
+        if (source.sourceTrackIndex !== transitionInfo.scannedTrackIndex) {
+          continue;
+        }
+        const applyTo = getVideoTransitionEdgeForClip(source.timing, transitionInfo);
+        if (applyTo) {
+          candidates.push({ source, applyTo });
+        }
+      }
+      if (!candidates.length) {
+        continue;
+      }
+      const key = [transitionInfo.scannedTrackIndex, transitionInfo._startNumber, transitionInfo._endNumber, transitionInfo.matchName || transitionInfo.name].join("|");
+      // At a cut where both clips move, attach the restored transition to the later clip's start only once.
+      const candidate = candidates.find((item) => item.applyTo === "start") || candidates[0];
+      if (!transitionInfo.matchName) {
+        logBridge("warn", "Skipped a moved video transition because Premiere did not expose its match name.", publicTrackItemInfo(transitionInfo));
+        continue;
+      }
+      snapshotsByTransition[key] = {
+        sourceItem: candidate.source.item,
+        applyTo: candidate.applyTo,
+        matchName: transitionInfo.matchName,
+        durationSeconds: Math.max(0.001, Number(transitionInfo._endNumber) - Number(transitionInfo._startNumber))
+      };
+    }
+    if (scan.errors.length) {
+      logBridge("warn", "Transition scan had errors before moving video clips.", { errors: scan.errors });
+    }
+    return Object.keys(snapshotsByTransition).map((key) => snapshotsByTransition[key]);
+  }
+
+  // Recreate the transitions after cloning, where Premiere exposes the new clip proxies on their destination tracks.
+  async function restoreMovedVideoTransitions(app, project, snapshots, movedTargets, undoLabel) {
+    if (!snapshots.length || !Array.isArray(movedTargets) || !movedTargets.length) {
+      return 0;
+    }
+    await waitForHostPaint();
+    let restored = 0;
+    for (const snapshot of snapshots) {
+      const movedTarget = movedTargets.find((target) => target.sourceItem === snapshot.sourceItem);
+      if (!movedTarget || !movedTarget.movedItem || typeof movedTarget.movedItem.createAddVideoTransitionAction !== "function") {
+        logBridge("warn", "Skipped restoring a transition because its moved clip was unavailable.", snapshot);
+        continue;
+      }
+      try {
+        const transition = await createTransitionWithFallback(app, snapshot.matchName, snapshot.applyTo, "video");
+        const options = createTransitionOptions(app, {
+          transition: {
+            durationSeconds: snapshot.durationSeconds,
+            forceSingleSided: true,
+            alignment: CENTERED_TRANSITION_ALIGNMENT
+          }
+        }, snapshot.applyTo, {
+          // The destination track is intentionally empty, so retain the transition as a single-sided edge.
+          forceSingleSided: true,
+          alignment: CENTERED_TRANSITION_ALIGNMENT
+        });
+        executeActions(project, [() => movedTarget.movedItem.createAddVideoTransitionAction(transition, options)], "Tool Bar: Restore moved video transition");
+        restored += 1;
+      } catch (error) {
+        // The clip move remains valid even when an unsupported third-party transition cannot be recreated.
+        logBridge("warn", "Could not restore a moved video transition.", Object.assign({}, snapshot, { error: describeBridgeError(error) }));
+      }
+    }
+    if (restored) {
+      logBridge("info", "Restored video transitions after moving clips.", { transitions: restored, undoLabel: undoLabel || "Move Video Clip" });
+    }
+    return restored;
   }
 
   // Select moved clips again so a following Multi Action step targets the new track items rather than deleted proxies.
   async function selectMovedVideoClips(app, sequence, targets) {
-    const movedItems = [];
+    const movedTargets = [];
     for (const target of targets) {
       const destinationClips = await getTrackClips(app, sequence, "video", target.targetTrackIndex);
       // UXP getters are asynchronous, so resolve the exact clone without using Array.find's synchronous callback.
       for (const destinationClip of destinationClips) {
         const destinationTiming = await getTrackItemTiming(destinationClip);
         if (hasSameTimelineRange(target.timing, destinationTiming)) {
-          movedItems.push(destinationClip);
+          movedTargets.push(Object.assign({}, target, { sourceItem: target.item, movedItem: destinationClip }));
           break;
         }
       }
     }
-    if (movedItems.length !== targets.length) {
+    if (movedTargets.length !== targets.length) {
       logBridge("warn", "Moved clips could not all be reselected; a following Multi Action step may need a manual selection.", {
-        moved: movedItems.length,
+        moved: movedTargets.length,
         expected: targets.length
       });
-      return false;
+      return [];
     }
     app.TrackItemSelection.createEmptySelection((selection) => {
-      movedItems.forEach((item) => selection.addItem(item, false));
+      movedTargets.forEach((target) => selection.addItem(target.movedItem, false));
       sequence.setSelection(selection);
     });
-    return true;
+    return movedTargets;
   }
 
   // Find one common vertical offset so stacked selections keep their layout and never overwrite one another.
