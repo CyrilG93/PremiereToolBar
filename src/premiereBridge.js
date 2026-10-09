@@ -1607,8 +1607,12 @@
       throw new Error("Premiere UXP does not expose the video media type constant.");
     }
     const actionFactories = [];
+    // Create tracks incrementally from the lowest destination, since Premiere rejects a clone aimed beyond the next creatable track.
+    const executionTargets = targets.slice().sort((left, right) => left.targetTrackIndex - right.targetTrackIndex
+      || left.timing.startNumber - right.timing.startNumber
+      || left.selectionIndex - right.selectionIndex);
     // Clone and remove one source at a time so source proxies remain valid throughout the transaction.
-    targets.forEach((target) => {
+    executionTargets.forEach((target) => {
       actionFactories.push(() => editor.createCloneTrackItemAction(target.item, zeroOffset, target.targetTrackIndex - target.sourceTrackIndex, 0, false, false));
       actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
     });

@@ -2652,7 +2652,7 @@ async function reuseSavedAdjustmentTemplateSequenceSmokeTest() {
 await reuseSavedAdjustmentTemplateSequenceSmokeTest();
 
 // Verify layout Actions use timeline order, track offsets, and horizontal offsets as expected.
-async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, expectedTimeOffsets) {
+async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, expectedTimeOffsets, expectedCloneOffsets = expectedVideoOffsets) {
   const cloneOffsets = [];
   const sourceClips = [0, 1, 2].map((index) => ({
     id: index,
@@ -2731,11 +2731,12 @@ async function timelineLayoutActionSmokeTest(actionId, expectedVideoOffsets, exp
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
   await context.PTB_PREMIERE.applyButton(schema.createButton({ label: "Staircase", actionType: "action", action: { id: actionId } }));
-  assert.deepEqual(cloneOffsets, expectedVideoOffsets);
+  // Verify clone order separately because a descending staircase must create destination tracks from the bottom upward.
+  assert.deepEqual(cloneOffsets, expectedCloneOffsets);
 }
 
 await timelineLayoutActionSmokeTest("staircaseVideoClipsUp", [0, 1, 2], [0, 0, 0]);
-await timelineLayoutActionSmokeTest("staircaseVideoClipsDown", [2, 1, 0], [0, 0, 0]);
+await timelineLayoutActionSmokeTest("staircaseVideoClipsDown", [2, 1, 0], [0, 0, 0], [0, 1, 2]);
 await timelineLayoutActionSmokeTest("towerVideoClips", [0, 1, 2], [0, -5, -10]);
 
 // Report success for CI and local verification.
