@@ -1690,7 +1690,7 @@ async function applyTransitionSmokeTest() {
 
 await applyTransitionSmokeTest();
 
-// Verify imported transition presets replay exposed transition parameters after creation.
+// Verify legacy Transition Preset buttons migrate to native transitions without attempting unsupported parameter replay.
 async function applyTransitionPresetParameterSmokeTest() {
   let setValueActions = 0;
   const context = {
@@ -1800,7 +1800,7 @@ async function applyTransitionPresetParameterSmokeTest() {
       }]
     }
   }));
-  assert.equal(setValueActions, 1);
+  assert.equal(setValueActions, 0);
 }
 
 await applyTransitionPresetParameterSmokeTest();
@@ -2198,7 +2198,7 @@ async function inspectSelectionMatchNamesSmokeTest() {
 
 await inspectSelectionMatchNamesSmokeTest();
 
-// Verify an Action button clones a selected video clip to the adjacent free track and removes its source in one transaction.
+// Verify an Action button clones a selected video clip to the adjacent free track, removes its source, and does not recreate transitions.
 async function moveVideoClipActionSmokeTest() {
   const actionTypes = [];
   let refreshRequested = false;
@@ -2352,7 +2352,8 @@ async function moveVideoClipActionSmokeTest() {
     actionType: "action",
     action: { id: "moveVideoClipUp" }
   }));
-  assert.deepEqual(actionTypes, ["clone", "remove", "restore-transition", "restore-transition-setting"]);
+  assert.deepEqual(actionTypes, ["clone", "remove"]);
+  assert.equal(restoredTransitionCreated, false);
   assert.deepEqual(selectedMovedItems, [clonedClip]);
   assert.equal(refreshRequested, true);
 }

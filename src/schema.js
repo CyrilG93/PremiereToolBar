@@ -56,7 +56,8 @@
   function createButton(overrides) {
     const input = overrides || {};
     // Migrate the old captured-stack action name to the user-facing preset action.
-    const requestedActionType = input.actionType === "stack" ? "preset" : (input.actionType === "settings" ? "tool" : input.actionType);
+    // Convert the unavailable Transition Preset feature into a normal transition while retaining usable type, position, and duration fields.
+    const requestedActionType = input.actionType === "stack" ? "preset" : (input.actionType === "transitionPreset" ? "transition" : (input.actionType === "settings" ? "tool" : input.actionType));
     const legacyToolActionId = requestedActionType === "tool" && input.tool && LEGACY_TOOL_ACTION_IDS.includes(input.tool.id)
       ? input.tool.id
       : "";

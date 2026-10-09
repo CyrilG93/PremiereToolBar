@@ -2170,7 +2170,6 @@
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "preset", label: root.PTB_I18N.t("presetAction") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
-      { value: "transitionPreset", label: root.PTB_I18N.t("transitionPresetAction") },
       { value: "multi", label: root.PTB_I18N.t("multiAction") },
       { value: "action", label: root.PTB_I18N.t("actionAction") },
       { value: "tool", label: root.PTB_I18N.t("toolAction") }

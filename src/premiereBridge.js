@@ -1658,8 +1658,6 @@
       const timing = await getTrackItemTiming(item);
       sources.push({ item, sourceTrackIndex, timing });
     }
-    // Snapshot transitions before the source clips are removed, because Premiere removes them with their source track items.
-    const transitionSnapshots = await captureMovedVideoTransitionSnapshots(app, sequence, sources);
     const groupOffset = await findFirstFreeVideoTrackOffset(app, sequence, sources, verticalOffset, videoTrackCount);
     const targets = sources.map((source) => Object.assign({}, source, { targetTrackIndex: source.sourceTrackIndex + groupOffset }));
     const editor = app.SequenceEditor.getEditor(sequence);
@@ -1679,10 +1677,10 @@
       actionFactories.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaType));
     });
     executeActions(project, actionFactories, "Tool Bar: " + (undoLabel || "Move Video Clip"));
-    const movedTargets = await selectMovedVideoClips(app, sequence, targets);
-    await restoreMovedVideoTransitions(app, project, transitionSnapshots, movedTargets, undoLabel);
+    await selectMovedVideoClips(app, sequence, targets);
     await refreshSequenceView(sequence);
-    logBridge("info", "Moved selected video clips between tracks.", { clips: targets.length, verticalOffset, targetTracks: targets.map((target) => target.targetTrackIndex), restoredTransitions: transitionSnapshots.length });
+    // Cloning a clip removes its native transition; Premiere UXP does not expose enough transition data to restore it safely.
+    logBridge("warn", "Moved selected video clips; adjacent video transitions were removed.", { clips: targets.length, verticalOffset, targetTracks: targets.map((target) => target.targetTrackIndex) });
     return { clips: targets.length, verticalOffset };
   }
 

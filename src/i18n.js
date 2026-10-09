@@ -69,7 +69,7 @@
     actionAdjustmentTemplateFolderHelp: "The reusable imported template sequence is moved into this root Project panel folder. Leave empty to keep it at the project root.",
     actionMoveVideoClipUp: "Move Video Clip Up",
     actionMoveVideoClipDown: "Move Video Clip Down",
-    actionMoveVideoClipHelp: "Moves selected video clips to the first free video track up or down. Linked audio is not moved.",
+    actionMoveVideoClipHelp: "Moves selected video clips to the first free video track up or down. Linked audio is not moved. Warning: any adjacent video transitions are removed.",
     actionStaircaseVideoClipsUp: "Staircase Up",
     actionStaircaseVideoClipsDown: "Staircase Down",
     actionStaircaseVideoClipsHelp: "Places selected video clips on consecutive tracks in timeline order. Staircase Down starts the first clip higher so it also works from V1. Linked audio is not moved.",
