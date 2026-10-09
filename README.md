@@ -111,6 +111,10 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.3.8 - 2026-10-09
+
+- Fixed Staircase Down so it creates every required video track and places clips on the intended descending tracks.
+
 ### 1.3.0 - 2026-10-05
 
 - Added an Adjustment Layer action that creates a layer over the selected clips or at the playhead.
