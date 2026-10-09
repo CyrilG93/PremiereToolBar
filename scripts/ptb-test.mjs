@@ -1831,6 +1831,7 @@ async function captureSelectedTransitionPresetSmokeTest() {
     })
   };
   const followingClip = {
+    getType: async () => 1,
     getTrackIndex: async () => 0,
     getStartTime: async () => ({ seconds: 10 }),
     getEndTime: async () => ({ seconds: 20 })
@@ -1849,7 +1850,8 @@ async function captureSelectedTransitionPresetSmokeTest() {
         Project: {
           getActiveProject: async () => ({
             getActiveSequence: async () => ({
-              getSelection: async () => ({ getTrackItems: async () => [transitionItem] }),
+              // Premiere can surface the adjacent clip instead of the selected edit-point transition.
+              getSelection: async () => ({ getTrackItems: async () => [followingClip] }),
               getVideoTrackCount: async () => 1,
               getVideoTrack: async () => ({
                 getTrackItems: async (type) => type === 2 ? [transitionItem] : [followingClip]

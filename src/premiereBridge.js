@@ -1788,15 +1788,25 @@
     for (let index = 0; index < items.length; index += 1) {
       selectedInfos.push(await inspectTrackItemIdentity(items[index], index, "video", "selectedTransition"));
     }
-    const selectedEntries = scan.items.filter((entry) => items.indexOf(entry.item) >= 0 || selectedInfos.some((selectedInfo) => {
+    let selectedEntries = scan.items.filter((entry) => items.indexOf(entry.item) >= 0 || selectedInfos.some((selectedInfo) => {
       return selectedInfo.type === getTransitionTrackItemType(app)
         && selectedInfo.matchName === entry.info.matchName
         && selectedInfo.trackIndex === entry.info.scannedTrackIndex
         && nearlyEqualTime(selectedInfo._startNumber, entry.info._startNumber)
         && nearlyEqualTime(selectedInfo._endNumber, entry.info._endNumber);
     }));
+    if (!selectedEntries.length) {
+      // Premiere can return an adjacent clip instead of the selected edit-point transition in getSelection().
+      selectedEntries = scan.items.filter((entry) => selectedInfos.some((selectedInfo) => {
+        return selectedInfo.type !== getTransitionTrackItemType(app)
+          && selectedInfo.trackIndex === entry.info.scannedTrackIndex
+          && itemsOverlapOrTouch(selectedInfo, entry.info);
+      }));
+    }
     if (selectedEntries.length !== 1) {
-      throw new Error("Select exactly one video transition in the timeline to capture a Transition Preset.");
+      throw new Error(selectedEntries.length
+        ? "The selected clip has multiple adjacent video transitions. Select a clip with one transition or isolate one edit point."
+        : "Select a video transition, or a clip with one adjacent video transition, to capture a Transition Preset.");
     }
     const entry = selectedEntries[0];
     const info = entry.info;

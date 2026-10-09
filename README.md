@@ -76,7 +76,7 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 
 - `Native Effect`: add a Premiere effect to selected clips.
 - `Video Transition`: add a video transition to selected clips or an edit point.
-- `Transition Preset`: capture one selected video transition, including its exposed custom settings, then apply it again from a Tool Bar button.
+- `Transition Preset`: capture one selected video transition, or a clip with one adjacent transition, including its exposed custom settings, then apply it again from a Tool Bar button.
 - `Effect Preset`: capture exposed clip parameters, video effects, audio effects, and keyframes, then apply them later. Choose video, audio, or both during capture; a linked video/audio selection can therefore create an audio-only preset. Static audio controls, including internally stored effect settings, are captured from the clip's effective value. The standard button name is used, so no separate preset name is required.
 - `Multi Action`: run several existing Tool Bar buttons in order.
 - `Actions`: copy/paste/remove effects, set a clip label, move selected video clips to the first free track up or down while preserving their video transitions, durations, and exposed custom settings, create an ascending/descending staircase, build a tower, set selected clip In/Out points at the playhead, invert the timeline selection, or add an Adjustment Layer.
