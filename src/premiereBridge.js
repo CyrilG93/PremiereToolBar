@@ -1721,17 +1721,63 @@
         logBridge("warn", "Skipped a moved video transition because Premiere did not expose its match name.", publicTrackItemInfo(transitionInfo));
         continue;
       }
+      const parameterSnapshot = await captureVideoTransitionParameterSnapshot(app, entry.item);
       snapshotsByTransition[key] = {
         sourceItem: candidate.source.item,
         applyTo: candidate.applyTo,
         matchName: transitionInfo.matchName,
-        durationSeconds: Math.max(0.001, Number(transitionInfo._endNumber) - Number(transitionInfo._startNumber))
+        durationSeconds: Math.max(0.001, Number(transitionInfo._endNumber) - Number(transitionInfo._startNumber)),
+        parameterSnapshot
       };
     }
     if (scan.errors.length) {
       logBridge("warn", "Transition scan had errors before moving video clips.", { errors: scan.errors });
     }
     return Object.keys(snapshotsByTransition).map((key) => snapshotsByTransition[key]);
+  }
+
+  // Capture exposed transition component values before the source clip and its transition are removed.
+  async function captureVideoTransitionParameterSnapshot(app, transitionItem) {
+    if (!transitionItem || typeof transitionItem.getComponentChain !== "function") {
+      return null;
+    }
+    try {
+      const timing = await getItemTimingSnapshot(transitionItem);
+      const chain = await transitionItem.getComponentChain();
+      const componentCount = chain && typeof chain.getComponentCount === "function" ? chain.getComponentCount() : 0;
+      const components = [];
+      for (let componentIndex = 0; componentIndex < componentCount; componentIndex += 1) {
+        const component = chain.getComponentAtIndex(componentIndex);
+        const paramCount = getComponentParamCount(component);
+        const params = [];
+        for (let paramIndex = 0; paramIndex < paramCount; paramIndex += 1) {
+          try {
+            params.push(await captureParam(app, component.getParam(paramIndex), paramIndex, timing, {}));
+          } catch (error) {
+            logBridge("warn", "Skipped a custom transition parameter during move.", { componentIndex, paramIndex, error: describeBridgeError(error) });
+          }
+        }
+        components.push({
+          matchName: await readOptionalMethod(component, "getMatchName", ""),
+          displayName: await readOptionalMethod(component, "getDisplayName", ""),
+          params
+        });
+      }
+      return {
+        stack: {
+          sourceStartSeconds: timing.startSeconds,
+          sourceEndSeconds: timing.endSeconds,
+          sourceInPointSeconds: timing.inPointSeconds,
+          sourceOutPointSeconds: timing.outPointSeconds,
+          sourceDurationSeconds: timing.durationSeconds
+        },
+        components
+      };
+    } catch (error) {
+      // Transitions without an exposed component chain still retain their type and duration.
+      logBridge("warn", "Could not capture custom transition parameters before moving a clip.", describeBridgeError(error));
+      return null;
+    }
   }
 
   // Recreate the transitions after cloning, where Premiere exposes the new clip proxies on their destination tracks.
@@ -1761,6 +1807,13 @@
           alignment: CENTERED_TRANSITION_ALIGNMENT
         });
         executeActions(project, [() => movedTarget.movedItem.createAddVideoTransitionAction(transition, options)], "Tool Bar: Restore moved video transition");
+        await waitForHostPaint();
+        const restoredTransition = await findRestoredVideoTransitionItem(app, project, movedTarget, snapshot);
+        if (restoredTransition && snapshot.parameterSnapshot) {
+          await restoreVideoTransitionParameters(app, project, restoredTransition, snapshot.parameterSnapshot);
+        } else if (snapshot.parameterSnapshot) {
+          logBridge("warn", "Transition was restored but its custom settings could not be located for replay.", snapshot);
+        }
         restored += 1;
       } catch (error) {
         // The clip move remains valid even when an unsupported third-party transition cannot be recreated.
@@ -1771,6 +1824,60 @@
       logBridge("info", "Restored video transitions after moving clips.", { transitions: restored, undoLabel: undoLabel || "Move Video Clip" });
     }
     return restored;
+  }
+
+  // Locate the new transition on the destination track by its type and the edge of the moved clip it covers.
+  async function findRestoredVideoTransitionItem(app, project, movedTarget, snapshot) {
+    const sequence = project && typeof project.getActiveSequence === "function" ? await project.getActiveSequence() : null;
+    if (!sequence || typeof sequence.getVideoTrack !== "function") {
+      return null;
+    }
+    const track = await sequence.getVideoTrack(movedTarget.targetTrackIndex);
+    const transitionItems = track && typeof track.getTrackItems === "function"
+      ? await track.getTrackItems(getTransitionTrackItemType(app), false)
+      : [];
+    const movedTiming = await getTrackItemTiming(movedTarget.movedItem);
+    for (const item of transitionItems) {
+      const info = await inspectTrackItemIdentity(item, 0, "video", "restoredTransition");
+      if (info.matchName === snapshot.matchName && getVideoTransitionEdgeForClip(movedTiming, info) === snapshot.applyTo) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  // Restore exposed custom settings for a recreated transition after Premiere attaches its component chain.
+  async function restoreVideoTransitionParameters(app, project, transitionItem, parameterSnapshot) {
+    let restoredActions = 0;
+    const targetTiming = await getItemTimingSnapshot(transitionItem);
+    for (const componentSnapshot of parameterSnapshot.components || []) {
+      if (!componentSnapshot.params || !componentSnapshot.params.length) {
+        continue;
+      }
+      const component = await resolveTransitionPresetComponent(transitionItem, componentSnapshot);
+      if (!component) {
+        continue;
+      }
+      const setupActions = await createParamSetupActions(app, component, componentSnapshot.params, { clearExistingKeyframes: true });
+      if (setupActions.length) {
+        executeActions(project, setupActions, "Tool Bar: Restore moved transition setup");
+        restoredActions += setupActions.length;
+        await waitForHostPaint();
+      }
+      const valueActions = await createParamValueActions(app, component, componentSnapshot.params, {
+        stack: parameterSnapshot.stack,
+        targetTiming,
+        timingMode: "scale"
+      });
+      if (valueActions.length) {
+        executeActions(project, valueActions, "Tool Bar: Restore moved transition settings");
+        restoredActions += valueActions.length;
+      }
+    }
+    if (restoredActions) {
+      logBridge("info", "Restored custom settings for a moved video transition.", { actions: restoredActions });
+    }
+    return restoredActions;
   }
 
   // Select moved clips again so a following Multi Action step targets the new track items rather than deleted proxies.

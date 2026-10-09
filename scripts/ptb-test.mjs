@@ -2126,12 +2126,52 @@ async function moveVideoClipActionSmokeTest() {
   const actionTypes = [];
   let refreshRequested = false;
   let cloneCreated = false;
+  let restoredTransitionCreated = false;
   let selectedMovedItems = [];
+  const sourceTransitionParam = {
+    displayName: "Border",
+    getStartValue: async () => ({ value: 37 })
+  };
+  const restoredTransitionParam = {
+    createKeyframe(value) {
+      assert.equal(value, 37);
+      return { value };
+    },
+    createSetValueAction(keyframe, safeForPlayback) {
+      assert.equal(keyframe.value, 37);
+      assert.equal(safeForPlayback, true);
+      return { type: "restore-transition-setting" };
+    }
+  };
   const sourceTransition = {
     getMatchName: async () => "AE.ADBE Cross Dissolve",
     getTrackIndex: async () => 0,
     getStartTime: async () => ({ seconds: 14 }),
-    getEndTime: async () => ({ seconds: 15 })
+    getEndTime: async () => ({ seconds: 15 }),
+    getComponentChain: async () => ({
+      getComponentCount: () => 1,
+      getComponentAtIndex: () => ({
+        getMatchName: async () => "AE.ADBE Cross Dissolve",
+        getDisplayName: async () => "Cross Dissolve",
+        getParamCount: () => 1,
+        getParam: () => sourceTransitionParam
+      })
+    })
+  };
+  const restoredTransition = {
+    getMatchName: async () => "AE.ADBE Cross Dissolve",
+    getTrackIndex: async () => 2,
+    getStartTime: async () => ({ seconds: 14 }),
+    getEndTime: async () => ({ seconds: 15 }),
+    getComponentChain: async () => ({
+      getComponentCount: () => 1,
+      getComponentAtIndex: () => ({
+        getMatchName: async () => "AE.ADBE Cross Dissolve",
+        getDisplayName: async () => "Cross Dissolve",
+        getParamCount: () => 1,
+        getParam: () => restoredTransitionParam
+      })
+    })
   };
   const sourceClip = {
     createAddVideoTransitionAction() {},
@@ -2146,6 +2186,7 @@ async function moveVideoClipActionSmokeTest() {
       assert.equal(options.forceSingleSided, true);
       assert.equal(options.alignment, 0.5);
       assert.equal(options.duration.seconds, 1);
+      restoredTransitionCreated = true;
       return { type: "restore-transition" };
     },
     getTrackIndex: async () => 2,
@@ -2214,7 +2255,7 @@ async function moveVideoClipActionSmokeTest() {
               getVideoTrackCount: async () => 3,
               getVideoTrack: async (index) => ({
                 getTrackItems: async (type) => type === 2
-                  ? (index === 0 ? [sourceTransition] : [])
+                  ? (index === 0 ? [sourceTransition] : (index === 2 && restoredTransitionCreated ? [restoredTransition] : []))
                   : (index === 1 ? [occupiedClip] : (index === 2 && cloneCreated ? [clonedClip] : []))
               }),
               getPlayerPosition: () => ({ seconds: 10 }),
@@ -2234,7 +2275,7 @@ async function moveVideoClipActionSmokeTest() {
     actionType: "action",
     action: { id: "moveVideoClipUp" }
   }));
-  assert.deepEqual(actionTypes, ["clone", "remove", "restore-transition"]);
+  assert.deepEqual(actionTypes, ["clone", "remove", "restore-transition", "restore-transition-setting"]);
   assert.deepEqual(selectedMovedItems, [clonedClip]);
   assert.equal(refreshRequested, true);
 }
