@@ -1780,6 +1780,76 @@
     }
   }
 
+  // Capture one selected video transition as a reusable Tool Bar transition-preset button payload.
+  async function captureSelectedVideoTransitionPreset() {
+    const { app, sequence, items } = await getSelectedItems();
+    const scan = await getTransitionTrackItemsForMedia(app, sequence, "video");
+    const selectedInfos = [];
+    for (let index = 0; index < items.length; index += 1) {
+      selectedInfos.push(await inspectTrackItemIdentity(items[index], index, "video", "selectedTransition"));
+    }
+    const selectedEntries = scan.items.filter((entry) => items.indexOf(entry.item) >= 0 || selectedInfos.some((selectedInfo) => {
+      return selectedInfo.type === getTransitionTrackItemType(app)
+        && selectedInfo.matchName === entry.info.matchName
+        && selectedInfo.trackIndex === entry.info.scannedTrackIndex
+        && nearlyEqualTime(selectedInfo._startNumber, entry.info._startNumber)
+        && nearlyEqualTime(selectedInfo._endNumber, entry.info._endNumber);
+    }));
+    if (selectedEntries.length !== 1) {
+      throw new Error("Select exactly one video transition in the timeline to capture a Transition Preset.");
+    }
+    const entry = selectedEntries[0];
+    const info = entry.info;
+    if (!info.matchName) {
+      throw new Error("Premiere did not expose a match name for the selected video transition.");
+    }
+    const parameterSnapshot = await captureVideoTransitionParameterSnapshot(app, entry.item);
+    const applyTo = await inferCapturedVideoTransitionApplyTo(app, sequence, entry);
+    const durationSeconds = Math.max(0.001, Number(info._endNumber) - Number(info._startNumber));
+    const name = info.name || info.matchName;
+    const stackTiming = parameterSnapshot && parameterSnapshot.stack ? parameterSnapshot.stack : {};
+    const stack = root.PTB_SCHEMA.normalizeStack({
+      sourceName: name,
+      capturedAt: new Date().toISOString(),
+      sourceStartSeconds: stackTiming.sourceStartSeconds,
+      sourceEndSeconds: stackTiming.sourceEndSeconds,
+      sourceInPointSeconds: stackTiming.sourceInPointSeconds,
+      sourceOutPointSeconds: stackTiming.sourceOutPointSeconds,
+      sourceDurationSeconds: stackTiming.sourceDurationSeconds || durationSeconds,
+      components: parameterSnapshot ? parameterSnapshot.components : []
+    });
+    logBridge("info", "Captured video transition preset.", {
+      name,
+      matchName: info.matchName,
+      durationSeconds,
+      applyTo,
+      components: stack.components.length
+    });
+    return {
+      name,
+      transition: {
+        matchName: info.matchName,
+        applyTo,
+        durationSeconds,
+        forceSingleSided: false,
+        alignment: CENTERED_TRANSITION_ALIGNMENT
+      },
+      stack
+    };
+  }
+
+  // Infer the selected transition edge from the clips around it, preferring a following clip at a shared cut.
+  async function inferCapturedVideoTransitionApplyTo(app, sequence, entry) {
+    const clips = await getTrackClips(app, sequence, "video", entry.info.scannedTrackIndex);
+    for (const clip of clips) {
+      const edge = getVideoTransitionEdgeForClip(await getTrackItemTiming(clip), entry.info);
+      if (edge === "start") {
+        return "start";
+      }
+    }
+    return "end";
+  }
+
   // Recreate the transitions after cloning, where Premiere exposes the new clip proxies on their destination tracks.
   async function restoreMovedVideoTransitions(app, project, snapshots, movedTargets, undoLabel) {
     if (!snapshots.length || !Array.isArray(movedTargets) || !movedTargets.length) {
@@ -3675,6 +3745,7 @@
     loadCatalogs,
     applyButton,
     captureSelectedStack,
+    captureSelectedVideoTransitionPreset,
     inspectSelectionMatchNames
   };
 }(typeof window !== "undefined" ? window : globalThis));

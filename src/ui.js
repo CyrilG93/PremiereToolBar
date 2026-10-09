@@ -2170,6 +2170,7 @@
       { value: "effect", label: root.PTB_I18N.t("nativeEffect") },
       { value: "preset", label: root.PTB_I18N.t("presetAction") },
       { value: "transition", label: root.PTB_I18N.t("videoTransition") },
+      { value: "transitionPreset", label: root.PTB_I18N.t("transitionPresetAction") },
       { value: "multi", label: root.PTB_I18N.t("multiAction") },
       { value: "action", label: root.PTB_I18N.t("actionAction") },
       { value: "tool", label: root.PTB_I18N.t("toolAction") }
@@ -2393,6 +2394,22 @@
       }));
       wrap.appendChild(grid);
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(button.actionType === "transitionPreset" ? "transitionPresetHelp" : (catalogKind === "audioTransition" ? "audioTransitionHelp" : "transitionHelp"))));
+      if (button.actionType === "transitionPreset") {
+        wrap.appendChild(renderPresetComponentSummary(button.stack));
+        wrap.appendChild(actionButton(root.PTB_I18N.t("captureTransitionPreset"), "ptb-button primary", async () => {
+          await runWithStatus(root.PTB_I18N.t("statusCapturingTransitionPreset"), async () => {
+            const captured = await root.PTB_PREMIERE.captureSelectedVideoTransitionPreset();
+            button.mediaType = "video";
+            button.transition = captured.transition;
+            button.stack = captured.stack;
+            button.preset.name = captured.name;
+            if (!getButtonName(button) || getButtonName(button) === "Button") {
+              setButtonName(button, captured.name);
+            }
+            saveAndRender(root.PTB_I18N.t("statusSaved"));
+          });
+        }));
+      }
       if (presetFileImportEnabled && button.actionType === "transitionPreset" && root.PTB_PRESET_IMPORT && root.PTB_STORAGE.importTextFile) {
         wrap.appendChild(actionButton(root.PTB_I18N.t("importTransitionPresetFile"), "ptb-button compact", async () => {
           await importTransitionPresetFileIntoButton(button);

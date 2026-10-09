@@ -1805,6 +1805,74 @@ async function applyTransitionPresetParameterSmokeTest() {
 
 await applyTransitionPresetParameterSmokeTest();
 
+// Verify one selected timeline transition can be captured as a reusable Transition Preset button payload.
+async function captureSelectedTransitionPresetSmokeTest() {
+  const sourceParam = {
+    displayName: "Border",
+    getStartValue: async () => ({ value: 37 })
+  };
+  const transitionItem = {
+    getName: async () => "Cross Dissolve",
+    getMatchName: async () => "AE.ADBE Cross Dissolve",
+    getType: async () => 2,
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: 9.5 }),
+    getEndTime: async () => ({ seconds: 10.5 }),
+    getInPoint: async () => ({ seconds: 0 }),
+    getOutPoint: async () => ({ seconds: 1 }),
+    getComponentChain: async () => ({
+      getComponentCount: () => 1,
+      getComponentAtIndex: () => ({
+        getMatchName: async () => "AE.ADBE Cross Dissolve",
+        getDisplayName: async () => "Cross Dissolve",
+        getParamCount: () => 1,
+        getParam: () => sourceParam
+      })
+    })
+  };
+  const followingClip = {
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: 10 }),
+    getEndTime: async () => ({ seconds: 20 })
+  };
+  const context = {
+    console,
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      return {
+        Constants: { TrackItemType: { CLIP: 1, TRANSITION: 2 } },
+        Project: {
+          getActiveProject: async () => ({
+            getActiveSequence: async () => ({
+              getSelection: async () => ({ getTrackItems: async () => [transitionItem] }),
+              getVideoTrackCount: async () => 1,
+              getVideoTrack: async () => ({
+                getTrackItems: async (type) => type === 2 ? [transitionItem] : [followingClip]
+              })
+            })
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  const captured = await context.PTB_PREMIERE.captureSelectedVideoTransitionPreset();
+  assert.equal(captured.name, "Cross Dissolve");
+  assert.equal(captured.transition.matchName, "AE.ADBE Cross Dissolve");
+  assert.equal(captured.transition.applyTo, "start");
+  assert.equal(captured.transition.durationSeconds, 1);
+  assert.equal(captured.stack.components[0].params[0].startValue.value, 37);
+}
+
+await captureSelectedTransitionPresetSmokeTest();
+
 // Verify a selected edit point applies the transition at that edit regardless of the button start/end mode.
 async function applyEditPointTransitionSmokeTest() {
   const appliedStarts = [];
