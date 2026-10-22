@@ -2747,5 +2747,78 @@ await timelineLayoutActionSmokeTest("staircaseVideoClipsUp", [0, 1, 2], [0, 0, 0
 await timelineLayoutActionSmokeTest("staircaseVideoClipsDown", [2, 1, 0], [0, 0, 0], [0, 1, 2]);
 await timelineLayoutActionSmokeTest("towerVideoClips", [0, 1, 2], [0, -5, -10]);
 
+// Verify Randomize moves selected linked audio with its video instead of rejecting Premiere's mixed selection.
+async function randomizeLinkedSelectionSmokeTest() {
+  const cloneOffsets = {};
+  const removedMediaTypes = [];
+  const makeClip = (id, mediaType, start) => ({
+    id,
+    getComponentChain: async () => ({}),
+    getProjectItem: async () => ({ getId: async () => id.replace("audio", "video") }),
+    getTrackIndex: async () => 0,
+    getStartTime: async () => ({ seconds: start }),
+    getEndTime: async () => ({ seconds: start + 5 }),
+    ...(mediaType === "video" ? { createAddVideoTransitionAction() {} } : {})
+  });
+  const videoOne = makeClip("video-one", "video", 10);
+  const audioOne = makeClip("audio-one", "audio", 10);
+  const videoTwo = makeClip("video-two", "video", 15);
+  const audioTwo = makeClip("audio-two", "audio", 15);
+  const selectedItems = [videoOne, audioOne, videoTwo, audioTwo];
+  const context = {
+    console,
+    Math: { floor: Math.floor, random: () => 0 },
+    window: null,
+    PTB_SCHEMA: schema,
+    PTB_I18N: { t: (key) => key },
+    require(name) {
+      if (name !== "premierepro") {
+        throw new Error("Unexpected module: " + name);
+      }
+      const editor = {
+        createCloneTrackItemAction(item, timeOffset) {
+          cloneOffsets[item.id] = timeOffset.seconds;
+          return { type: "clone" };
+        },
+        createRemoveItemsAction(selection, ripple, mediaType) {
+          assert.equal(ripple, false);
+          removedMediaTypes.push(mediaType);
+          return { type: "remove" };
+        }
+      };
+      const sequence = {
+        getSelection: async () => ({ getTrackItems: async () => selectedItems }),
+        getVideoTrack: async () => ({ getTrackItems: async () => [] }),
+        getAudioTrack: async () => ({ getTrackItems: async () => [] }),
+        getPlayerPosition: () => ({ seconds: 10 }),
+        setPlayerPosition() {}
+      };
+      return {
+        Constants: { MediaType: { VIDEO: "video", AUDIO: "audio" }, TrackItemType: { CLIP: 1 } },
+        TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
+        SequenceEditor: { getEditor: () => editor },
+        TrackItemSelection: { createEmptySelection(callback) { callback({ addItem() { return true; } }); } },
+        Project: {
+          getActiveProject: async () => ({
+            lockedAccess(callback) { callback(); },
+            executeTransaction(callback) { callback({ addAction() {} }); return true; },
+            getActiveSequence: async () => sequence
+          })
+        }
+      };
+    }
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context, { filename: "src/premiereBridge.js" });
+  const result = await context.PTB_PREMIERE.applyButton(schema.createButton({ label: "Randomize", actionType: "action", action: { id: "randomizeTimelineClipOrder" } }));
+  assert.equal(result.clips, 4);
+  assert.equal(result.mediaType, "video");
+  assert.deepEqual(cloneOffsets, { "video-one": 5, "audio-one": 5, "video-two": -5, "audio-two": -5 });
+  assert.deepEqual(removedMediaTypes.sort(), ["audio", "audio", "video", "video"]);
+}
+
+await randomizeLinkedSelectionSmokeTest();
+
 // Report success for CI and local verification.
 console.log("ptb:test passed");

@@ -1446,13 +1446,16 @@
     if (!app.SequenceEditor || typeof app.SequenceEditor.getEditor !== "function" || !app.TickTime || typeof app.TickTime.createWithSeconds !== "function") {
       throw new Error("Premiere UXP does not expose the timeline APIs needed to randomize clip order.");
     }
-    const mediaType = items.every(isVideoItem) ? "video" : (items.every(isAudioItem) ? "audio" : "");
-    if (!mediaType || items.length < 2) {
+    const videoItems = items.filter(isVideoItem);
+    const audioItems = items.filter(isAudioItem);
+    if (!videoItems.length && audioItems.length < 2) {
       throw new Error("Select at least two video clips or two audio clips to randomize their order.");
     }
-    const sources = await getTowerSources(items);
-    if (!sources.every((source) => source.sourceTrackIndex === sources[0].sourceTrackIndex)) {
-      throw new Error("Select clips from one " + mediaType + " track to randomize their order.");
+    // Use video as the primary order whenever it is present, then move each selected linked audio item by the same offset.
+    const mediaType = videoItems.length ? "video" : "audio";
+    const sources = await getTowerSources(mediaType === "video" ? videoItems : audioItems);
+    if (sources.length < 2 || !sources.every((source) => source.sourceTrackIndex === sources[0].sourceTrackIndex)) {
+      throw new Error("Select at least two clips from one " + mediaType + " track to randomize their order.");
     }
     const shuffled = sources.slice();
     for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -1469,17 +1472,67 @@
       nextStart = target.timing.endNumber + (nextSource ? nextSource.timing.startNumber - sources[index].timing.endNumber : 0);
       return target;
     });
-    const mediaConstant = app.Constants && app.Constants.MediaType && (mediaType === "video" ? app.Constants.MediaType.VIDEO : app.Constants.MediaType.AUDIO);
+    let audioTargets = [];
+    if (mediaType === "video" && audioItems.length) {
+      audioTargets = await createLinkedAudioRandomizeTargets(targets, audioItems);
+    }
+    const mediaConstants = app.Constants && app.Constants.MediaType;
+    const mediaConstant = mediaConstants && (mediaType === "video" ? mediaConstants.VIDEO : mediaConstants.AUDIO);
+    const audioConstant = mediaConstants && mediaConstants.AUDIO;
+    if (mediaConstant === null || mediaConstant === undefined || (audioTargets.length && (audioConstant === null || audioConstant === undefined))) {
+      throw new Error("Premiere UXP does not expose the media type constants needed to randomize clip order.");
+    }
     const editor = app.SequenceEditor.getEditor(sequence);
     const actions = [];
-    targets.forEach((target) => {
+    targets.concat(audioTargets).forEach((target) => {
       actions.push(() => editor.createCloneTrackItemAction(target.item, app.TickTime.createWithSeconds(target.timing.startNumber - target.sourceTiming.startNumber), 0, 0, false, false));
-      actions.push(() => createRemoveTrackItemAction(app, editor, target.item, mediaConstant));
+      actions.push(() => createRemoveTrackItemAction(app, editor, target.item, target.mediaType === "audio" ? audioConstant : mediaConstant));
     });
     executeActions(project, actions, "Tool Bar: " + (undoLabel || "Randomize Clip Order"));
-    await selectMovedTowerClips(app, sequence, targets);
+    await selectMovedTowerClips(app, sequence, targets.concat(audioTargets));
     await refreshSequenceView(sequence);
-    return { clips: targets.length, mediaType };
+    return { clips: targets.length + audioTargets.length, mediaType };
+  }
+
+  // Build audio destinations from the matching video destination so linked audio remains synchronized after the shuffle.
+  async function createLinkedAudioRandomizeTargets(videoTargets, audioItems) {
+    const audioSources = await getTowerSources(audioItems);
+    const audioSourcesByKey = {};
+    for (const audioSource of audioSources) {
+      const key = await getLinkedClipKey(audioSource.item);
+      if (!key) {
+        throw new Error("Every selected audio clip must be linked to a selected video clip to randomize them together.");
+      }
+      if (!audioSourcesByKey[key]) {
+        audioSourcesByKey[key] = [];
+      }
+      audioSourcesByKey[key].push(audioSource);
+    }
+    const audioTargets = [];
+    for (const videoTarget of videoTargets) {
+      const videoKey = await getLinkedClipKey(videoTarget.item);
+      const linkedAudioSources = videoKey && audioSourcesByKey[videoKey];
+      if (!linkedAudioSources || !linkedAudioSources.length) {
+        throw new Error("Every selected video clip must include its linked audio to randomize them together.");
+      }
+      linkedAudioSources.forEach((audioSource) => {
+        const duration = audioSource.timing.endNumber - audioSource.timing.startNumber;
+        const relativeStart = audioSource.timing.startNumber - videoTarget.sourceTiming.startNumber;
+        audioTargets.push(Object.assign({}, audioSource, {
+          mediaType: "audio",
+          targetTrackIndex: audioSource.sourceTrackIndex,
+          sourceTiming: audioSource.timing,
+          timing: Object.assign({}, audioSource.timing, {
+            startNumber: videoTarget.timing.startNumber + relativeStart,
+            endNumber: videoTarget.timing.startNumber + relativeStart + duration
+          })
+        }));
+      });
+    }
+    if (audioTargets.length !== audioSources.length) {
+      throw new Error("Every selected audio clip must be linked to a selected video clip to randomize them together.");
+    }
+    return audioTargets;
   }
 
   // Convert an exact sequence-frame count to seconds without assuming a project frame rate.
@@ -1548,7 +1601,7 @@
       return "";
     }
     const projectItem = await item.getProjectItem();
-    const projectId = projectItem && typeof projectItem.getId === "function" ? projectItem.getId() : "";
+    const projectId = projectItem && typeof projectItem.getId === "function" ? await projectItem.getId() : "";
     const timing = await getTrackItemTiming(item);
     return projectId && timing.startNumber !== null && timing.endNumber !== null ? String(projectId) + "|" + timing.startNumber + "|" + timing.endNumber : "";
   }
