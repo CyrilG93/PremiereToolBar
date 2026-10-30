@@ -112,6 +112,11 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.3.12 - 2026-10-30
+
+- Added automatic Pitch Shifter correction for audio clips with changed speed.
+- Improved the safety of Randomize Order Selection.
+
 ### 1.3.8 - 2026-10-09
 
 - Fixed Staircase Down so it creates every required video track and places clips on the intended descending tracks.
