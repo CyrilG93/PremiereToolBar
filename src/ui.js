@@ -2475,6 +2475,14 @@
     if (catalogPicker) {
       wrap.appendChild(catalogPicker);
     }
+    if (button.mediaType === "audio" && /^pitch shifter$/i.test(button.effect.displayName.trim())) {
+      // Expose the speed-based ratio only for the supported native audio effect.
+      wrap.appendChild(checkboxField(root.PTB_I18N.t("autoPitchRatio"), button.effect.autoPitchRatio, (checked) => {
+        button.effect.autoPitchRatio = checked;
+        saveAndRender(root.PTB_I18N.t("statusSaved"));
+      }));
+      wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("autoPitchRatioHelp")));
+    }
     return wrap;
   }
 

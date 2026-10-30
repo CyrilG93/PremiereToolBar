@@ -2494,6 +2494,9 @@
   // Apply a native audio or video effect to all compatible selected clips.
   async function applyEffectButton(button) {
     const { app, project, sequence, items } = await getSelectedItems();
+    if (button.mediaType === "audio" && button.effect.autoPitchRatio && /^pitch shifter$/i.test(button.effect.displayName.trim())) {
+      return applyAutomaticPitchShifter(app, project, sequence, items, button);
+    }
     const results = [];
     let actionCount = 0;
     for (const item of items) {
@@ -2516,6 +2519,81 @@
     }
     if (!actionCount) {
       throw new Error("No compatible selected clips for this button.");
+    }
+    await refreshSequenceView(sequence);
+    return results;
+  }
+
+  // Apply one static pitch correction per selected audio clip using Premiere's normalized effect parameters.
+  async function applyAutomaticPitchShifter(app, project, sequence, items, button) {
+    const audioItems = items.filter(isAudioItem);
+    if (!audioItems.length) {
+      throw new Error("Select at least one audio clip for Pitch Shifter.");
+    }
+    const targets = [];
+    for (const item of audioItems) {
+      const speed = typeof item.getSpeed === "function" ? await item.getSpeed() : NaN;
+      const ratio = 1 / speed;
+      if (!Number.isFinite(speed) || speed <= 0 || ratio < 0.5 || ratio > 2) {
+        throw new Error("Pitch Shifter requires a readable clip speed between 50% and 200%.");
+      }
+      targets.push({ item, speed, ratio });
+    }
+    const results = [];
+    for (const target of targets) {
+      let chain = await target.item.getComponentChain();
+      let component = null;
+      for (let index = 0; index < chain.getComponentCount(); index += 1) {
+        const candidate = chain.getComponentAtIndex(index);
+        const name = await readComponentDisplayName(candidate);
+        if (/^pitch shifter$/i.test(name)) {
+          component = candidate;
+          break;
+        }
+      }
+      const isNew = !component;
+      if (isNew) {
+        component = await app.AudioFilterFactory.createComponentByDisplayName(button.effect.displayName, target.item);
+        const append = createNaturalAppendComponentActionFactoryInfo(chain, component);
+        results.push(executeActions(project, [append.factory], "Tool Bar: " + button.label));
+        await refreshSequenceView(sequence);
+        await waitForHostPaint();
+        chain = await target.item.getComponentChain();
+        component = resolveInsertedComponent(chain, append.resolveIndex) || component;
+      }
+      let ratioParam = null;
+      let precisionParam = null;
+      let defaultSettingsParam = null;
+      const parameterNames = [];
+      for (let index = 0; index < getComponentParamCount(component); index += 1) {
+        const param = component.getParam(index);
+        parameterNames.push(param ? String(param.displayName || "") : "");
+        if (param && /^transpose ratio$/i.test(String(param.displayName || "").trim())) ratioParam = param;
+        if (param && /^precision$/i.test(String(param.displayName || "").trim())) precisionParam = param;
+        if (param && /^use (appropriate )?default settings?$/i.test(String(param.displayName || "").trim())) defaultSettingsParam = param;
+      }
+      if (!ratioParam || typeof ratioParam.createKeyframe !== "function" || typeof ratioParam.createSetValueAction !== "function") {
+        throw new Error("Premiere did not expose the Pitch Shifter Transpose Ratio parameter.");
+      }
+      if (!defaultSettingsParam || typeof defaultSettingsParam.createKeyframe !== "function" || typeof defaultSettingsParam.createSetValueAction !== "function") {
+        logBridge("error", "Pitch Shifter default settings parameter unavailable.", { parameterNames });
+        throw new Error("Premiere did not expose the Pitch Shifter Use Default Setting parameter. See Tool Bar logs.");
+      }
+      // Truncate the requested displayed ratio to four decimals before converting to Premiere's normalized value.
+      const displayedRatio = Math.floor(target.ratio * 10000 + 1e-9) / 10000;
+      const normalizedRatio = Math.fround((displayedRatio - 0.5) / 1.5);
+      const ratioKeyframe = ratioParam.createKeyframe(normalizedRatio);
+      const actions = [() => ratioParam.createSetValueAction(ratioKeyframe, true)];
+      if (isNew && precisionParam && typeof precisionParam.createKeyframe === "function" && typeof precisionParam.createSetValueAction === "function") {
+        // Match the screenshot's High Precision setting for newly added effects.
+        const precisionKeyframe = precisionParam.createKeyframe(5 / 6);
+        actions.push(() => precisionParam.createSetValueAction(precisionKeyframe, true));
+      }
+      // Enable the effect's automatic splicing and overlap settings, including for an existing effect.
+      const defaultSettingsKeyframe = defaultSettingsParam.createKeyframe(0.75);
+      actions.push(() => defaultSettingsParam.createSetValueAction(defaultSettingsKeyframe, true));
+      results.push(executeActions(project, actions, "Tool Bar: " + button.label + " pitch ratio"));
+      logBridge("info", "Adjusted Pitch Shifter for clip speed.", { speed: target.speed, ratio: target.ratio, displayedRatio, normalizedRatio, defaultSettings: 0.75, parameterNames });
     }
     await refreshSequenceView(sequence);
     return results;

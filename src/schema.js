@@ -102,7 +102,9 @@
       },
       effect: {
         matchName: typeof (input.effect && input.effect.matchName) === "string" ? input.effect.matchName.trim() : safeString(input.effectMatchName, ""),
-        displayName: safeString(input.effect && input.effect.displayName, input.effectDisplayName || "Mosaic")
+        displayName: safeString(input.effect && input.effect.displayName, input.effectDisplayName || "Mosaic"),
+        // Opt in to calculating Pitch Shifter's ratio from each audio clip's speed.
+        autoPitchRatio: Boolean(input.effect && input.effect.autoPitchRatio)
       },
       transition: {
         matchName: safeString(input.transition && input.transition.matchName, input.transitionMatchName || ""),

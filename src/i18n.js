@@ -137,6 +137,8 @@
     effectMatchName: "Effect Match Name",
     effectDisplayName: "Effect Display Name",
     effectLookupName: "Effect Name or Match Name",
+    autoPitchRatio: "Adjust Pitch Shifter ratio to clip speed",
+    autoPitchRatioHelp: "Select audio clips at 50–200% speed. Run the button again after changing speed; disable Maintain Audio Pitch to avoid correcting twice.",
     transitionMatchName: "Transition Match Name",
     transitionPosition: "Apply To",
     transitionStart: "Clip Start",

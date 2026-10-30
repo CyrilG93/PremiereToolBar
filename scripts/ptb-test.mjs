@@ -2747,5 +2747,57 @@ await timelineLayoutActionSmokeTest("staircaseVideoClipsUp", [0, 1, 2], [0, 0, 0
 await timelineLayoutActionSmokeTest("staircaseVideoClipsDown", [2, 1, 0], [0, 0, 0], [0, 1, 2]);
 await timelineLayoutActionSmokeTest("towerVideoClips", [0, 1, 2], [0, -5, -10]);
 
-// Report success for CI and local verification.
+// Verify each selected audio clip gets its own normalized Pitch Shifter ratio and existing effects are reused.
+async function automaticPitchRatioTest() {
+  const inserted = [];
+  const writes = [];
+  const makeComponent = () => {
+    const params = ["Transpose Ratio", "Precision", "Use Default Setting"].map((name) => ({
+      displayName: name,
+      createKeyframe: (value) => ({ value }),
+      createSetValueAction: (keyframe) => ({ name, value: keyframe.value })
+    }));
+    return { getDisplayName: async () => "Pitch Shifter", getParamCount: () => params.length, getParam: (index) => params[index] };
+  };
+  const makeItem = (speed, existing) => {
+    const components = existing ? [makeComponent()] : [];
+    const chain = {
+      getComponentCount: () => components.length,
+      getComponentAtIndex: (index) => components[index],
+      createInsertComponentAction: (component, index) => ({ insert: () => { components.splice(index, 0, component); inserted.push(speed); } })
+    };
+    return { getSpeed: async () => speed, getComponentChain: async () => chain };
+  };
+  let items = [makeItem(1.1, false), makeItem(1.2, true), makeItem(0.8, true)];
+  const context = {
+    console, window: null, PTB_SCHEMA: schema, PTB_I18N: { t: (key) => key },
+    require: () => ({
+      Project: { getActiveProject: async () => ({
+        getActiveSequence: async () => ({ getSelection: async () => ({ getTrackItems: async () => items }) }),
+        executeTransaction: (handler) => { handler({ addAction: (action) => action.insert ? action.insert() : writes.push(action) }); return true; }
+      }) },
+      AudioFilterFactory: { createComponentByDisplayName: async () => makeComponent() }
+    })
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context);
+  const button = schema.createButton({ actionType: "effect", mediaType: "audio", effect: { displayName: "Pitch Shifter", autoPitchRatio: true } });
+  await context.PTB_PREMIERE.applyButton(button);
+  assert.deepEqual(inserted, [1.1]);
+  const ratios = writes.filter((entry) => entry.name === "Transpose Ratio").map((entry) => entry.value);
+  // Truncate ratios to four displayed decimals before mapping Premiere's normalized parameter.
+  assert.ok(Math.abs(ratios[0] - 0.27266666293144226) < 1e-7);
+  assert.ok(Math.abs(ratios[1] - (0.8333 - 0.5) / 1.5) < 1e-7);
+  assert.equal(ratios[2], 0.5);
+  assert.equal(writes.filter((entry) => entry.name === "Precision").length, 1);
+  assert.deepEqual(writes.filter((entry) => entry.name === "Use Default Setting").map((entry) => entry.value), [0.75, 0.75, 0.75]);
+  items = [makeItem(1, false), makeItem(2.1, false)];
+  await assert.rejects(context.PTB_PREMIERE.applyButton(button), /50% and 200%/);
+  assert.deepEqual(inserted, [1.1]);
+}
+
+await automaticPitchRatioTest();
+
+// Report success only after every test has completed.
 console.log("ptb:test passed");
