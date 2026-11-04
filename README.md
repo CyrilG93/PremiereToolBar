@@ -74,7 +74,7 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 
 ## Button Types
 
-- `Native Effect`: add a Premiere effect to selected clips.
+- `Native Effect`: add a Premiere effect to selected clips. Video and audio effects are listed alphabetically by name.
 - `Video Transition`: add a video transition to selected clips or an edit point.
 - `Pitch Shifter`: choose the audio effect and enable **Adjust Pitch Shifter ratio to clip speed** to correct selected audio clips between 50% and 200%. Run the button again after changing speed. Turn off Premiere’s Maintain Audio Pitch option to avoid applying two corrections.
 - `Effect Preset`: capture exposed clip parameters, video effects, audio effects, and keyframes, then apply them later. Choose video, audio, or both during capture; a linked video/audio selection can therefore create an audio-only preset. Static audio controls, including internally stored effect settings, are captured from the clip's effective value. The standard button name is used, so no separate preset name is required.

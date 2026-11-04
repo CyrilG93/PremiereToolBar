@@ -9,6 +9,27 @@ import schema from "../src/schema.js";
 // Resolve project files from this test script location.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+// Verify effect catalogs sort display names while preserving their associated video identifiers.
+{
+  const context = {
+    require: () => ({
+      VideoFilterFactory: {
+        getMatchNames: async () => ["id-z", "id-a", "id-fallback"],
+        getDisplayNames: async () => ["Zoom", "alpha", ""]
+      },
+      AudioFilterFactory: { getDisplayNames: async () => ["Volume", "Bass"] }
+    })
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context);
+  const catalogs = await context.PTB_PREMIERE.loadCatalogs();
+  assert.deepEqual(Array.from(catalogs.videoEffects, (item) => [item.displayName, item.matchName]), [
+    ["alpha", "id-a"], ["id-fallback", "id-fallback"], ["Zoom", "id-z"]
+  ]);
+  assert.deepEqual(Array.from(catalogs.audioEffects, (item) => item.displayName), ["Bass", "Volume"]);
+}
+
 // Keep the bundled project template aligned with the GUID imported by the Adjustment Layer action.
 const adjustmentTemplateXml = gunzipSync(fs.readFileSync(path.join(repoRoot, "assets", "Templates", "Adjustment Layer.prproj"))).toString("utf8");
 assert.ok(adjustmentTemplateXml.includes('Sequence ObjectUID="e781e9b4-4f51-4b8c-82ce-590c70e50e8a"'));

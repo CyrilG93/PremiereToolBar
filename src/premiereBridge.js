@@ -735,14 +735,15 @@
     const audioTransitionMatchNames = await getAudioTransitionMatchNames(app);
     const colorLabels = getProjectItemColorLabels(app);
     return {
+      // Sort only after pairing display names with their matching Premiere identifiers.
       videoEffects: videoMatchNames.map((matchName, index) => ({
         matchName,
         displayName: videoDisplayNames[index] || matchName
-      })),
+      })).sort((left, right) => left.displayName.localeCompare(right.displayName, undefined, { sensitivity: "base" })),
       audioEffects: audioDisplayNames.map((displayName) => ({
         matchName: "",
         displayName
-      })),
+      })).sort((left, right) => left.displayName.localeCompare(right.displayName, undefined, { sensitivity: "base" })),
       videoTransitions: videoTransitionMatchNames.map((matchName) => ({
         matchName,
         displayName: matchName
