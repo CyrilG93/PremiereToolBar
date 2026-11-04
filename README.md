@@ -112,9 +112,10 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
-### 1.3.12 - 2026-10-30
+### 1.4.0 - 2026-11-04
 
-- Added automatic Pitch Shifter correction for audio clips with changed speed.
+- Automatically adjust Pitch Shifter to compensate for changes in audio clip speed.
+- Browse native video and audio effects in alphabetical order.
 - Improved the safety of Randomize Order Selection.
 
 ### 1.3.8 - 2026-10-09
