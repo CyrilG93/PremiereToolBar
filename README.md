@@ -112,6 +112,11 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.4.5 - 2026-11-09
+
+- Added centered video transitions near the playhead, with a configurable search distance.
+- Added a hybrid selection mode and support for choosing multiple video tracks.
+
 ### 1.4.0 - 2026-11-04
 
 - Automatically adjust Pitch Shifter to compensate for changes in audio clip speed.
