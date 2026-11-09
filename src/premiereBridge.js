@@ -2796,7 +2796,7 @@
   }
 
   // Find the nearest shared clip boundary within the configured playhead range.
-  async function resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, searchSeconds, selectedItems) {
+  async function resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, searchSeconds) {
     if (typeof sequence.getPlayerPosition !== "function" || typeof sequence.getVideoTrackCount !== "function") {
       throw new Error("Premiere could not read the playhead or video tracks.");
     }
@@ -2809,8 +2809,6 @@
     if (missing) {
       throw new Error("Video track V" + missing + " does not exist in this sequence.");
     }
-    // Match selected clip boundaries to scanned tracks so one selected clip can target its neighbor.
-    const selected = selectedItems ? await Promise.all(selectedItems.filter(isVideoItem).map(getTrackItemTiming)) : null;
     let nearestDistance = searchSeconds + 0.0001;
     let targets = [];
     for (let trackIndex = 0; trackIndex < count; trackIndex += 1) {
@@ -2822,8 +2820,6 @@
       const timings = await Promise.all(clips.map((clip) => getTrackItemTiming(clip)));
       for (const right of timings) {
         if (right.startNumber === null || !timings.some((left) => left !== right && nearlyEqualTime(left.endNumber, right.startNumber))) continue;
-        if (selected && !selected.some((clip) => clip.trackIndex === trackIndex &&
-          (nearlyEqualTime(clip.startNumber, right.startNumber) || nearlyEqualTime(clip.endNumber, right.startNumber)))) continue;
         const distance = Math.abs(right.startNumber - playhead);
         if (distance > searchSeconds || distance > nearestDistance + 0.0001) continue;
         if (distance < nearestDistance - 0.0001) {
@@ -2861,13 +2857,9 @@
       }
       items = filtered;
     }
-    if (useHybrid && selectedVideoCount && !items.some(isVideoItem)) {
-      throw new Error("No selected video clips on the chosen tracks.");
-    }
     // Two or more selected video clips always use the existing selection behavior.
     if (usePlayhead || (useHybrid && selectedVideoCount < 2)) {
-      const selectedForCut = useHybrid && selectedVideoCount === 1 ? items : null;
-      const targets = await resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, button.transition.searchSeconds, selectedForCut);
+      const targets = await resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, button.transition.searchSeconds);
       if (targets.length) {
         const result = await applyVideoEditPointTransitionActions(app, project, button, targets, "playhead");
         await refreshSequenceView(sequence);
