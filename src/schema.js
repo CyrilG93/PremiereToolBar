@@ -114,7 +114,10 @@
         // Limit cut searches around the playhead while keeping older buttons at one second.
         searchSeconds: safeNumber(input.transition && input.transition.searchSeconds != null ? input.transition.searchSeconds : 1, 1, 0.01, 3600),
         trackMode: input.transition && input.transition.trackMode === "specific" ? "specific" : "default",
-        trackNumber: Math.round(safeNumber(input.transition && input.transition.trackNumber, 1, 1, 999)),
+        // Migrate the previous single-track setting to a comma-separated list.
+        trackNumbers: input.transition && typeof input.transition.trackNumbers === "string"
+          ? input.transition.trackNumbers
+          : String(Math.round(safeNumber(input.transition && input.transition.trackNumber != null ? input.transition.trackNumber : 1, 1, 1, 999))),
         durationSeconds: safeNumber(input.transition && input.transition.durationSeconds, 1, 0.01, 30),
         forceSingleSided: Boolean(input.transition && input.transition.forceSingleSided),
         alignment: safeNumber(input.transition && input.transition.alignment, 0, -2, 2)

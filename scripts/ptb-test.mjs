@@ -2120,12 +2120,12 @@ async function playheadTransitionTest() {
   assert.deepEqual(applied, [{ track: 2, start: 5.2, alignment: 0.5, single: false }]);
   playhead = 12;
   await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /No cut between adjacent/);
-  button.transition.trackNumber = 3;
+  button.transition.trackNumbers = "3";
   await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /does not exist/);
   assert.equal(applied.length, 1);
   // The hybrid mode finds a selected clip's cut even when its neighbor is unselected.
   button.transition.targetMode = "hybrid";
-  button.transition.trackNumber = 1;
+  button.transition.trackNumbers = "1";
   button.transition.applyTo = "end";
   button.transition.searchSeconds = 2;
   selected = [tracks[0][0]];
@@ -2141,6 +2141,15 @@ async function playheadTransitionTest() {
   playhead = 5.2;
   await context.PTB_PREMIERE.applyButton(button);
   assert.deepEqual(applied[3], { track: 1, start: 5, alignment: 0.5, single: false });
+  // Multiple tracks are independently searched, even when their cuts are at different distances.
+  button.transition.trackNumbers = "1,2";
+  await context.PTB_PREMIERE.applyButton(button);
+  assert.deepEqual(applied.slice(4), [
+    { track: 1, start: 5, alignment: 0.5, single: false },
+    { track: 2, start: 5.2, alignment: 0.5, single: false }
+  ]);
+  button.transition.trackNumbers = "1,no";
+  await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /separated by commas/);
 }
 await playheadTransitionTest();
 

@@ -2403,8 +2403,8 @@
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         }));
         if (button.transition.trackMode === "specific") {
-          grid.appendChild(numberField(root.PTB_I18N.t("transitionTrackNumber"), button.transition.trackNumber, (value) => {
-            button.transition.trackNumber = value;
+          grid.appendChild(textField(root.PTB_I18N.t("transitionTrackNumber"), button.transition.trackNumbers, (value) => {
+            button.transition.trackNumbers = value;
           }));
         }
       }

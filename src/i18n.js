@@ -150,7 +150,7 @@
     transitionTrack: "Video Track",
     transitionTrackDefault: "Default (No Track Filter)",
     transitionTrackSpecific: "Specific Track",
-    transitionTrackNumber: "Track Number (V1 = 1)",
+    transitionTrackNumber: "Track Numbers (e.g. 1,2,4)",
     transitionCenter: "Centered on Cut",
     transitionPlayheadHelp: "Finds the nearest cut between adjacent clips within the search distance. Default searches all video tracks, not Premiere targeted tracks.",
     transitionCenterHelp: "Select both adjacent clips to center the transition on their shared cut.",

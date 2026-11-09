@@ -2782,8 +2782,21 @@
     return results;
   }
 
+  // Validate every requested track rather than silently applying to a partial list.
+  function parseTransitionTrackNumbers(value) {
+    const text = String(value || "").trim();
+    if (!/^\d+(\s*,\s*\d+)*$/.test(text)) {
+      throw new Error("Enter video track numbers separated by commas, for example 1,2,4.");
+    }
+    const numbers = text.split(",").map((entry) => Number(entry.trim()));
+    if (numbers.some((number) => number < 1 || number > 999)) {
+      throw new Error("Video track numbers must be between 1 and 999.");
+    }
+    return Array.from(new Set(numbers));
+  }
+
   // Find the nearest shared clip boundary within the configured playhead range.
-  async function resolvePlayheadVideoCutTargets(app, sequence, trackNumber, searchSeconds, selectedItems) {
+  async function resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, searchSeconds, selectedItems) {
     if (typeof sequence.getPlayerPosition !== "function" || typeof sequence.getVideoTrackCount !== "function") {
       throw new Error("Premiere could not read the playhead or video tracks.");
     }
@@ -2792,15 +2805,19 @@
       throw new Error("Premiere could not read the playhead position.");
     }
     const count = await sequence.getVideoTrackCount();
-    if (trackNumber && trackNumber > count) {
-      throw new Error("Video track V" + trackNumber + " does not exist in this sequence.");
+    const missing = trackNumbers && trackNumbers.find((number) => number > count);
+    if (missing) {
+      throw new Error("Video track V" + missing + " does not exist in this sequence.");
     }
     // Match selected clip boundaries to scanned tracks so one selected clip can target its neighbor.
     const selected = selectedItems ? await Promise.all(selectedItems.filter(isVideoItem).map(getTrackItemTiming)) : null;
     let nearestDistance = searchSeconds + 0.0001;
     let targets = [];
     for (let trackIndex = 0; trackIndex < count; trackIndex += 1) {
-      if (trackNumber && trackIndex !== trackNumber - 1) continue;
+      if (trackNumbers && !trackNumbers.includes(trackIndex + 1)) continue;
+      // When tracks are explicitly listed, find the nearest cut independently on each track.
+      if (trackNumbers) nearestDistance = searchSeconds + 0.0001;
+      const trackTargets = [];
       const clips = await getTrackClips(app, sequence, "video", trackIndex);
       const timings = await Promise.all(clips.map((clip) => getTrackItemTiming(clip)));
       for (const right of timings) {
@@ -2811,10 +2828,12 @@
         if (distance > searchSeconds || distance > nearestDistance + 0.0001) continue;
         if (distance < nearestDistance - 0.0001) {
           nearestDistance = distance;
-          targets = [];
+          if (trackNumbers) trackTargets.length = 0;
+          else targets = [];
         }
-        targets.push({ item: right.item, applyTo: "start", trackIndex, point: right.startNumber });
+        (trackNumbers ? trackTargets : targets).push({ item: right.item, applyTo: "start", trackIndex, point: right.startNumber });
       }
+      targets.push(...trackTargets);
     }
     return targets;
   }
@@ -2831,10 +2850,10 @@
     if (!button.transition.matchName) {
       throw new Error("Choose a Premiere " + mediaType + " transition first.");
     }
-    const trackNumber = mediaType === "video" && button.transition.trackMode === "specific" ? button.transition.trackNumber : null;
+    const trackNumbers = mediaType === "video" && button.transition.trackMode === "specific" ? parseTransitionTrackNumbers(button.transition.trackNumbers) : null;
     if (usePlayhead || useHybrid) {
       const selectedForCut = useHybrid && items.length ? items : null;
-      const targets = await resolvePlayheadVideoCutTargets(app, sequence, trackNumber, button.transition.searchSeconds, selectedForCut);
+      const targets = await resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, button.transition.searchSeconds, selectedForCut);
       if (targets.length) {
         const result = await applyVideoEditPointTransitionActions(app, project, button, targets, "playhead");
         await refreshSequenceView(sequence);
@@ -2845,12 +2864,12 @@
       }
       // Fall back to the existing selection behavior when no selected cut is close enough.
     }
-    if (trackNumber) {
-      // Restrict selected clips to the explicitly chosen video track.
+    if (trackNumbers) {
+      // Restrict selected clips to the explicitly chosen video tracks.
       const filtered = [];
       for (const item of items) {
         const timing = await getTrackItemTiming(item);
-        if (timing.trackIndex === trackNumber - 1) filtered.push(item);
+        if (typeof timing.trackIndex === "number" && trackNumbers.includes(timing.trackIndex + 1)) filtered.push(item);
       }
       items = filtered;
     }
