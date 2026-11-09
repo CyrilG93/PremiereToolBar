@@ -2073,6 +2073,56 @@ async function applyAdjacentSelectedClipsTransitionSmokeTest() {
 
 await applyAdjacentSelectedClipsTransitionSmokeTest();
 
+// Verify playhead mode works without selection, respects the track filter, and rejects distant cuts.
+async function playheadTransitionTest() {
+  const applied = [];
+  let playhead = 5.1;
+  const clip = (track, start, end) => ({
+    getStartTime: async () => ({ seconds: start }),
+    getEndTime: async () => ({ seconds: end }),
+    createAddVideoTransitionAction(transition, options) {
+      applied.push({ track, start, alignment: options.alignment, single: options.single });
+      return { transition };
+    }
+  });
+  const tracks = [[clip(1, 0, 5), clip(1, 5, 9)], [clip(2, 0, 5.2), clip(2, 5.2, 9)]];
+  const sequence = {
+    getSelection: async () => ({ getTrackItems: async () => [] }),
+    getPlayerPosition: async () => ({ seconds: playhead }),
+    getVideoTrackCount: async () => tracks.length,
+    getVideoTrack: async (index) => ({ getTrackItems: async () => tracks[index] })
+  };
+  const context = { console, window: null, PTB_SCHEMA: schema, PTB_I18N: { t: (key) => key },
+    require: () => ({
+      Constants: { TrackItemType: { CLIP: 1 } },
+      AddTransitionOptions: function AddTransitionOptions() {
+        this.setApplyToStart = () => this;
+        this.setForceSingleSided = (value) => { this.single = value; return this; };
+        this.setTransitionAlignment = (value) => { this.alignment = value; return this; };
+        this.setDuration = () => this;
+      },
+      TickTime: { createWithSeconds: (seconds) => ({ seconds }) },
+      Project: { getActiveProject: async () => ({ getActiveSequence: async () => sequence,
+        executeTransaction: (handler) => { handler({ addAction() {} }); return true; } }) },
+      TransitionFactory: { createVideoTransition: async (matchName) => ({ matchName }) }
+    })
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/premiereBridge.js"), "utf8"), context);
+  const button = schema.createButton({ actionType: "transition", transition: {
+    matchName: "VideoTransition", targetMode: "playhead", trackMode: "specific", trackNumber: 2
+  } });
+  await context.PTB_PREMIERE.applyButton(button);
+  assert.deepEqual(applied, [{ track: 2, start: 5.2, alignment: 0.5, single: false }]);
+  playhead = 12;
+  await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /No cut between adjacent/);
+  button.transition.trackNumber = 3;
+  await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /does not exist/);
+  assert.equal(applied.length, 1);
+}
+await playheadTransitionTest();
+
 // Verify audio transitions stay disabled while the Premiere UXP API is not reliable enough.
 async function disabledAudioTransitionSmokeTest() {
   const appliedStarts = [];

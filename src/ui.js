@@ -2380,10 +2380,33 @@
           button.transition.matchName = value;
         }));
       }
-      grid.appendChild(selectField(root.PTB_I18N.t("transitionPosition"), button.transition.applyTo, [
+      // Let video buttons use the current selection or find a cut near the playhead.
+      if (catalogKind === "transition") {
+        grid.appendChild(selectField(root.PTB_I18N.t("transitionTarget"), button.transition.targetMode, [
+          { value: "selection", label: root.PTB_I18N.t("transitionSelection") },
+          { value: "playhead", label: root.PTB_I18N.t("transitionPlayhead") }
+        ], (value) => {
+          button.transition.targetMode = value;
+          saveAndRender(root.PTB_I18N.t("statusSaved"));
+        }));
+        grid.appendChild(selectField(root.PTB_I18N.t("transitionTrack"), button.transition.trackMode, [
+          { value: "default", label: root.PTB_I18N.t("transitionTrackDefault") },
+          { value: "specific", label: root.PTB_I18N.t("transitionTrackSpecific") }
+        ], (value) => {
+          button.transition.trackMode = value;
+          saveAndRender(root.PTB_I18N.t("statusSaved"));
+        }));
+        if (button.transition.trackMode === "specific") {
+          grid.appendChild(numberField(root.PTB_I18N.t("transitionTrackNumber"), button.transition.trackNumber, (value) => {
+            button.transition.trackNumber = value;
+          }));
+        }
+      }
+      if (catalogKind !== "transition" || button.transition.targetMode !== "playhead") grid.appendChild(selectField(root.PTB_I18N.t("transitionPosition"), button.transition.applyTo, [
         { value: "start", label: root.PTB_I18N.t("transitionStart") },
         { value: "end", label: root.PTB_I18N.t("transitionEnd") },
-        { value: "both", label: root.PTB_I18N.t("transitionBoth") }
+        { value: "both", label: root.PTB_I18N.t("transitionBoth") },
+        ...(catalogKind === "transition" ? [{ value: "center", label: root.PTB_I18N.t("transitionCenter") }] : [])
       ], (value) => {
         button.transition.applyTo = value;
         saveAndRender(root.PTB_I18N.t("statusSaved"));
@@ -2392,6 +2415,11 @@
         button.transition.durationSeconds = value;
       }));
       wrap.appendChild(grid);
+      if (catalogKind === "transition" && button.transition.targetMode === "playhead") {
+        wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("transitionPlayheadHelp")));
+      } else if (catalogKind === "transition" && button.transition.applyTo === "center") {
+        wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("transitionCenterHelp")));
+      }
       wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t(button.actionType === "transitionPreset" ? "transitionPresetHelp" : (catalogKind === "audioTransition" ? "audioTransitionHelp" : "transitionHelp"))));
       if (button.actionType === "transitionPreset") {
         wrap.appendChild(renderPresetComponentSummary(button.stack));

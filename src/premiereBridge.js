@@ -2782,13 +2782,66 @@
     return results;
   }
 
+  // Find the nearest shared clip boundary on the requested tracks within one second.
+  async function resolvePlayheadVideoCutTargets(app, sequence, trackNumber) {
+    if (typeof sequence.getPlayerPosition !== "function" || typeof sequence.getVideoTrackCount !== "function") {
+      throw new Error("Premiere could not read the playhead or video tracks.");
+    }
+    const playhead = timeToNumber(await sequence.getPlayerPosition());
+    if (playhead === null) {
+      throw new Error("Premiere could not read the playhead position.");
+    }
+    const count = await sequence.getVideoTrackCount();
+    if (trackNumber && trackNumber > count) {
+      throw new Error("Video track V" + trackNumber + " does not exist in this sequence.");
+    }
+    let nearestDistance = 1.0001;
+    let targets = [];
+    for (let trackIndex = 0; trackIndex < count; trackIndex += 1) {
+      if (trackNumber && trackIndex !== trackNumber - 1) continue;
+      const clips = await getTrackClips(app, sequence, "video", trackIndex);
+      const timings = await Promise.all(clips.map((clip) => getTrackItemTiming(clip)));
+      for (const right of timings) {
+        if (right.startNumber === null || !timings.some((left) => left !== right && nearlyEqualTime(left.endNumber, right.startNumber))) continue;
+        const distance = Math.abs(right.startNumber - playhead);
+        if (distance > 1 || distance > nearestDistance + 0.0001) continue;
+        if (distance < nearestDistance - 0.0001) {
+          nearestDistance = distance;
+          targets = [];
+        }
+        targets.push({ item: right.item, applyTo: "start", trackIndex, point: right.startNumber });
+      }
+    }
+    return targets;
+  }
+
   // Apply a native transition to all selected compatible clips.
   async function applyNativeTransitionButton(button, mediaType) {
-    const { app, project, sequence, items } = await getSelectedItems();
+    const usePlayhead = mediaType === "video" && button.transition.targetMode === "playhead";
+    const selection = await getSelectedItems(usePlayhead);
+    const { app, project, sequence } = selection;
+    let items = selection.items;
     const results = [];
     let actionCount = 0;
     if (!button.transition.matchName) {
       throw new Error("Choose a Premiere " + mediaType + " transition first.");
+    }
+    const trackNumber = mediaType === "video" && button.transition.trackMode === "specific" ? button.transition.trackNumber : null;
+    if (usePlayhead) {
+      const targets = await resolvePlayheadVideoCutTargets(app, sequence, trackNumber);
+      if (!targets.length) throw new Error("No cut between adjacent video clips within 1 second of the playhead on the chosen tracks.");
+      const result = await applyVideoEditPointTransitionActions(app, project, button, targets, "playhead");
+      await refreshSequenceView(sequence);
+      return result;
+    }
+    if (trackNumber) {
+      // Restrict selected clips to the explicitly chosen video track.
+      const filtered = [];
+      for (const item of items) {
+        const timing = await getTrackItemTiming(item);
+        if (timing.trackIndex === trackNumber - 1) filtered.push(item);
+      }
+      items = filtered;
     }
     const applyTargets = button.transition.applyTo === "both" ? ["start", "end"] : [button.transition.applyTo || "end"];
     logBridge("info", "Applying " + mediaType + " transition.", {
@@ -2816,6 +2869,9 @@
         logBridge("info", "Adjacent-clip video transition command completed.", { actions: result.length });
         return result;
       }
+    }
+    if (mediaType === "video" && button.transition.applyTo === "center") {
+      throw new Error("Select two adjacent video clips on the chosen track to apply a centered transition.");
     }
     if (mediaType === "audio" && (!app.TransitionFactory || typeof app.TransitionFactory.createAudioTransition !== "function")) {
       const message = "Premiere UXP does not expose audio transition creation in this build.";

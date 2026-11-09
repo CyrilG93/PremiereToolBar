@@ -108,7 +108,11 @@
       },
       transition: {
         matchName: safeString(input.transition && input.transition.matchName, input.transitionMatchName || ""),
-        applyTo: input.transition && ["start", "end", "both"].includes(input.transition.applyTo) ? input.transition.applyTo : "end",
+        applyTo: input.transition && ["start", "end", "both", "center"].includes(input.transition.applyTo) ? input.transition.applyTo : "end",
+        // Preserve the existing selection behavior unless the playhead or a specific track is requested.
+        targetMode: input.transition && input.transition.targetMode === "playhead" ? "playhead" : "selection",
+        trackMode: input.transition && input.transition.trackMode === "specific" ? "specific" : "default",
+        trackNumber: Math.round(safeNumber(input.transition && input.transition.trackNumber, 1, 1, 999)),
         durationSeconds: safeNumber(input.transition && input.transition.durationSeconds, 1, 0.01, 30),
         forceSingleSided: Boolean(input.transition && input.transition.forceSingleSided),
         alignment: safeNumber(input.transition && input.transition.alignment, 0, -2, 2)
