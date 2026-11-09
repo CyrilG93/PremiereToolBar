@@ -110,7 +110,9 @@
         matchName: safeString(input.transition && input.transition.matchName, input.transitionMatchName || ""),
         applyTo: input.transition && ["start", "end", "both", "center"].includes(input.transition.applyTo) ? input.transition.applyTo : "end",
         // Preserve the existing selection behavior unless the playhead or a specific track is requested.
-        targetMode: input.transition && input.transition.targetMode === "playhead" ? "playhead" : "selection",
+        targetMode: input.transition && ["playhead", "hybrid"].includes(input.transition.targetMode) ? input.transition.targetMode : "selection",
+        // Limit cut searches around the playhead while keeping older buttons at one second.
+        searchSeconds: safeNumber(input.transition && input.transition.searchSeconds != null ? input.transition.searchSeconds : 1, 1, 0.01, 3600),
         trackMode: input.transition && input.transition.trackMode === "specific" ? "specific" : "default",
         trackNumber: Math.round(safeNumber(input.transition && input.transition.trackNumber, 1, 1, 999)),
         durationSeconds: safeNumber(input.transition && input.transition.durationSeconds, 1, 0.01, 30),

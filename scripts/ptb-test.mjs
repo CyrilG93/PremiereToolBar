@@ -2077,7 +2077,10 @@ await applyAdjacentSelectedClipsTransitionSmokeTest();
 async function playheadTransitionTest() {
   const applied = [];
   let playhead = 5.1;
+  let selected = [];
   const clip = (track, start, end) => ({
+    getType: async () => 1,
+    getTrackIndex: async () => track - 1,
     getStartTime: async () => ({ seconds: start }),
     getEndTime: async () => ({ seconds: end }),
     createAddVideoTransitionAction(transition, options) {
@@ -2087,7 +2090,7 @@ async function playheadTransitionTest() {
   });
   const tracks = [[clip(1, 0, 5), clip(1, 5, 9)], [clip(2, 0, 5.2), clip(2, 5.2, 9)]];
   const sequence = {
-    getSelection: async () => ({ getTrackItems: async () => [] }),
+    getSelection: async () => ({ getTrackItems: async () => selected }),
     getPlayerPosition: async () => ({ seconds: playhead }),
     getVideoTrackCount: async () => tracks.length,
     getVideoTrack: async (index) => ({ getTrackItems: async () => tracks[index] })
@@ -2120,6 +2123,24 @@ async function playheadTransitionTest() {
   button.transition.trackNumber = 3;
   await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /does not exist/);
   assert.equal(applied.length, 1);
+  // The hybrid mode finds a selected clip's cut even when its neighbor is unselected.
+  button.transition.targetMode = "hybrid";
+  button.transition.trackNumber = 1;
+  button.transition.applyTo = "end";
+  button.transition.searchSeconds = 2;
+  selected = [tracks[0][0]];
+  playhead = 6.5;
+  await context.PTB_PREMIERE.applyButton(button);
+  assert.deepEqual(applied[1], { track: 1, start: 5, alignment: 0.5, single: false });
+  // A cut outside the configured range falls back to the selected clip edge.
+  button.transition.searchSeconds = 1;
+  await context.PTB_PREMIERE.applyButton(button);
+  assert.deepEqual(applied[2], { track: 1, start: 0, alignment: 0, single: false });
+  // With no selection, the hybrid mode searches the permitted track.
+  selected = [];
+  playhead = 5.2;
+  await context.PTB_PREMIERE.applyButton(button);
+  assert.deepEqual(applied[3], { track: 1, start: 5, alignment: 0.5, single: false });
 }
 await playheadTransitionTest();
 

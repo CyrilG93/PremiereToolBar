@@ -2384,11 +2384,17 @@
       if (catalogKind === "transition") {
         grid.appendChild(selectField(root.PTB_I18N.t("transitionTarget"), button.transition.targetMode, [
           { value: "selection", label: root.PTB_I18N.t("transitionSelection") },
-          { value: "playhead", label: root.PTB_I18N.t("transitionPlayhead") }
+          { value: "playhead", label: root.PTB_I18N.t("transitionPlayhead") },
+          { value: "hybrid", label: root.PTB_I18N.t("transitionHybrid") }
         ], (value) => {
           button.transition.targetMode = value;
           saveAndRender(root.PTB_I18N.t("statusSaved"));
         }));
+        if (button.transition.targetMode !== "selection") {
+          grid.appendChild(numberField(root.PTB_I18N.t("transitionSearchSeconds"), button.transition.searchSeconds, (value) => {
+            button.transition.searchSeconds = value;
+          }));
+        }
         grid.appendChild(selectField(root.PTB_I18N.t("transitionTrack"), button.transition.trackMode, [
           { value: "default", label: root.PTB_I18N.t("transitionTrackDefault") },
           { value: "specific", label: root.PTB_I18N.t("transitionTrackSpecific") }
@@ -2417,6 +2423,8 @@
       wrap.appendChild(grid);
       if (catalogKind === "transition" && button.transition.targetMode === "playhead") {
         wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("transitionPlayheadHelp")));
+      } else if (catalogKind === "transition" && button.transition.targetMode === "hybrid") {
+        wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("transitionHybridHelp")));
       } else if (catalogKind === "transition" && button.transition.applyTo === "center") {
         wrap.appendChild(el("p", "ptb-muted", root.PTB_I18N.t("transitionCenterHelp")));
       }
