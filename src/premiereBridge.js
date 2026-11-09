@@ -2851,27 +2851,32 @@
       throw new Error("Choose a Premiere " + mediaType + " transition first.");
     }
     const trackNumbers = mediaType === "video" && button.transition.trackMode === "specific" ? parseTransitionTrackNumbers(button.transition.trackNumbers) : null;
-    if (usePlayhead || useHybrid) {
-      const selectedForCut = useHybrid && items.length ? items : null;
-      const targets = await resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, button.transition.searchSeconds, selectedForCut);
-      if (targets.length) {
-        const result = await applyVideoEditPointTransitionActions(app, project, button, targets, "playhead");
-        await refreshSequenceView(sequence);
-        return result;
-      }
-      if (usePlayhead || !items.length) {
-        throw new Error("No cut between adjacent video clips within " + button.transition.searchSeconds + " seconds of the playhead on the chosen tracks.");
-      }
-      // Fall back to the existing selection behavior when no selected cut is close enough.
-    }
-    if (trackNumbers) {
-      // Restrict selected clips to the explicitly chosen video tracks.
+    const selectedVideoCount = items.filter(isVideoItem).length;
+    if (trackNumbers && !usePlayhead) {
+      // Restrict selection operations to the explicitly chosen video tracks.
       const filtered = [];
       for (const item of items) {
         const timing = await getTrackItemTiming(item);
         if (typeof timing.trackIndex === "number" && trackNumbers.includes(timing.trackIndex + 1)) filtered.push(item);
       }
       items = filtered;
+    }
+    if (useHybrid && selectedVideoCount && !items.some(isVideoItem)) {
+      throw new Error("No selected video clips on the chosen tracks.");
+    }
+    // Two or more selected video clips always use the existing selection behavior.
+    if (usePlayhead || (useHybrid && selectedVideoCount < 2)) {
+      const selectedForCut = useHybrid && selectedVideoCount === 1 ? items : null;
+      const targets = await resolvePlayheadVideoCutTargets(app, sequence, trackNumbers, button.transition.searchSeconds, selectedForCut);
+      if (targets.length) {
+        const result = await applyVideoEditPointTransitionActions(app, project, button, targets, "playhead");
+        await refreshSequenceView(sequence);
+        return result;
+      }
+      if (usePlayhead || selectedVideoCount === 0) {
+        throw new Error("No cut between adjacent video clips within " + button.transition.searchSeconds + " seconds of the playhead on the chosen tracks.");
+      }
+      // One selected clip falls back to the existing selection behavior when no cut is nearby.
     }
     const applyTargets = button.transition.applyTo === "both" ? ["start", "end"] : [button.transition.applyTo || "end"];
     logBridge("info", "Applying " + mediaType + " transition.", {

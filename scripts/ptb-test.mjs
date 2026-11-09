@@ -2148,6 +2148,17 @@ async function playheadTransitionTest() {
     { track: 1, start: 5, alignment: 0.5, single: false },
     { track: 2, start: 5.2, alignment: 0.5, single: false }
   ]);
+  // Two selected clips take priority over a closer cut on another permitted track.
+  selected = tracks[0];
+  playhead = 5.2;
+  await context.PTB_PREMIERE.applyButton(button);
+  assert.deepEqual(applied[6], { track: 1, start: 5, alignment: 0.5, single: false });
+  assert.equal(applied.length, 7);
+  // An empty selection with no nearby cut never falls back to an unrelated clip.
+  selected = [];
+  playhead = 12;
+  await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /No cut between adjacent/);
+  assert.equal(applied.length, 7);
   button.transition.trackNumbers = "1,no";
   await assert.rejects(() => context.PTB_PREMIERE.applyButton(button), /separated by commas/);
 }

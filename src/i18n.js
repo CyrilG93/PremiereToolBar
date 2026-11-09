@@ -146,7 +146,7 @@
     transitionPlayhead: "Nearest Cut to Playhead",
     transitionHybrid: "Selection + Nearest Cut",
     transitionSearchSeconds: "Search Distance (Seconds)",
-    transitionHybridHelp: "With selected clips, use their nearest cut within the search distance; otherwise apply the selected clip-edge setting. Without a selection, search all allowed video tracks.",
+    transitionHybridHelp: "Two or more selected clips use selection mode. With one selected clip, use its nearest cut or fall back to selection mode. With no selected clips, search the allowed video tracks.",
     transitionTrack: "Video Track",
     transitionTrackDefault: "Default (No Track Filter)",
     transitionTrackSpecific: "Specific Track",
