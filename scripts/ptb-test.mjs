@@ -901,6 +901,12 @@ async function capturePresetSmokeTest() {
         getKeyframeListAsTickTimes: async () => [],
         getValueAtTime: async () => ({ x: 0.5, y: 0.5 })
       };
+      // Premiere may return a Color directly instead of wrapping it in a keyframe.
+      const colorParam = {
+        displayName: "Map Black To",
+        getStartValue: async () => ({ red: 0.2, green: 0.4, blue: 0.8, alpha: 1 }),
+        isTimeVarying: () => false
+      };
       const motionComponent = {
         getDisplayName: async () => "Motion",
         getMatchName: async () => "",
@@ -910,8 +916,8 @@ async function capturePresetSmokeTest() {
       const component = {
         getDisplayName: async () => "Custom Blur",
         getMatchName: async () => "AE.ADBE Custom Blur",
-        getParamCount: () => 4,
-        getParam: (index) => (index === 3 ? arrayPointParam : (index === 2 ? staticPointParam : (index === 1 ? staticParam : param)))
+        getParamCount: () => 5,
+        getParam: (index) => (index === 4 ? colorParam : (index === 3 ? arrayPointParam : (index === 2 ? staticPointParam : (index === 1 ? staticParam : param))))
       };
       const item = {
         createAddVideoTransitionAction() {},
@@ -949,6 +955,8 @@ async function capturePresetSmokeTest() {
   assert.equal(stack.components[0].params[2].startValue.y, 538);
   assert.equal(stack.components[0].params[3].startValue.x, 936);
   assert.equal(stack.components[0].params[3].startValue.y, 514);
+  assert.equal(stack.components[0].params[4].startValue.kind, "color");
+  assert.equal(stack.components[0].params[4].startValue.blue, 0.8);
   const stackWithBaseParameters = await context.PTB_PREMIERE.captureSelectedStack({ includeIntrinsic: true, includeVideoEffects: true });
   assert.equal(stackWithBaseParameters.components[0].intrinsic, true);
   assert.equal(stackWithBaseParameters.components[0].displayName, "Motion");

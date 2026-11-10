@@ -3618,10 +3618,7 @@
   // Serialize a Premiere parameter value into JSON-safe data.
   function serializeValue(value) {
     const rawValue = unwrapParamValue(value);
-    const pointValue = readPointLikeValue(rawValue);
-    if (pointValue) {
-      return pointValue;
-    }
+    // Recognize colors first so point probing does not recurse on their object shape.
     if (rawValue && typeof rawValue === "object" && typeof rawValue.red === "number" && typeof rawValue.green === "number" && typeof rawValue.blue === "number") {
       return {
         kind: "color",
@@ -3630,6 +3627,10 @@
         blue: rawValue.blue,
         alpha: typeof rawValue.alpha === "number" ? rawValue.alpha : 1
       };
+    }
+    const pointValue = readPointLikeValue(rawValue);
+    if (pointValue) {
+      return pointValue;
     }
     if (rawValue && typeof rawValue === "object") {
       return {
@@ -3785,7 +3786,9 @@
       timeVarying = false;
     }
     const sampledStaticValue = keyframes.length ? undefined : await sampleStaticParamValue(app, param, sourceTiming);
-    const staticValue = chooseCapturedStaticValue(startKeyframe && startKeyframe.value, sampledStaticValue, captureOptions.preferSampledStaticValue === true);
+    // Color parameters can return a Color directly instead of a keyframe wrapper.
+    const startValue = startKeyframe && startKeyframe.value !== undefined ? startKeyframe.value : startKeyframe;
+    const staticValue = chooseCapturedStaticValue(startValue, sampledStaticValue, captureOptions.preferSampledStaticValue === true);
     const serializedStartValue = serializeValue(staticValue);
     if (isPointPresetValue(serializedStartValue)) {
       logBridge("info", "Captured point preset value.", {
