@@ -19,7 +19,7 @@ Tool Bar automatically follows Premiere Pro's Light, Dark, and Darkest interface
 3. Double-click the `.ccx` file in the unzipped folder, for example:
 
 ```text
-ToolBar-1.3.0.ccx
+ToolBar-1.4.0.ccx
 ```
 
 Creative Cloud Desktop should open Adobe's installer. Accept the installation, then reopen Premiere Pro.
