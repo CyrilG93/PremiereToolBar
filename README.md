@@ -114,6 +114,12 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 
 ## Changelog
 
+### 1.4.7 - 2026-11-16
+
+- Recover saved buttons and bars from an earlier Premiere version when Tool Bar opens with its default setup.
+- Improved capture of compatible effect colors in Premiere 2027.
+- Added centered video transitions near the playhead, with a configurable search distance, hybrid selection mode and multiple video tracks.
+
 ### 1.4.5 - 2026-11-09
 
 - Added centered video transitions near the playhead, with a configurable search distance.
