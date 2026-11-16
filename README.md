@@ -107,8 +107,8 @@ Premiere's UXP API can add native effects, edit exposed parameters, and add vide
 - Audio transitions are not exposed through a reliable documented UXP action.
 - Moving clips refuse an occupied destination track to avoid overwriting timeline material, but remove any adjacent video transitions because Premiere UXP does not expose their readable data or custom settings. Staircase actions are limited to selected video clips; Tower accepts video or audio clips and requires at least two clips. The descending staircase lifts the first clip so it also works from V1 and creates any required tracks automatically.
 - Transition Preset capture is disabled because Premiere UXP does not expose readable timeline transition data or custom settings.
-- Lumetri curve data can be preserved in exported Tool Bar JSON, but Premiere UXP does not expose a documented way to replay it.
-- Premiere UXP does not reliably capture or restore effect color picker values. This affects native effects such as Ultra Key and Tint, as well as third-party effects such as Glint (`AE.Impact_Glint_FX`); a captured preset may keep the default color or restore an incorrect color. Tool Bar displays a red warning beside captured effects where this limitation is detected.
+- Lumetri curves cannot currently be reliably captured or applied; Tool Bar displays a warning next to Lumetri presets.
+- On Premiere 2026 and earlier, effect color pickers may not capture or restore correctly, so Tool Bar displays a warning for affected presets. Premiere 2027 improved color handling; Tint has been tested, but other effects may behave differently.
 - Bezier keyframe interpolation is not fully recreated when applying captured presets.
 - Script buttons can store `.jsx` source, but direct script execution is not currently available through a documented Premiere UXP API.
 

@@ -925,6 +925,26 @@
     return knownColorEffect || (component.params || []).some(isCapturedColorParam);
   }
 
+  // Keep the warning on older hosts and whenever the host version is unavailable.
+  function shouldWarnAboutColorPickers() {
+    try {
+      const version = require("uxp").host.version;
+      const match = String(version || "").match(/^(\d+)(?:\.|$)/);
+      return !match || Number(match[1]) < 27;
+    } catch (error) {
+      return true;
+    }
+  }
+
+  // Lumetri curve data is not reliably captured or replayed on any supported host.
+  function componentHasLumetriCurves(component) {
+    if (!component || component.intrinsic) {
+      return false;
+    }
+    return String(component.matchName || "").toLowerCase() === "ae.adbe lumetri"
+      || String(component.displayName || "").toLowerCase() === "lumetri color";
+  }
+
   // Render captured effect names with a compact warning beside effects whose color pickers are unreliable in UXP.
   function renderPresetComponentSummary(stack) {
     const components = stack && Array.isArray(stack.components) ? stack.components : [];
@@ -935,9 +955,14 @@
     components.forEach((component) => {
       const row = el("div", "ptb-preset-component-row");
       row.appendChild(el("span", "ptb-preset-component-name", component.displayName || component.matchName || "Effect"));
-      if (componentHasColorPickerLimitation(component)) {
+      if (shouldWarnAboutColorPickers() && componentHasColorPickerLimitation(component)) {
         const warning = el("span", "ptb-preset-color-warning", root.PTB_I18N.t("colorPickerWarning"));
         warning.title = root.PTB_I18N.t("colorPickerWarningHelp");
+        row.appendChild(warning);
+      }
+      if (componentHasLumetriCurves(component)) {
+        const warning = el("span", "ptb-preset-color-warning", root.PTB_I18N.t("curveWarning"));
+        warning.title = root.PTB_I18N.t("curveWarningHelp");
         row.appendChild(warning);
       }
       list.appendChild(row);

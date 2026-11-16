@@ -716,6 +716,11 @@ function presetColorPickerWarningRenderSmokeTest() {
         }]
       }, {
         mediaType: "video",
+        matchName: "AE.ADBE Lumetri",
+        displayName: "Lumetri Color",
+        params: [{ index: 61, displayName: "Hue vs Hue", startValue: { kind: "raw", value: "" } }]
+      }, {
+        mediaType: "video",
         matchName: "AE.ADBE Gaussian Blur 2",
         displayName: "Gaussian Blur",
         params: [{
@@ -736,12 +741,19 @@ function presetColorPickerWarningRenderSmokeTest() {
   });
   const harness = renderSettingsHarness(config);
   const warnings = findAllByPredicate(harness.rootNode, (node) => String(node.className || "").split(/\s+/).includes("ptb-preset-color-warning"));
-  assert.equal(warnings.length, 2);
-  assert.ok(warnings.every((warning) => warning.textContent === "Color picker limitation"));
+  assert.equal(warnings.length, 3);
   assert.ok(warnings.every((warning) => warning.style.color === "var(--ptb-danger)"));
   assert.ok(harness.rootNode.textContent.includes("Ultra KeyColor picker limitation"));
   assert.ok(harness.rootNode.textContent.includes("Custom Color EffectColor picker limitation"));
+  assert.ok(harness.rootNode.textContent.includes("Lumetri ColorCurve limitation"));
   assert.equal(harness.rootNode.textContent.includes("Gaussian BlurColor picker limitation"), false);
+  // Premiere 2027 hides the color warning while Lumetri curves remain unsupported.
+  const modern = renderSettingsHarness(config, { require: () => ({ host: { version: "27.0.0" } }) });
+  assert.equal(modern.rootNode.textContent.includes("Color picker limitation"), false);
+  assert.ok(modern.rootNode.textContent.includes("Lumetri ColorCurve limitation"));
+  const legacy = renderSettingsHarness(config, { require: () => ({ host: { version: "26.5.0" } }) });
+  assert.ok(legacy.rootNode.textContent.includes("Ultra KeyColor picker limitation"));
+  assert.ok(legacy.rootNode.textContent.includes("Lumetri ColorCurve limitation"));
 }
 
 presetColorPickerWarningRenderSmokeTest();
