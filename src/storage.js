@@ -8,6 +8,8 @@
   const BACKUP_FILE_NAME = "ToolBar-config-backup.json";
   const EXTERNAL_CONFIG_FOLDER_NAME = "Tool Bar";
   const EXTERNAL_CONFIG_FILE_NAME = "ToolBar-config.json";
+  // Track user saves so a slow startup search cannot replace a newer edit.
+  let configRevision = 0;
 
   // Return plain objects only so corrupted localStorage values cannot leak into UI state.
   function asPlainObject(value) {
@@ -28,10 +30,32 @@
   // Save the toolbar configuration to persistent UXP localStorage.
   function saveConfig(config) {
     const normalized = root.PTB_SCHEMA.normalizeConfig(config);
+    configRevision += 1;
     root.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-    writeConfigBackup(normalized);
-    writeExternalConfig(normalized);
+    // Never let a pristine first-run configuration overwrite useful backups.
+    if (!isDefaultConfig(normalized)) {
+      writeConfigBackup(normalized);
+      writeExternalConfig(normalized);
+    }
     return normalized;
+  }
+
+  // Treat only the unchanged bundled configuration as safe to replace automatically.
+  function isDefaultConfig(config) {
+    const normalized = root.PTB_SCHEMA.normalizeConfig(config);
+    const bundled = root.PTB_SCHEMA.normalizeConfig(root.PTB_SCHEMA.createDefaultConfig());
+    normalized.activeCollectionId = bundled.activeCollectionId;
+    normalized.activeButtonId = bundled.activeButtonId;
+    return JSON.stringify(normalized) === JSON.stringify(bundled);
+  }
+
+  // Reject incomplete or unknown schemas instead of silently restoring defaults.
+  function parseBackup(raw) {
+    const config = JSON.parse(raw);
+    if (!config || config.schemaVersion !== root.PTB_SCHEMA.CONFIG_VERSION || !Array.isArray(config.buttons) || !Array.isArray(config.collections) || !Array.isArray(config.bars) || !config.collections.length) {
+      return null;
+    }
+    return root.PTB_SCHEMA.normalizeConfig(config);
   }
 
   // Read the localStorage payload without normalizing so the backup can restore only when needed.
@@ -129,7 +153,7 @@
       }
       const file = await storage.localFileSystem.getEntryWithUrl(toFileUrl(location.filePath));
       const raw = await file.read();
-      return root.PTB_SCHEMA.normalizeConfig(JSON.parse(raw));
+      return parseBackup(raw);
     } catch (error) {
       return null;
     }
@@ -180,40 +204,87 @@
     }
   }
 
-  // Restore the plugin-data backup when localStorage is empty after a reinstall/update.
-  async function restoreConfigBackup() {
+  // Search older versions of the same Premiere channel for this plugin's backup only.
+  async function readPreviousVersionConfig() {
+    const fs = getLocalFileSystem();
+    if (!fs || typeof fs.getDataFolder !== "function" || typeof fs.getEntryWithUrl !== "function") {
+      return null;
+    }
     try {
-      const existingConfig = readLocalStorageConfig();
-      if (existingConfig) {
-        const normalizedExisting = root.PTB_SCHEMA.normalizeConfig(existingConfig);
-        writeConfigBackup(normalizedExisting);
-        writeExternalConfig(normalizedExisting);
+      const dataFolder = await fs.getDataFolder();
+      const nativePath = String(dataFolder.nativePath || "").replace(/\\/g, "/");
+      const match = nativePath.match(/^(.*\/Adobe\/UXP\/PluginsStorage\/(?:PPRO|PPROBETA))\/(\d+)(\/External\/com\.cyrilplugin\.toolbar\/PluginData)\/?$/i);
+      if (!match) {
+        return null;
+      }
+      const versionsFolder = await fs.getEntryWithUrl(toFileUrl(match[1]));
+      const versions = (await versionsFolder.getEntries())
+        .filter((entry) => entry.isFolder && /^\d+$/.test(entry.name) && Number(entry.name) < Number(match[2]))
+        .sort((a, b) => Number(b.name) - Number(a.name));
+      for (const version of versions) {
+        try {
+          const file = await fs.getEntryWithUrl(toFileUrl(match[1] + "/" + version.name + match[3] + "/" + BACKUP_FILE_NAME));
+          const config = parseBackup(await file.read());
+          if (config && !isDefaultConfig(config)) {
+            return config;
+          }
+        } catch (error) {
+          // An older version may have no backup or contain invalid JSON.
+        }
+      }
+    } catch (error) {
+      console.warn("Tool Bar previous version backup search failed:", error);
+    }
+    return null;
+  }
+
+  // Recover a custom configuration only when the current one is still untouched.
+  async function restoreConfigBackup() {
+    const initialRevision = configRevision;
+    let existingConfig = null;
+    try {
+      existingConfig = readLocalStorageConfig();
+      if (existingConfig && !isDefaultConfig(existingConfig)) {
         return null;
       }
     } catch (error) {
       // A corrupt localStorage payload should not block the backup restore attempt.
     }
-    const externalConfig = await readExternalConfig();
-    if (externalConfig) {
-      root.localStorage.setItem(STORAGE_KEY, JSON.stringify(externalConfig));
-      writeConfigBackup(externalConfig);
-      return externalConfig;
-    }
     const localFileSystem = getLocalFileSystem();
-    if (!localFileSystem || typeof localFileSystem.getDataFolder !== "function") {
+    let restored = null;
+    try {
+      if (localFileSystem && typeof localFileSystem.getDataFolder === "function") {
+        const dataFolder = await localFileSystem.getDataFolder();
+        const file = await dataFolder.getEntry(BACKUP_FILE_NAME);
+        const localBackup = parseBackup(await file.read());
+        if (localBackup && !isDefaultConfig(localBackup)) {
+          restored = localBackup;
+        }
+      }
+    } catch (error) {
+      // Continue with the shared and previous-version backups.
+    }
+    const externalConfig = restored ? null : await readExternalConfig();
+    if (!restored && externalConfig && !isDefaultConfig(externalConfig)) {
+      restored = externalConfig;
+    }
+    if (!restored) {
+      restored = await readPreviousVersionConfig();
+    }
+    // Recheck localStorage after asynchronous reads in case another panel saved meanwhile.
+    if (!restored || configRevision !== initialRevision) {
       return null;
     }
     try {
-      const dataFolder = await localFileSystem.getDataFolder();
-      const file = typeof dataFolder.getEntry === "function"
-        ? await dataFolder.getEntry(BACKUP_FILE_NAME)
-        : await localFileSystem.getEntryWithUrl("plugin-data:/" + BACKUP_FILE_NAME);
-      const restored = root.PTB_SCHEMA.normalizeConfig(JSON.parse(await file.read()));
-      root.localStorage.setItem(STORAGE_KEY, JSON.stringify(restored));
-      return restored;
+      const current = readLocalStorageConfig();
+      if (current && !isDefaultConfig(current)) {
+        return null;
+      }
     } catch (error) {
-      return null;
+      // A damaged current configuration can still be recovered from a valid backup.
     }
+    root.localStorage.setItem(STORAGE_KEY, JSON.stringify(restored));
+    return restored;
   }
 
   // Export JSON to a user-selected file.

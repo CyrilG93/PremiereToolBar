@@ -37,6 +37,89 @@ assert.ok(adjustmentTemplateXml.includes("<IsAdjustmentLayer>true</IsAdjustmentL
 
 // Verify the first-run configuration always contains four dockable bars and the bundled Base Effects collection.
 const defaultConfig = schema.createDefaultConfig();
+
+// Exercise version recovery and preservation without touching real Premiere user data.
+async function testConfigRecovery() {
+  const base = "/Users/test/Library/Application Support/Adobe/UXP/PluginsStorage/PPRO";
+  const currentPath = base + "/27/External/com.cyrilplugin.toolbar/PluginData";
+  const previousPath = base + "/26/External/com.cyrilplugin.toolbar/PluginData/ToolBar-config-backup.json";
+  const externalPath = "/Users/test/Library/Application Support/Tool Bar/ToolBar-config.json";
+  const custom = JSON.parse(JSON.stringify(defaultConfig));
+  custom.collections[0].name = "My custom buttons";
+  const newer = JSON.parse(JSON.stringify(defaultConfig));
+  newer.collections[0].name = "New edit";
+  function makeHarness(initial, files, waitForVersions, windows) {
+    const platformBase = windows ? "C:/Users/test/AppData/Roaming/Adobe/UXP/PluginsStorage/PPRO" : base;
+    const platformCurrent = platformBase + "/27/External/com.cyrilplugin.toolbar/PluginData";
+    const values = new Map(initial ? [["com.cyrilplugin.toolbar.config.v2", JSON.stringify(initial)]] : []);
+    const entries = new Map(Object.entries(files));
+    const dataFolder = {
+      nativePath: windows ? platformCurrent.replace(/\//g, "\\") : platformCurrent,
+      async getEntry(name) {
+        const content = entries.get(platformCurrent + "/" + name);
+        if (content === undefined) throw new Error("missing");
+        return { read: async () => content };
+      },
+      async createFile(name) {
+        return { write: async (content) => entries.set(platformCurrent + "/" + name, content) };
+      }
+    };
+    const localFileSystem = {
+      getDataFolder: async () => dataFolder,
+      async getEntryWithUrl(url) {
+        const filename = decodeURI(url).replace(/^file:\/([A-Za-z]:)/, "$1").replace(/^file:/, "");
+        if (filename === platformBase) {
+          if (waitForVersions) await waitForVersions;
+          return { getEntries: async () => [{ name: "27", isFolder: true }, { name: "26", isFolder: true }, { name: "25", isFolder: true }] };
+        }
+        if (filename.endsWith("/Tool Bar")) return { createFile: async () => ({ write: async (content) => entries.set(externalPath, content) }) };
+        if (!entries.has(filename)) throw new Error("missing");
+        return { read: async () => entries.get(filename) };
+      },
+      createEntryWithUrl: async () => { throw new Error("exists"); }
+    };
+    const context = {
+      console, PTB_SCHEMA: schema,
+      localStorage: { getItem: (key) => values.get(key) || null, setItem: (key, value) => values.set(key, value) },
+      require: () => ({ storage: { localFileSystem, types: { folder: "folder" } } })
+    };
+    context.window = context;
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync(path.join(repoRoot, "src/storage.js"), "utf8"), context);
+    return { storage: context.PTB_STORAGE, entries, values };
+  }
+  const oldBackup = { [previousPath]: JSON.stringify(custom) };
+  const recovered = makeHarness(defaultConfig, oldBackup);
+  assert.equal((await recovered.storage.restoreConfigBackup()).collections[0].name, "My custom buttons");
+  assert.equal(JSON.parse(recovered.values.get("com.cyrilplugin.toolbar.config.v2")).collections[0].name, "My custom buttons");
+  const kept = makeHarness(newer, oldBackup);
+  assert.equal(await kept.storage.restoreConfigBackup(), null);
+  assert.equal(JSON.parse(kept.values.get("com.cyrilplugin.toolbar.config.v2")).collections[0].name, "New edit");
+  const defaultBackup = makeHarness(null, { [previousPath]: JSON.stringify(defaultConfig) });
+  assert.equal(await defaultBackup.storage.restoreConfigBackup(), null);
+  const windowsPrevious = "C:/Users/test/AppData/Roaming/Adobe/UXP/PluginsStorage/PPRO/26/External/com.cyrilplugin.toolbar/PluginData/ToolBar-config-backup.json";
+  const windowsRecovery = makeHarness(defaultConfig, { [windowsPrevious]: JSON.stringify(custom) }, null, true);
+  assert.equal((await windowsRecovery.storage.restoreConfigBackup()).collections[0].name, "My custom buttons");
+  const sharedBackup = makeHarness(defaultConfig, { ...oldBackup, [externalPath]: JSON.stringify(newer) });
+  assert.equal((await sharedBackup.storage.restoreConfigBackup()).collections[0].name, "New edit");
+  const localBackup = makeHarness(defaultConfig, { ...oldBackup, [externalPath]: JSON.stringify(newer), [currentPath + "/ToolBar-config-backup.json"]: JSON.stringify(custom) });
+  assert.equal((await localBackup.storage.restoreConfigBackup()).collections[0].name, "My custom buttons");
+  const corruptBackup = makeHarness(defaultConfig, { ...oldBackup, [externalPath]: "{invalid" });
+  assert.equal((await corruptBackup.storage.restoreConfigBackup()).collections[0].name, "My custom buttons");
+  const preserveExternal = makeHarness(defaultConfig, { [externalPath]: JSON.stringify(custom) });
+  preserveExternal.storage.saveConfig(defaultConfig);
+  assert.equal(preserveExternal.entries.get(externalPath), JSON.stringify(custom));
+  let releaseSearch;
+  const pendingSearch = new Promise((resolve) => { releaseSearch = resolve; });
+  const racing = makeHarness(defaultConfig, oldBackup, pendingSearch);
+  const restoration = racing.storage.restoreConfigBackup();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  racing.storage.saveConfig(newer);
+  releaseSearch();
+  assert.equal(await restoration, null);
+  assert.equal(JSON.parse(racing.values.get("com.cyrilplugin.toolbar.config.v2")).collections[0].name, "New edit");
+}
+await testConfigRecovery();
 assert.equal(defaultConfig.schemaVersion, 2);
 assert.equal(defaultConfig.bars.length, 4);
 assert.equal(defaultConfig.bars[0].id, "bar-1");

@@ -90,6 +90,8 @@ New installations start with the bundled `Base Effects` collection. Updates and 
 
 Use `Backup Buttons` in settings before major updates if you want a manual JSON copy.
 
+If Tool Bar starts with its unchanged default configuration, it also looks for a saved configuration from an earlier version of the same Premiere release channel (regular or beta). Your existing customized configuration takes priority. Keep a manual backup for extra protection.
+
 Tool Bar also keeps an automatic config copy outside the UXP plugin folder:
 
 - macOS: `~/Library/Application Support/Tool Bar/ToolBar-config.json`
